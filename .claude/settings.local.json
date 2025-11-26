@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__github__get_file_contents",
+      "mcp__deepwiki__read_wiki_contents",
+      "mcp__filesystem__fetch",
+      "Bash(grep:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
