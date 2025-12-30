@@ -9,18 +9,16 @@ Browser automation skill. Write custom Playwright code for any task and execute 
 
 ## Setup
 
-```bash
-cd <skill directory> && bun install
-```
+Dependencies are installed automatically on first run. Uses system Chrome by default (`channel: 'chrome'`). If Chrome not found, run `npx playwright install chromium`.
 
-Uses system Chrome by default (`channel: 'chrome'`). If not found, run `bunx playwright install chromium`.
+> **Note**: Must use `node` to run scripts. Playwright is incompatible with `bun` runtime due to pipe/child_process API differences.
 
 ## Workflow
 
 **1. Detect dev servers** (for localhost testing):
 
 ```bash
-cd <skill directory> && bun -e "require('./lib/helpers').detectDevServers().then(s => console.log(JSON.stringify(s)))"
+cd <skill directory> && node -e "require('./lib/helpers').detectDevServers().then(s => console.log(JSON.stringify(s)))"
 ```
 
 - 1 server found → use it automatically
@@ -46,14 +44,15 @@ const TARGET_URL = "http://localhost:3001"; // detected or user-provided
 **3. Execute**:
 
 ```bash
-cd <skill directory> && bun run.js /tmp/playwright-test-example.js
+cd <skill directory> && node run.js /tmp/playwright-test-example.js
 ```
 
 ## Key Rules
 
+- **Always execute via run.js** — never run scripts directly with `node /tmp/script.js`; run.js resolves dependencies from skill directory
 - **Always detect servers first** for localhost testing
 - **Write to /tmp** - never to skill directory or user's project
-- **Use `headless: false`** unless user requests headless
+- **Use `headless: false`** by default — Playwright is typically used when sites have Cloudflare/bot protection that blocks simpler fetch methods; headless browsers are easily detected
 - **Parameterize URLs** with `TARGET_URL` constant
 
 ## Helpers
@@ -94,6 +93,8 @@ See [references/patterns.md](references/patterns.md) for common patterns:
 
 | Issue                    | Solution                                                         |
 | ------------------------ | ---------------------------------------------------------------- |
-| Playwright not installed | `cd <skill dir> && bun install`                                  |
+| Cannot find playwright   | Must execute via `run.js`, not directly with `node script.js`    |
 | Browser doesn't open     | Check `headless: false`, ensure display available                |
 | Element not found        | Add `await page.waitForSelector('.element', { timeout: 10000 })` |
+| bun errors with pipes    | Use `node` instead of `bun` (Playwright incompatible with bun)   |
+| Cloudflare/bot detection | Use `headless: false` (default) — most sites detect headless     |

@@ -2,7 +2,7 @@
 
 Common automation patterns for reference. All scripts should:
 - Be written to `/tmp/playwright-test-*.js`
-- Use `headless: false` by default
+- Use `headless: false` by default (most sites detect headless browsers)
 - Parameterize URLs with `TARGET_URL` constant
 
 ## Table of Contents
@@ -200,7 +200,7 @@ const TARGET_URL = 'http://localhost:3001';
 For quick one-off tasks, execute inline without creating files:
 
 ```bash
-cd $SKILL_DIR && bun run.js "
+cd $SKILL_DIR && node run.js "
 const browser = await chromium.launch({ headless: false, channel: 'chrome' });
 const page = await browser.newPage();
 await page.goto('http://localhost:3001');
