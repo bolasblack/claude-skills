@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Universal Playwright Executor for Claude Code
  *
@@ -10,10 +9,10 @@
  * Ensures proper module resolution by running from skill directory.
  */
 
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
-const { execSync } = require('child_process');
+const fs = require("fs");
+const path = require("path");
+const crypto = require("crypto");
+const { execSync } = require("child_process");
 
 // Change to skill directory for proper module resolution
 process.chdir(__dirname);
@@ -23,7 +22,7 @@ process.chdir(__dirname);
  */
 function checkPlaywrightInstalled() {
   try {
-    require.resolve('playwright');
+    require.resolve("playwright");
     return true;
   } catch (e) {
     return false;
@@ -35,8 +34,9 @@ function checkPlaywrightInstalled() {
  */
 function commandExists(cmd) {
   try {
-    const checkCmd = process.platform === 'win32' ? `where ${cmd}` : `which ${cmd}`;
-    execSync(checkCmd, { stdio: 'ignore' });
+    const checkCmd =
+      process.platform === "win32" ? `where ${cmd}` : `which ${cmd}`;
+    execSync(checkCmd, { stdio: "ignore" });
     return true;
   } catch (e) {
     return false;
@@ -47,10 +47,10 @@ function commandExists(cmd) {
  * Get package manager (prefer bun over npm)
  */
 function getPackageManager() {
-  if (commandExists('bun')) {
-    return { install: 'bun install', exec: 'bunx' };
+  if (commandExists("bun")) {
+    return { install: "bun install", exec: "bunx" };
   }
-  return { install: 'npm install', exec: 'npx' };
+  return { install: "npm install", exec: "npx" };
 }
 
 /**
@@ -58,31 +58,17 @@ function getPackageManager() {
  */
 function installPlaywrightLib() {
   const pm = getPackageManager();
-  console.log(`Playwright not found. Installing with ${pm.install.split(' ')[0]}...`);
+  console.log(
+    `Playwright not found. Installing with ${pm.install.split(" ")[0]}...`
+  );
   try {
-    execSync(pm.install, { stdio: 'inherit', cwd: __dirname });
-    console.log('Playwright library installed successfully');
+    execSync(pm.install, { stdio: "inherit", cwd: __dirname });
+    console.log("Playwright library installed successfully");
     console.log('Note: Using system Chrome by default (channel: "chrome")');
     return true;
   } catch (e) {
-    console.error('Failed to install Playwright:', e.message);
-    console.error('Please run manually: cd', __dirname, '&& npm install');
-    return false;
-  }
-}
-
-/**
- * Install Chromium browser via Playwright
- */
-function installChromium() {
-  const pm = getPackageManager();
-  console.log('Installing Chromium browser...');
-  try {
-    execSync(`${pm.exec} playwright install chromium`, { stdio: 'inherit', cwd: __dirname });
-    console.log('Chromium installed successfully');
-    return true;
-  } catch (e) {
-    console.error('Failed to install Chromium:', e.message);
+    console.error("Failed to install Playwright:", e.message);
+    console.error("Please run manually: cd", __dirname, "&& npm install");
     return false;
   }
 }
@@ -97,27 +83,27 @@ function getCodeToExecute() {
   if (args.length > 0 && fs.existsSync(args[0])) {
     const filePath = path.resolve(args[0]);
     console.log(`Executing file: ${filePath}`);
-    return fs.readFileSync(filePath, 'utf8');
+    return fs.readFileSync(filePath, "utf8");
   }
 
   // Case 2: Inline code provided as argument
   if (args.length > 0) {
-    console.log('Executing inline code');
-    return args.join(' ');
+    console.log("Executing inline code");
+    return args.join(" ");
   }
 
   // Case 3: Code from stdin
   if (!process.stdin.isTTY) {
-    console.log('Reading from stdin');
-    return fs.readFileSync(0, 'utf8');
+    console.log("Reading from stdin");
+    return fs.readFileSync(0, "utf8");
   }
 
   // No input
-  console.error('No code to execute');
-  console.error('Usage:');
-  console.error('  node run.js script.js          # Execute file');
+  console.error("No code to execute");
+  console.error("Usage:");
+  console.error("  node run.js script.js          # Execute file");
   console.error('  node run.js "code here"        # Execute inline');
-  console.error('  cat script.js | node run.js    # Execute from stdin');
+  console.error("  cat script.js | node run.js    # Execute from stdin");
   process.exit(1);
 }
 
@@ -127,10 +113,12 @@ function getCodeToExecute() {
 function cleanupOldTempFiles() {
   try {
     const files = fs.readdirSync(__dirname);
-    const tempFiles = files.filter(f => f.startsWith('.temp-execution-') && f.endsWith('.js'));
+    const tempFiles = files.filter(
+      (f) => f.startsWith(".temp-execution-") && f.endsWith(".js")
+    );
 
     if (tempFiles.length > 0) {
-      tempFiles.forEach(file => {
+      tempFiles.forEach((file) => {
         const filePath = path.join(__dirname, file);
         try {
           fs.unlinkSync(filePath);
@@ -149,8 +137,9 @@ function cleanupOldTempFiles() {
  */
 function wrapCodeIfNeeded(code) {
   // Check if code already has require() and async structure
-  const hasRequire = code.includes('require(');
-  const hasAsyncIIFE = code.includes('(async () => {') || code.includes('(async()=>{');
+  const hasRequire = code.includes("require(");
+  const hasAsyncIIFE =
+    code.includes("(async () => {") || code.includes("(async()=>{");
 
   // If it's already a complete script, return as-is
   if (hasRequire && hasAsyncIIFE) {
@@ -213,7 +202,7 @@ const DEFAULT_LAUNCH_OPTIONS = { channel: 'chrome' };
  * Main execution
  */
 async function main() {
-  console.log('Playwright Skill - Universal Executor\n');
+  console.log("Playwright Skill - Universal Executor\n");
 
   // Clean up old temp files from previous runs
   cleanupOldTempFiles();
@@ -231,34 +220,35 @@ async function main() {
   const code = wrapCodeIfNeeded(rawCode);
 
   // Create temporary file with secure random name
-  const randomId = crypto.randomBytes(16).toString('hex');
+  const randomId = crypto.randomBytes(16).toString("hex");
   const tempFile = path.join(__dirname, `.temp-execution-${randomId}.js`);
 
   try {
     // Write code to temp file
-    fs.writeFileSync(tempFile, code, 'utf8');
+    fs.writeFileSync(tempFile, code, "utf8");
 
     // Execute the code
-    console.log('Starting automation...\n');
+    console.log("Starting automation...\n");
     require(tempFile);
 
     // Clean up require cache to prevent memory leak
     delete require.cache[require.resolve(tempFile)];
-
   } catch (error) {
-    console.error('Execution failed:', error.message);
+    console.error("Execution failed:", error.message);
     if (error.stack) {
-      console.error('\nStack trace:');
+      console.error("\nStack trace:");
       console.error(error.stack);
     }
     // Clean up require cache even on error
-    try { delete require.cache[require.resolve(tempFile)]; } catch (e) {}
+    try {
+      delete require.cache[require.resolve(tempFile)];
+    } catch (e) {}
     process.exit(1);
   }
 }
 
 // Run main function
-main().catch(error => {
-  console.error('Fatal error:', error.message);
+main().catch((error) => {
+  console.error("Fatal error:", error.message);
   process.exit(1);
 });

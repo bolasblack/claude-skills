@@ -4,7 +4,9 @@
       "mcp__github__get_file_contents",
       "mcp__deepwiki__read_wiki_contents",
       "mcp__filesystem__fetch",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(git commit:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
