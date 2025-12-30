@@ -10,13 +10,14 @@
 | HSL      | `hsl(30, 93%, 54%)`                       | Hue, saturation, lightness      |
 | HSLA     | `hsla(30, 93%, 54%, 0.5)`                 | With alpha                      |
 | HSV/HSB  | `hsv(30, 89%, 97%)`                       | Hue, saturation, value          |
-| CMYK     | `cmyk(0%, 40%, 89%, 3%)`                  | Print color space               |
 | LAB      | `lab(70 30 70)`                           | Perceptual color space          |
 | LCH      | `lch(70 76 64)`                           | Cylindrical LAB                 |
 | oklch    | `oklch(0.75 0.16 55)`                     | Modern perceptual (CSS Color 4) |
 | oklab    | `oklab(0.75 0.05 0.15)`                   | Modern perceptual (CSS Color 4) |
 | ANSI 16  | `ansi:9`, `ansi:red`, `ansi:bright-green` | Standard terminal colors (0-15) |
 | ANSI 256 | `ansi256:208`, `256:214`                  | Extended terminal palette       |
+
+**Note:** CMYK is output-only. Use `convert` command to get CMYK values from other formats.
 
 ## ANSI 16 Color Names
 

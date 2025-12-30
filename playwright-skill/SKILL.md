@@ -1,5 +1,5 @@
 ---
-name: Playwright Browser Automation
+name: playwright
 description: Complete browser automation with Playwright. Auto-detects dev servers, writes clean test scripts to /tmp. Test pages, fill forms, take screenshots, check responsive design, validate UX, test login flows, check links, automate any browser task. Use when user wants to test websites, automate browser interactions, validate web functionality, or perform any browser-based testing.
 ---
 
@@ -31,11 +31,11 @@ cd <skill directory> && bun -e "require('./lib/helpers').detectDevServers().then
 
 ```javascript
 // /tmp/playwright-test-example.js
-const { chromium } = require('playwright');
-const TARGET_URL = 'http://localhost:3001'; // detected or user-provided
+const { chromium } = require("playwright");
+const TARGET_URL = "http://localhost:3001"; // detected or user-provided
 
 (async () => {
-  const browser = await chromium.launch({ headless: false, channel: 'chrome' });
+  const browser = await chromium.launch({ headless: false, channel: "chrome" });
   const page = await browser.newPage();
   await page.goto(TARGET_URL);
   // ... automation code ...
@@ -61,13 +61,13 @@ cd <skill directory> && bun run.js /tmp/playwright-test-example.js
 Optional utilities in `lib/helpers.js`:
 
 ```javascript
-const helpers = require('./lib/helpers');
+const helpers = require("./lib/helpers");
 
-await helpers.detectDevServers();           // Find running dev servers
-await helpers.safeClick(page, selector);    // Click with retry
+await helpers.detectDevServers(); // Find running dev servers
+await helpers.safeClick(page, selector); // Click with retry
 await helpers.safeType(page, selector, text); // Type with clear
-await helpers.takeScreenshot(page, name);   // Timestamped screenshot
-await helpers.handleCookieBanner(page);     // Dismiss cookie popups
+await helpers.takeScreenshot(page, name); // Timestamped screenshot
+await helpers.handleCookieBanner(page); // Dismiss cookie popups
 await helpers.extractTableData(page, selector); // Get table as JSON
 ```
 
@@ -92,8 +92,8 @@ See [references/patterns.md](references/patterns.md) for common patterns:
 
 ## Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| Playwright not installed | `cd <skill dir> && bun install` |
-| Browser doesn't open | Check `headless: false`, ensure display available |
-| Element not found | Add `await page.waitForSelector('.element', { timeout: 10000 })` |
+| Issue                    | Solution                                                         |
+| ------------------------ | ---------------------------------------------------------------- |
+| Playwright not installed | `cd <skill dir> && bun install`                                  |
+| Browser doesn't open     | Check `headless: false`, ensure display available                |
+| Element not found        | Add `await page.waitForSelector('.element', { timeout: 10000 })` |

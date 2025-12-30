@@ -342,6 +342,20 @@ function requireColor(input: string | undefined, argName = "color"): culori.Colo
   return color;
 }
 
+function requirePositiveInt(input: string | undefined, defaultValue: number, argName = "count"): number {
+  if (!input) {
+    return defaultValue;
+  }
+
+  const value = parseInt(input, 10);
+  if (Number.isNaN(value) || value <= 0) {
+    console.error(`Error: ${argName} must be a positive integer, got "${input}"`);
+    process.exit(1);
+  }
+
+  return value;
+}
+
 // ============================================================================
 // Color Conversion
 // ============================================================================
@@ -469,6 +483,8 @@ const HARMONY_CONFIGS: Record<
   mono: { name: "Monochromatic", custom: createMonochromatic },
 };
 
+const VALID_HARMONY_TYPES = Object.keys(HARMONY_CONFIGS).join(", ");
+
 function getHarmony(
   color: culori.Color,
   type: string
@@ -476,7 +492,9 @@ function getHarmony(
   const config = HARMONY_CONFIGS[type.toLowerCase() as HarmonyType];
 
   if (!config) {
-    return { name: "Unknown", colors: [color] };
+    console.error(`Error: Unknown harmony type "${type}"`);
+    console.error(`Valid types: ${VALID_HARMONY_TYPES}`);
+    process.exit(1);
   }
 
   if (config.custom) {
@@ -559,10 +577,11 @@ function checkContrast(color1: culori.Color, color2: culori.Color): ContrastResu
 // ============================================================================
 
 function applyMatrix(rgb: RGB, matrix: number[][]): RGB {
+  const clamp = (n: number) => Math.max(0, Math.min(255, Math.round(n)));
   return {
-    r: Math.round(matrix[0][0] * rgb.r + matrix[0][1] * rgb.g + matrix[0][2] * rgb.b),
-    g: Math.round(matrix[1][0] * rgb.r + matrix[1][1] * rgb.g + matrix[1][2] * rgb.b),
-    b: Math.round(matrix[2][0] * rgb.r + matrix[2][1] * rgb.g + matrix[2][2] * rgb.b),
+    r: clamp(matrix[0][0] * rgb.r + matrix[0][1] * rgb.g + matrix[0][2] * rgb.b),
+    g: clamp(matrix[1][0] * rgb.r + matrix[1][1] * rgb.g + matrix[1][2] * rgb.b),
+    b: clamp(matrix[2][0] * rgb.r + matrix[2][1] * rgb.g + matrix[2][2] * rgb.b),
   };
 }
 
@@ -593,7 +612,7 @@ function printColorFormats(formats: ColorFormats): void {
   console.log(`  oklch:    ${formats.oklch}`);
   console.log(`  oklab:    ${formats.oklab}`);
   console.log();
-  console.log(`  ANSI 24b: ${formats.ansi}`);
+  console.log(`  ANSI 24b: ${formats.ansiBlock} ${formats.ansi}`);
   console.log(
     `  ANSI 16:  ${makeColorBlock(ANSI_16_COLORS[formats.ansi16.code].rgb)} ${formats.ansi16.code} (${formats.ansi16.name})${approx16}`
   );
@@ -822,21 +841,21 @@ const commands = {
 
   tints(args: string[]): void {
     const color = requireColor(args[0]);
-    const count = parseInt(args[1] ?? "5", 10);
+    const count = requirePositiveInt(args[1], 5);
     const formats = convertToAllFormats(color);
     printPalette("Tints (lighter)", generateTints(color, count), formats);
   },
 
   shades(args: string[]): void {
     const color = requireColor(args[0]);
-    const count = parseInt(args[1] ?? "5", 10);
+    const count = requirePositiveInt(args[1], 5);
     const formats = convertToAllFormats(color);
     printPalette("Shades (darker)", generateShades(color, count), formats);
   },
 
   palette(args: string[]): void {
     const color = requireColor(args[0]);
-    const count = parseInt(args[1] ?? "10", 10);
+    const count = requirePositiveInt(args[1], 10);
     const formats = convertToAllFormats(color);
 
     const half = Math.floor(count / 2);
