@@ -20,3 +20,7 @@ Invoke skills using the Skill tool during conversation.
 - Keep each skill focused and single-purpose
 - Use descriptive file names (e.g., `code-review.md`, `git-commit.md`)
 - Write prompts in English for consistency
+- After creating a new skill, symlink it to `.claude/skills/`:
+  ```bash
+  cd .claude/skills && ln -s ../../<skill-name>
+  ```
