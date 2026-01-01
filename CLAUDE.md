@@ -18,9 +18,13 @@ Invoke skills using the Skill tool during conversation.
 ## Guidelines
 
 - Keep each skill focused and single-purpose
-- Use descriptive file names (e.g., `code-review.md`, `git-commit.md`)
+- Skill directory names must end with `-skill` (e.g., `color-master-skill`, `playwright-skill`)
 - Write prompts in English for consistency
 - After creating a new skill, symlink it to `.claude/skills/`:
   ```bash
   cd .claude/skills && ln -s ../../<skill-name>
+  ```
+- Also install it as a user skill:
+  ```bash
+  ./scripts/install-skill-symlink.sh <skill-name>
   ```
