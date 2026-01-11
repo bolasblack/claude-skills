@@ -4,7 +4,11 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-USER_SKILLS_DIR="$HOME/.claude/skills"
+TARGET_ROOTS=("$HOME/.claude" "$HOME/.codex")
+
+# Global counters
+TOTAL_INSTALLED=0
+TOTAL_SKIPPED=0
 
 usage() {
     echo "Usage: $0 <skill-name|ALL>"
@@ -27,7 +31,6 @@ usage() {
 install_skill() {
     local skill_name="$1"
     local skill_path="$PROJECT_DIR/$skill_name"
-    local target_path="$USER_SKILLS_DIR/$skill_name"
 
     if [[ ! -d "$skill_path" ]]; then
         echo "Error: Skill directory not found: $skill_path"
@@ -39,13 +42,25 @@ install_skill() {
         return 1
     fi
 
-    if [[ -e "$target_path" ]]; then
-        echo "Skipped: $skill_name (skill folder already exists)"
-        return 2
-    fi
+    echo "[$skill_name]"
 
-    ln -s "$skill_path" "$target_path"
-    echo "Installed: $skill_name"
+    for root in "${TARGET_ROOTS[@]}"; do
+        if [[ -d "$root" ]]; then
+            local root_name="$(basename "$root")"
+            local skills_dir="$root/skills"
+            mkdir -p "$skills_dir"
+            local target_path="$skills_dir/$skill_name"
+
+            if [[ -e "$target_path" ]]; then
+                echo "  - $root_name: Skipped (already exists)"
+                ((TOTAL_SKIPPED++))
+            else
+                ln -s "$skill_path" "$target_path"
+                echo "  - $root_name: Installed"
+                ((TOTAL_INSTALLED++))
+            fi
+        fi
+    done
     return 0
 }
 
@@ -55,28 +70,18 @@ if [[ $# -eq 0 ]]; then
 fi
 
 # Ensure target directory exists
-mkdir -p "$USER_SKILLS_DIR"
+
 
 if [[ "$1" == "ALL" ]]; then
-    installed=0
-    skipped=0
-
     for dir in "$PROJECT_DIR"/*-skill; do
         if [[ -d "$dir" && -f "$dir/SKILL.md" ]]; then
             skill_name="$(basename "$dir")"
-            # Capture return code to avoid `set -e` exit on non-zero
-            ret=0
-            install_skill "$skill_name" || ret=$?
-            case $ret in
-                # `|| true` prevents `set -e` exit when var increments from 0
-                0) ((installed++)) || true ;;
-                2) ((skipped++)) || true ;;
-            esac
+            install_skill "$skill_name"
         fi
     done
 
     echo ""
-    echo "Done: $installed installed, $skipped skipped"
+    echo "Done: $TOTAL_INSTALLED links installed, $TOTAL_SKIPPED targets skipped"
 else
     install_skill "$1"
 fi
