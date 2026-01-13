@@ -16,6 +16,7 @@ A Claude Code skill for creating distinctive, production-grade frontend interfac
 ## Usage
 
 The skill activates when you mention:
+
 - "Build a landing page"
 - "Create a dashboard"
 - "Design a React component"
@@ -24,5 +25,8 @@ The skill activates when you mention:
 ## Acknowledgments
 
 This skill was inspired by and incorporates ideas from:
+
 - [anthropics/claude-code/plugins/frontend-design](https://github.com/anthropics/claude-code/tree/main/plugins/frontend-design/skills/frontend-design)
 - [superdesigndev/superdesign](https://github.com/superdesigndev/superdesign)
+- [Improve frontend-design skill clarity and actionability #210](https://github.com/anthropics/skills/pull/210)
+  - [Teaching Claude to Design Better: Improving Anthropic's Frontend Design Skill](https://www.justinwetch.com/blog/improvingclaudefrontend)

@@ -1,57 +1,75 @@
-# Claude Skills
+# Claude Extensions
 
-Personal collection of Claude Code skill prompts.
+Personal collection of Claude Code skills, commands, and agents.
+Compatible with **Claude Code**, **Codex**, and **OpenCode**.
 
 ## Skills
 
 | Skill | Description |
 |-------|-------------|
-| [color-master-skill](./color-master-skill/) | Convert colors between formats (HEX, RGB, HSL, CMYK, LAB, LCH, oklch, ANSI), generate color harmonies, check WCAG accessibility, and simulate color blindness |
-| [frontend-design-skill](./frontend-design-skill/) | Create distinctive, production-grade frontend interfaces with high design quality |
-| [playwright-skill](./playwright-skill/) | Complete browser automation with Playwright. Auto-detects dev servers, writes test scripts, takes screenshots, validates web functionality |
-| [seo-site-audit](./seo-site-audit/) | Website SEO / technical SEO audit with engineering-ready backlog. Covers robots.txt, sitemap, canonical, redirects, meta tags, OG/Twitter, JSON-LD, internal linking, Core Web Vitals |
-| [seo-article-optimizer](./seo-article-optimizer/) | Single article/landing page SEO optimization. Includes keyword analysis, readability scoring, heading structure, meta title/description, URL slug, internal links, featured snippet opportunities |
+| [color-master](./skills/color-master/) | Convert colors between formats (HEX, RGB, HSL, CMYK, LAB, LCH, oklch, ANSI), generate color harmonies, check WCAG accessibility, and simulate color blindness |
+| [frontend-design](./skills/frontend-design/) | Create distinctive, production-grade frontend interfaces with high design quality |
+| [playwright](./skills/playwright/) | Complete browser automation with Playwright. Auto-detects dev servers, writes test scripts, takes screenshots, validates web functionality |
+| [seo-site-audit](./skills/seo-site-audit/) | Website SEO / technical SEO audit with engineering-ready backlog. Covers robots.txt, sitemap, canonical, redirects, meta tags, OG/Twitter, JSON-LD, internal linking, Core Web Vitals |
+| [seo-article-optimizer](./skills/seo-article-optimizer/) | Single article/landing page SEO optimization. Includes keyword analysis, readability scoring, heading structure, meta title/description, URL slug, internal links, featured snippet opportunities |
+| [skill-reviewer](./skills/skill-reviewer/) | Reviews Claude Code skills against official best practices. Validates YAML frontmatter, checks SKILL.md length, verifies progressive disclosure patterns, assesses description quality |
+| [parallel-agent-workflow](./skills/parallel-agent-workflow/) | Coordinate multiple agents working in parallel using git worktrees to avoid file conflicts. Use for multi-component refactoring or parallel feature development |
+| [skill-composer](./skills/skill-composer/) | Create and improve Claude Code Skills following official best practices. Includes step-by-step workflow, description patterns, and real-world examples |
+| [command-creator](./skills/command-creator/) | Guide for creating Claude Code slash commands. Helps define command structure, frontmatter, arguments, and best practices |
 
-## Usage
+## Agents
 
-1. Copy a skill directory to your Claude Code skills location:
-   - Global: `~/.claude/skills/<skill-name>/`
-   - Project: `<project>/.claude/skills/<skill-name>/`
+| Agent | Description |
+|-------|-------------|
+| [code-reviewer](./agents/code-reviewer/) | Principled code reviewer in Uncle Bob's tradition - direct, principle-based, focused on craftsmanship |
+| [js-code-simplifier](./agents/js-code-simplifier/) | Simplifies and refines JavaScript/TypeScript code for clarity, consistency, and maintainability while preserving all functionality |
+| [security-auditor](./agents/security-auditor/) | Expert security auditor specializing in comprehensive security assessments, compliance validation, and risk management |
+| [prompt-injection-auditor](./agents/prompt-injection-auditor/) | Expert in detecting prompt injection attacks, invisible characters, AI security review bypasses, and LLM-specific security risks |
 
-2. The skill will be available in your Claude Code conversations.
+## Installation
+
+Install extensions as symlinks to your AI coding tool:
+
+```bash
+./scripts/install.sh ALL                    # Install all extensions of all types
+./scripts/install.sh skills ALL             # Install all skills
+./scripts/install.sh skills color-master    # Install specific skill
+./scripts/install.sh commands ALL           # Install all commands
+./scripts/install.sh agents code-reviewer   # Install specific agent
+```
+
+## Compatibility
+
+| Type     | Claude Code | Codex | OpenCode |
+|----------|-------------|-------|----------|
+| Skills   | ✓           | ✓     | ✓        |
+| Commands | ✓           | ✗     | ✓        |
+| Agents   | ✓           | ✗     | ✓        |
 
 ## Structure
 
 ```
 .
-├── color-master-skill/
-│   ├── SKILL.md
-│   ├── package.json
-│   └── scripts/color.ts
-├── frontend-design-skill/
-│   └── SKILL.md
-├── playwright-skill/
-│   ├── SKILL.md
-│   ├── run.js
-│   ├── lib/
-│   └── package.json
-├── seo-site-audit/
-│   ├── SKILL.md
-│   ├── reference.md
-│   └── templates/
-├── seo-article-optimizer/
-│   ├── SKILL.md
-│   ├── reference.md
-│   └── templates/
-└── ...
+├── skills/
+│   ├── color-master/
+│   │   ├── SKILL.md
+│   │   └── ...
+│   └── ...
+├── commands/
+│   └── <command-name>/
+│       └── COMMAND.md
+├── agents/
+│   ├── code-reviewer/
+│   │   └── AGENT.md
+│   └── ...
+└── scripts/
+    └── install.sh
 ```
-
-Each skill has its own directory with a `SKILL.md` file containing the skill definition and usage instructions.
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on importing or creating skills.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on importing or creating extensions.
 
 ## License
 
-Personal use. Individual skills may have their own licenses.
+Personal use. Individual extensions may have their own licenses.

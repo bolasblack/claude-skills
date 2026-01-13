@@ -1,30 +1,40 @@
-# Claude Skills
+# Claude Extensions
 
-Personal collection of Claude Code skill prompts.
+Personal collection of Claude Code skills, commands, and agents.
+Compatible with Claude Code, Codex, and OpenCode.
 
 ## Structure
 
 ```
 .
-├── skill-a/         # Each skill has its own directory
-├── skill-b/
-└── ...
+├── skills/          # Skill definitions (SKILL.md)
+├── commands/        # Command definitions (COMMAND.md)
+├── agents/          # Agent definitions (AGENT.md)
+└── scripts/         # Installation and utility scripts
 ```
 
 ## Usage
 
-Invoke skills using the Skill tool during conversation.
+Install extensions using the installation script:
+
+```bash
+./scripts/install.sh ALL                    # Install all extensions of all types
+./scripts/install.sh skills ALL             # Install all skills
+./scripts/install.sh skills color-master    # Install specific skill
+./scripts/install.sh commands ALL           # Install all commands
+./scripts/install.sh agents code-reviewer   # Install specific agent
+```
+
+## Compatibility
+
+| Type     | Claude Code | Codex | OpenCode |
+|----------|-------------|-------|----------|
+| Skills   | ✓           | ✓     | ✓        |
+| Commands | ✓           | ✗     | ✓        |
+| Agents   | ✓           | ✗     | ✓        |
 
 ## Guidelines
 
-- Keep each skill focused and single-purpose
-- Skill directory names must end with `-skill` (e.g., `color-master-skill`, `playwright-skill`)
+- Keep each extension focused and single-purpose
 - Write prompts in English for consistency
-- After creating a new skill, symlink it to `.claude/skills/`:
-  ```bash
-  cd .claude/skills && ln -s ../../<skill-name>
-  ```
-- Also install it as a user skill:
-  ```bash
-  ./scripts/install-skill-symlink.sh <skill-name>
-  ```
+- Use the installation script to set up symlinks

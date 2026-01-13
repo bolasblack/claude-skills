@@ -1,100 +1,153 @@
-# Skill 开发与导入指南
+# Extension Development Guide
 
-本文档总结了导入或创建 Claude Code Skill 的完整流程。
+Guide for importing or creating Claude Code skills, commands, and agents.
 
-## 目录结构
+## Directory Structure
 
 ```
-claude-skills/
-├── .claude/
-│   └── agents/           # 项目级 subagent（可选）
-├── CLAUDE.md             # 项目说明
-├── CONTRIBUTING.md       # 本指南
-└── <skill-name>/         # 每个 skill 一个目录
-    ├── SKILL.md          # Skill 文档和使用说明（必须）
-    └── ...               # 其他必要文件
+claude-extensions/
+├── skills/
+│   └── <skill-name>/
+│       ├── SKILL.md          # Required
+│       └── ...
+├── commands/
+│   └── <command-name>/
+│       ├── COMMAND.md        # Required
+│       └── ...
+├── agents/
+│   └── <agent-name>/
+│       ├── AGENT.md          # Required
+│       └── ...
+└── scripts/
+    └── install.sh            # Installation script
 ```
 
 ---
 
-## 一、从其他地方导入 Skill
+## Importing Extensions
 
-### 1. 安全检查（重要！）
+### 1. Security Check (Important!)
 
-导入前必须检查源文件是否包含：
-- 不可见字符（零宽字符等）
-- Prompt injection 风险
-- 恶意代码
+Before importing, check source files for:
+- Invisible characters (zero-width characters, etc.)
+- Prompt injection risks
+- Malicious code
 
-### 2. 筛选必要文件
+### 2. Filter Necessary Files
 
-只保留 skill 运行必需的文件，删除：
-- Plugin 元信息目录（如 `.claude-plugin/`）
-- LICENSE、README.md、CONTRIBUTING.md 等
-- 测试文件、CI 配置等
+Keep only essential files, remove:
+- Plugin meta directories (e.g., `.claude-plugin/`)
+- LICENSE, README.md, CONTRIBUTING.md
+- Test files, CI configs, etc.
 
-**通常需要保留：**
-- `SKILL.md` - Skill 文档（必须）
-- 核心代码文件
-- `package.json`（如果有依赖）
+**Usually keep:**
+- `SKILL.md` / `COMMAND.md` / `AGENT.md` - Required
+- Core code files
+- `package.json` (if dependencies exist)
 
-### 3. 根据需求修改
+### 3. Modify as Needed
 
-常见修改：
-- 包管理器偏好（npm/bun/pnpm）
-- 依赖安装策略（自动/手动）
-- 默认配置调整
-
----
-
-## 二、代码审查
-
-### 使用 Subagent 审查
-
-```
-让 @agent-code-reviewer , @agent-security-auditor , @agent-prompt-injection-auditor 来 review 一下 @<skill-dir>/ 里的代码
-```
-
-### 区分问题优先级
-
-| 类型 | 处理方式 |
-|------|---------|
-| 真正的 bug | 必须修复 |
-| 设计决策 | 评估后决定是否接受 |
-| 过度设计建议 | 通常忽略 |
-
-**常见"过度设计"：**
-- 完整的 package.json 元信息（skill 不是 npm 包）
-- TypeScript 重写
-- 完整测试套件
-- 复杂的日志系统
-- 沙箱环境
+Common modifications:
+- Package manager preference (npm/bun/pnpm)
+- Dependency installation strategy
+- Default configuration adjustments
 
 ---
 
-## 三、修复问题
+## Code Review
+
+### Using Subagents
+
+```
+Let @agent-code-reviewer, @agent-security-auditor, @agent-prompt-injection-auditor review the code in @<extension-dir>/
+```
+
+### Prioritize Issues
+
+| Type | Action |
+|------|--------|
+| Actual bugs | Must fix |
+| Design decisions | Evaluate then decide |
+| Over-engineering suggestions | Usually ignore |
+
+**Common "over-engineering":**
+- Complete package.json metadata (skill is not an npm package)
+- TypeScript rewrite
+- Full test suites
+- Complex logging systems
+- Sandbox environments
 
 ---
 
-## 四、测试 Skill
+## Testing Extensions
 
-### 1. 基本功能测试
+### 1. Basic Function Testing
 
-直接运行 skill 的核心功能，确保：
-- 依赖能正确安装
-- 主要功能正常工作
-- 错误处理正确
+Run core functionality directly, ensure:
+- Dependencies install correctly
+- Main features work properly
+- Error handling is correct
 
-### 2. 模拟实际使用
+### 2. Simulate Actual Usage
 
-假装你是用户，给 Claude 一个任务，让它使用这个 skill：
+Pretend you're a user, give Claude a task to use the extension:
 
 ```
-帮我测试一下 example.com 在手机和桌面端的显示效果
+Help me test example.com display on mobile and desktop
 ```
 
-观察：
-- Claude 是否理解 SKILL.md 的用法
-- 执行流程是否正确
-- 输出是否符合预期
+Observe:
+- Does Claude understand the SKILL.md/COMMAND.md/AGENT.md usage?
+- Is the execution flow correct?
+- Does output match expectations?
 
+---
+
+## Creating New Extensions
+
+### Skills
+
+1. Create directory: `skills/<skill-name>/`
+2. Create `SKILL.md` with YAML frontmatter:
+   ```yaml
+   ---
+   name: skill-name
+   description: Brief description for activation detection
+   ---
+   ```
+3. Add implementation files as needed
+
+### Commands
+
+1. Create directory: `commands/<command-name>/`
+2. Create `COMMAND.md` with YAML frontmatter:
+   ```yaml
+   ---
+   description: What the command does
+   argument-hint: <arg1> [arg2]
+   ---
+   ```
+
+### Agents
+
+1. Create directory: `agents/<agent-name>/`
+2. Create `AGENT.md` with YAML frontmatter:
+   ```yaml
+   ---
+   name: agent-name
+   description: What the agent does
+   tools: Read, Write, Edit, Bash, Glob, Grep
+   ---
+   ```
+
+---
+
+## Installation
+
+After creating or importing an extension:
+
+```bash
+./scripts/install.sh skills <skill-name>
+./scripts/install.sh commands <command-name>
+./scripts/install.sh agents <agent-name>
+```

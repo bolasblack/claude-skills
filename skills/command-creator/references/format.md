@@ -47,10 +47,11 @@ disable-model-invocation: true
 
 **model**
 - Override the default model
-- Common values:
-  - `claude-3-5-haiku-20241022` - Faster, cheaper
-  - `claude-sonnet-4-20250514` - Balanced
-  - `claude-opus-4-20250514` - Most capable
+- Use model identifiers like:
+  - Haiku models - Faster, cheaper
+  - Sonnet models - Balanced
+  - Opus models - Most capable
+- Refer to official documentation for current model identifiers
 
 **disable-model-invocation**
 - When `true`, prevents Claude from invoking this command via SlashCommand tool

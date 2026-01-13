@@ -1,0 +1,1 @@
+../../agents/js-code-simplifier/AGENT.md
