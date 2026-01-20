@@ -16,6 +16,11 @@ Compatible with **Claude Code**, **Codex**, and **OpenCode**.
 | [parallel-agent-workflow](./skills/parallel-agent-workflow/) | Coordinate multiple agents working in parallel using git worktrees to avoid file conflicts. Use for multi-component refactoring or parallel feature development |
 | [skill-composer](./skills/skill-composer/) | Create and improve Claude Code Skills following official best practices. Includes step-by-step workflow, description patterns, and real-world examples |
 | [command-creator](./skills/command-creator/) | Guide for creating Claude Code slash commands. Helps define command structure, frontmatter, arguments, and best practices |
+| [mcp-skill-generator](./skills/mcp-skill-generator/) | Convert MCP servers to Claude Code skills with progressive disclosure |
+| [mcp-context7](./skills/mcp-context7/) | Query up-to-date library documentation and code examples using Context7 |
+| [mcp-deepwiki](./skills/mcp-deepwiki/) | Access and query GitHub repository documentation using DeepWiki's AI-powered knowledge base |
+| [mcp-fetch](./skills/mcp-fetch/) | Web content fetching and conversion to markdown for efficient LLM consumption |
+| [mcp-grep](./skills/mcp-grep/) | Search GitHub repositories for real-world code examples using grep.app |
 
 ## Agents
 

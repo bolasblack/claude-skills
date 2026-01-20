@@ -135,8 +135,10 @@ install_extension() {
         install_to_tool "$HOME/.codex" "codex" "$type" "$name" "$source_path"
     fi
 
-    # OpenCode: supports skills, commands (as command), agents (as agent)
-    install_to_tool "$HOME/.config/opencode" "opencode" "$type" "$name" "$source_path"
+    # OpenCode: supports skills, commands (as command)
+    if [[ "$type" == "skills" || "$type" == "commands" ]]; then
+        install_to_tool "$HOME/.config/opencode" "opencode" "$type" "$name" "$source_path"
+    fi
 
     return 0
 }

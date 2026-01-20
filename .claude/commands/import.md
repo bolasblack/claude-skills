@@ -68,29 +68,11 @@ Follow the guidelines in `<project-root>/CONTRIBUTING.md`
 ### 5. Update Documentation
 
 - **README.md**: Create `<type>s/<name>/README.md` with:
-
   - Brief description
   - Acknowledgments section (if source URL is available, credit the original repository with a link)
   - Other sections as appropriate
 
-- **Project README.md**: Update `<project-root>/README.md` with imported extension information
-
-### 6. Update Project Symlinks
-
-Add imported extension to `<project-root>/.claude/<type>s/`:
-
-```bash
-# For skills
-cd <project-root>/.claude/skills && ln -s ../../skills/<name>
-
-# For commands
-cd <project-root>/.claude/commands && ln -s ../../commands/<name>/COMMAND.md <name>.md
-
-# For agents
-cd <project-root>/.claude/agents && ln -s ../../agents/<name>/AGENT.md <name>.md
-```
-
-### 7. Report Results
+### 6. Report Results
 
 - Extension location (file paths created)
 - Audit summary from all agents

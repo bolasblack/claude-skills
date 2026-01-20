@@ -38,3 +38,4 @@ Install extensions using the installation script:
 - Keep each extension focused and single-purpose
 - Write prompts in English for consistency
 - Use the installation script to set up symlinks
+- Update README.md whenever adding or removing any command, agent, or skill
