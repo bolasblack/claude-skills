@@ -2,10 +2,8 @@
 #
 # Initialize .agents/ directory structure for Agent Centric framework.
 #
-# DO NOT MODIFY THIS FILE - it will be automatically updated from the skill directory.
-#
 # Usage:
-#     bash init.sh <project_dir>
+#     CLAUDE_PROJECT_DIR="..." CLAUDE_SKILL_DIR="..." bash init.sh
 #
 # This script:
 #   1. Creates .agents/ directory structure
@@ -18,8 +16,18 @@
 
 set -e
 
-PROJECT_DIR="${1:-.}"
-SKILL_DIR="${CLAUDE_SKILL_DIR:-$(dirname "$(dirname "$0")")}"
+# Require environment variables
+if [ -z "$CLAUDE_PROJECT_DIR" ]; then
+    echo "Error: CLAUDE_PROJECT_DIR not set" >&2
+    exit 1
+fi
+if [ -z "$CLAUDE_SKILL_DIR" ]; then
+    echo "Error: CLAUDE_SKILL_DIR not set" >&2
+    exit 1
+fi
+
+PROJECT_DIR="$CLAUDE_PROJECT_DIR"
+SKILL_DIR="$CLAUDE_SKILL_DIR"
 AGENTS_DIR="$PROJECT_DIR/.agents"
 
 echo "Initializing .agents/ directory in $PROJECT_DIR..."
@@ -31,14 +39,7 @@ mkdir -p "$AGENTS_DIR/scripts"
 # Create .gitkeep for empty decisions directory
 touch "$AGENTS_DIR/decisions/.gitkeep"
 
-# Copy scripts
-cp "$SKILL_DIR/scripts/utils.py" "$AGENTS_DIR/scripts/"
-cp "$SKILL_DIR/scripts/validate-agds.py" "$AGENTS_DIR/scripts/"
-cp "$SKILL_DIR/scripts/generate-index.py" "$AGENTS_DIR/scripts/"
-cp "$SKILL_DIR/scripts/sync-scripts.sh" "$AGENTS_DIR/scripts/"
-chmod +x "$AGENTS_DIR/scripts/"*.py "$AGENTS_DIR/scripts/"*.sh
-
-# Create config.json if not exists
+# Create config.json if not exists (before sync, so sync can check disableAutoUpdateScripts)
 if [ ! -f "$AGENTS_DIR/config.json" ]; then
     cat > "$AGENTS_DIR/config.json" << 'EOF'
 {
@@ -49,11 +50,8 @@ EOF
     echo "Created config.json"
 fi
 
-# Create .agents/CLAUDE.md from template
-if [ ! -f "$AGENTS_DIR/CLAUDE.md" ]; then
-    cp "$SKILL_DIR/templates/CLAUDE.md" "$AGENTS_DIR/CLAUDE.md"
-    echo "Created .agents/CLAUDE.md"
-fi
+# Sync scripts, templates, CLAUDE.md, and .gitignore
+bash "$SKILL_DIR/scripts/sync-scripts.sh"
 
 # Create empty index files
 for INDEX_FILE in INDEX-TAGS.md INDEX-AGD-RELATIONS.md; do
@@ -63,7 +61,7 @@ for INDEX_FILE in INDEX-TAGS.md INDEX-AGD-RELATIONS.md; do
 done
 
 # Run generate-index to create proper index headers
-python3 "$AGENTS_DIR/scripts/generate-index.py" "$PROJECT_DIR"
+CLAUDE_PROJECT_DIR="$PROJECT_DIR" "$AGENTS_DIR/scripts/generate-index.py"
 echo "Generated index files"
 
 # Add reference to project's root CLAUDE.md

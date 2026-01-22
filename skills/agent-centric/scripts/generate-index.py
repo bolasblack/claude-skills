@@ -6,7 +6,8 @@ DO NOT MODIFY THIS FILE - it will be automatically updated from the skill direct
 To disable auto-update, add this filename to disableAutoUpdateScripts in config.json.
 
 Usage:
-    python3 generate-index.py <project_dir>
+    generate-index.py                    # Auto-detect from CLAUDE_PROJECT_DIR
+    generate-index.py <project_dir>      # Manual override
 
 Generates:
     - INDEX-TAGS.md: Files with their tags
@@ -19,10 +20,12 @@ from pathlib import Path
 from utils import (
     AGD_PATTERN,
     DECISIONS_DIR,
+    RELATION_FIELDS,
     find_agd_file,
     get_agd_sort_key,
     get_agents_dir,
     get_decisions_dir,
+    get_project_dir,
     parse_frontmatter,
 )
 
@@ -48,7 +51,7 @@ def collect_agd_data(decisions_dir: Path) -> tuple[list, list]:
                 tags_data.append((relative_path, tags))
 
         # Collect relationships
-        for field, rel_type in [('obsoletes', 'o'), ('updates', 'u')]:
+        for field, rel_type in RELATION_FIELDS:
             if field in frontmatter and frontmatter[field]:
                 refs = [r.strip() for r in frontmatter[field].split(',') if r.strip()]
                 for ref in refs:
@@ -85,26 +88,25 @@ def write_relations_index(agents_dir: Path, relations_data: list) -> None:
     (agents_dir / 'INDEX-AGD-RELATIONS.md').write_text(content)
 
 
-def generate_indexes(project_dir: Path) -> None:
-    """Generate all index files."""
+def generate_indexes(project_dir: Path) -> tuple[int, int]:
+    """Generate all index files. Returns (tags_count, relations_count)."""
     agents_dir = get_agents_dir(project_dir)
     decisions_dir = get_decisions_dir(project_dir)
 
     if not decisions_dir.exists():
-        return
+        return 0, 0
 
     tags_data, relations_data = collect_agd_data(decisions_dir)
     write_tags_index(agents_dir, tags_data)
     write_relations_index(agents_dir, relations_data)
 
+    return len(tags_data), len(relations_data)
+
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: generate-index.py <project_dir>", file=sys.stderr)
-        sys.exit(1)
-
-    project_dir = Path(sys.argv[1])
-    generate_indexes(project_dir)
+    project_dir = get_project_dir()
+    tags_count, relations_count = generate_indexes(project_dir)
+    print(f"✓ Index updated: {tags_count} files tagged, {relations_count} relations")
     sys.exit(0)
 
 

@@ -37,6 +37,17 @@ Create an AGD file when:
 - Making a decision that affects multiple components
 - Overriding or updating a previous decision
 
+### Creating AGD Files
+
+**ALWAYS use the Write tool** to create AGD files. This ensures:
+1. PreToolUse hook validates tags before creation
+2. Invalid AGD creation is blocked automatically
+
+Before creating an AGD:
+1. Read `.agents/config.json` to check available tags
+2. If you need a new tag, add it to config.json first
+3. Then create the AGD file using Write tool
+
 ### AGD File Format
 
 **Filename**: `AGD-{number}_{kebab-case-name}.md`

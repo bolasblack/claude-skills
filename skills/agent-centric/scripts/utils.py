@@ -6,14 +6,52 @@ DO NOT MODIFY THIS FILE - it will be automatically updated from the skill direct
 To disable auto-update, add this filename to disableAutoUpdateScripts in config.json.
 """
 
+import json
+import os
 import re
+import sys
 from pathlib import Path
 
-# Constants
+# Directory constants
 AGENTS_DIR = '.agents'
 DECISIONS_DIR = 'decisions'
 AGD_PATTERN = 'AGD-*.md'
+
+# Frontmatter field constants
 REF_FIELDS = ['obsoleted_by', 'updated_by', 'updates', 'obsoletes']
+
+# Relationship type constants (for index generation)
+REL_OBSOLETES = 'o'
+REL_UPDATES = 'u'
+RELATION_FIELDS = [
+    ('obsoletes', REL_OBSOLETES),
+    ('updates', REL_UPDATES),
+]
+
+
+def get_project_dir() -> Path:
+    """Get project directory from CLAUDE_PROJECT_DIR env var or CLI argument.
+
+    Exits with error if neither is available.
+    """
+    project_dir_str = os.environ.get('CLAUDE_PROJECT_DIR', '')
+    if project_dir_str:
+        return Path(project_dir_str)
+    if len(sys.argv) >= 2:
+        return Path(sys.argv[1])
+    print("Error: CLAUDE_PROJECT_DIR not set", file=sys.stderr)
+    sys.exit(1)
+
+
+def load_config(config_path: Path) -> dict | None:
+    """Load config.json, returning None on failure."""
+    if not config_path.exists():
+        return None
+    try:
+        with open(config_path) as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return None
 
 
 def parse_frontmatter(content: str) -> dict[str, str]:
@@ -54,9 +92,8 @@ def find_agd_file(decisions_dir: Path, agd_ref: str) -> Path | None:
     if not agd_id:
         return None
 
-    for f in decisions_dir.glob(f'{agd_id}_*.md'):
-        return f
-    return None
+    matches = list(decisions_dir.glob(f'{agd_id}_*.md'))
+    return matches[0] if matches else None
 
 
 def get_decisions_dir(project_dir: Path) -> Path:
