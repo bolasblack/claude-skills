@@ -1,0 +1,25 @@
+{
+  "tags": [
+    "global",
+    "skills/agent-centric",
+    "skills/color-master",
+    "skills/command-creator",
+    "skills/frontend-design",
+    "skills/mcp-context7",
+    "skills/mcp-deepwiki",
+    "skills/mcp-fetch",
+    "skills/mcp-grep",
+    "skills/mcp-skill-generator",
+    "skills/parallel-agent-workflow",
+    "skills/playwright",
+    "skills/seo-article-optimizer",
+    "skills/seo-site-audit",
+    "skills/skill-composer",
+    "skills/skill-reviewer",
+    "agents/code-reviewer",
+    "agents/js-code-simplifier",
+    "agents/prompt-injection-auditor",
+    "agents/security-auditor"
+  ],
+  "disableAutoUpdateScripts": []
+}

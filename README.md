@@ -21,6 +21,7 @@ Compatible with **Claude Code**, **Codex**, and **OpenCode**.
 | [mcp-deepwiki](./skills/mcp-deepwiki/) | Access and query GitHub repository documentation using DeepWiki's AI-powered knowledge base |
 | [mcp-fetch](./skills/mcp-fetch/) | Web content fetching and conversion to markdown for efficient LLM consumption |
 | [mcp-grep](./skills/mcp-grep/) | Search GitHub repositories for real-world code examples using grep.app |
+| [agent-centric](./skills/agent-centric/) | Framework for agent-centric development with AGD (decision records) tracking, validation and indexing |
 
 ## Agents
 

@@ -3,6 +3,8 @@
 Personal collection of Claude Code skills, commands, and agents.
 Compatible with Claude Code, Codex, and OpenCode.
 
+**See [.agents/CLAUDE.md](.agents/CLAUDE.md) for the Agent Centric framework.**
+
 ## Structure
 
 ```
@@ -28,7 +30,7 @@ Install extensions using the installation script:
 ## Compatibility
 
 | Type     | Claude Code | Codex | OpenCode |
-|----------|-------------|-------|----------|
+| -------- | ----------- | ----- | -------- |
 | Skills   | ✓           | ✓     | ✓        |
 | Commands | ✓           | ✗     | ✓        |
 | Agents   | ✓           | ✗     | ✓        |
