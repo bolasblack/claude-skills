@@ -2,11 +2,6 @@
 name: agent-centric
 description: "Track decisions (AGD) with validation and indexing. Use when making design decisions, recording important choices, discussing trade-offs, or when user mentions AGD or decision record."
 hooks:
-  PreToolUse:
-    - matcher: "Write"
-      hooks:
-        - type: command
-          command: 'CLAUDE_PROJECT_DIR="$CLAUDE_PROJECT_DIR" "$CLAUDE_PROJECT_DIR/.agents/scripts/pre-validate-agd.py"'
   PostToolUse:
     - matcher: "Bash|Write|Edit"
       hooks:
@@ -51,19 +46,14 @@ If scripts were updated, briefly inform the user.
 
 ## Automatic Behaviors
 
-Hooks run automatically when you use Write/Edit/Bash tools:
+Hooks run automatically when you use Write/Edit/Bash tools on AGD files:
 
-1. **PreToolUse:Write** - Validates tags BEFORE creating AGD
-   - If tags are invalid, creation is **BLOCKED**
-   - You'll see: `❌ BLOCKED: Invalid tags: ...`
+- **Validates** all AGD files (tags, references)
+- **Regenerates** indexes automatically (silent on success)
 
-2. **PostToolUse** - After any file operation on AGD files:
-   - Validates all AGD files (errors shown if any)
-   - Regenerates indexes automatically (silent on success)
+If validation fails, you'll see errors and should fix them (e.g., add missing tags to config.json).
 
 ## Creating AGD Files
-
-**CRITICAL: Always use the Write tool** to create AGD files. This ensures PreToolUse validation runs before creation, blocking invalid AGD files.
 
 ### File Naming
 
@@ -128,6 +118,7 @@ See [references/config.md](references/config.md) for config details.
 
 ## Version History
 
+- v1.5.0 (2026-01-23): Remove PreToolUse hook (PostToolUse validation sufficient), fix exit codes to use code 2 for blocking errors
 - v1.4.0 (2026-01-22): Add PreToolUse hook to block invalid AGD creation, auto-detect project dir
 - v1.3.0 (2025-01-22): Split references/, renamed validate-agds.py
 - v1.2.0 (2025-01-22): Split to SKILL.md + REFERENCE.md

@@ -97,6 +97,22 @@ if [ -f "$TEMPLATE" ]; then
     fi
 fi
 
+# Remove orphaned scripts (only those marked as auto-managed)
+for TARGET in "$AGENTS_DIR/scripts/"*.py; do
+    [ -f "$TARGET" ] || continue
+    BASENAME=$(basename "$TARGET")
+    SOURCE="$SKILL_DIR/scripts/$BASENAME"
+
+    # Skip if source still exists
+    [ -f "$SOURCE" ] && continue
+
+    # Only remove if file has the auto-managed marker
+    if head -n 10 "$TARGET" | grep -q "Managed by: agent-centric skill"; then
+        rm -f "$TARGET"
+        UPDATED="$UPDATED $BASENAME(removed)"
+    fi
+done
+
 # Sync .gitignore
 GITIGNORE_SRC="$SKILL_DIR/templates/gitignore"
 GITIGNORE_TGT="$AGENTS_DIR/.gitignore"
