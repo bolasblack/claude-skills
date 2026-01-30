@@ -5,25 +5,31 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
+# shellcheck source=common.sh
+source "$SCRIPT_DIR/common.sh"
+
 # Global counters
 TOTAL_INSTALLED=0
+TOTAL_UPDATED=0
 TOTAL_SKIPPED=0
+TOTAL_WARNINGS=0
 
 usage() {
-    echo "Usage: $0 <TYPE> <NAME|ALL>"
+    echo "Usage: $0 <TYPE> <NAME...>"
     echo ""
-    echo "Install extensions as symlinks to Claude Code, Codex, and OpenCode"
+    echo "Install extensions by copying to Claude Code, Codex, and OpenCode"
     echo ""
     echo "Arguments:"
-    echo "  TYPE   Extension type: ALL, skills, commands, or agents"
-    echo "  NAME   Name of the extension to install, or ALL for all of that type"
+    echo "  TYPE    Extension type: ALL, skills, commands, or agents"
+    echo "  NAME    One or more extension names, or ALL for all of that type"
     echo ""
     echo "Examples:"
-    echo "  $0 ALL                  # Install all extensions of all types"
-    echo "  $0 skills ALL           # Install all skills"
-    echo "  $0 skills color-master  # Install specific skill"
-    echo "  $0 commands ALL         # Install all commands"
-    echo "  $0 agents code-reviewer # Install specific agent"
+    echo "  $0 ALL                          # Install all extensions of all types"
+    echo "  $0 skills ALL                   # Install all skills"
+    echo "  $0 skills color-master          # Install specific skill"
+    echo "  $0 skills skill-1 skill-2       # Install multiple skills"
+    echo "  $0 commands ALL                 # Install all commands"
+    echo "  $0 agents code-reviewer         # Install specific agent"
     echo ""
     echo "Available extensions:"
     echo ""
@@ -50,16 +56,6 @@ usage() {
     exit 1
 }
 
-get_main_file() {
-    local type="$1"
-    case "$type" in
-        skills) echo "SKILL.md" ;;
-        commands) echo "COMMAND.md" ;;
-        agents) echo "AGENT.md" ;;
-        *) echo "" ;;
-    esac
-}
-
 install_to_tool() {
     local tool_root="$1"
     local tool_name="$2"
@@ -72,37 +68,50 @@ install_to_tool() {
         return 0
     fi
 
-    # Determine target subdirectory name (OpenCode uses singular form)
-    local target_subdir="$type"
-    if [[ "$tool_name" == "opencode" ]]; then
-        case "$type" in
-            commands) target_subdir="command" ;;
-            agents) target_subdir="agent" ;;
-        esac
-    fi
-
+    local target_subdir
+    target_subdir=$(get_target_subdir "$tool_name" "$type")
     local target_dir="$tool_root/$target_subdir"
     mkdir -p "$target_dir"
 
-    # Skills: link to directory
-    # Commands/Agents: link to main file as <name>.md (they don't support directories)
-    local target_path
-    local link_source
-    if [[ "$type" == "skills" ]]; then
-        target_path="$target_dir/$name"
-        link_source="$source_path"
-    else
-        target_path="$target_dir/${name}.md"
-        local main_file
-        main_file=$(get_main_file "$type")
-        link_source="$source_path/$main_file"
+    # Get target paths (sets target_path and managed_by_file)
+    local target_path managed_by_file
+    get_target_paths "$target_dir" "$type" "$name"
+
+    # Check if target already exists
+    local is_update=false
+    if [[ -e "$target_path" || -L "$target_path" ]]; then
+        if is_managed_by_us "$target_path" "$managed_by_file"; then
+            # Remove existing installation for update
+            rm -rf "$target_path"
+            [[ "$type" != "skills" ]] && rm -f "$managed_by_file"
+            is_update=true
+        else
+            echo "  - $tool_name: WARNING - Skipped (already exists, not managed by us)"
+            TOTAL_WARNINGS=$((TOTAL_WARNINGS + 1))
+            TOTAL_SKIPPED=$((TOTAL_SKIPPED + 1))
+            return 0
+        fi
     fi
 
-    if [[ -e "$target_path" ]]; then
-        echo "  - $tool_name: Skipped (already exists)"
-        TOTAL_SKIPPED=$((TOTAL_SKIPPED + 1))
+    # Install
+    if [[ "$type" == "skills" ]]; then
+        # Copy entire directory
+        cp -r "$source_path" "$target_path"
+        # Add .managed-by file inside the skill directory
+        echo "$REPO_NAME" > "$target_path/.managed-by"
     else
-        ln -s "$link_source" "$target_path"
+        # Copy main file only
+        local main_file
+        main_file=$(get_main_file "$type")
+        cp "$source_path/$main_file" "$target_path"
+        # Add .managed-by file as hidden file alongside the target
+        echo "$REPO_NAME" > "$managed_by_file"
+    fi
+
+    if [[ "$is_update" == true ]]; then
+        echo "  - $tool_name: Updated"
+        TOTAL_UPDATED=$((TOTAL_UPDATED + 1))
+    else
         echo "  - $tool_name: Installed"
         TOTAL_INSTALLED=$((TOTAL_INSTALLED + 1))
     fi
@@ -171,20 +180,26 @@ elif [[ $# -eq 1 ]]; then
     else
         usage
     fi
-elif [[ $# -eq 2 ]]; then
+elif [[ $# -ge 2 ]]; then
     type="$1"
-    name="$2"
+    shift
     if [[ "$type" != "skills" && "$type" != "commands" && "$type" != "agents" ]]; then
         usage
     fi
-    if [[ "$name" == "ALL" ]]; then
-        install_all_of_type "$type"
-    else
-        install_extension "$type" "$name"
-    fi
+    for name in "$@"; do
+        if [[ "$name" == "ALL" ]]; then
+            install_all_of_type "$type"
+        else
+            install_extension "$type" "$name"
+        fi
+    done
 else
     usage
 fi
 
 echo ""
-echo "Done: $TOTAL_INSTALLED links installed, $TOTAL_SKIPPED targets skipped"
+summary="Done: $TOTAL_INSTALLED installed, $TOTAL_UPDATED updated, $TOTAL_SKIPPED skipped"
+if [[ $TOTAL_WARNINGS -gt 0 ]]; then
+    summary="$summary ($TOTAL_WARNINGS conflicts)"
+fi
+echo "$summary"
