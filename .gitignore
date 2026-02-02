@@ -1,8 +1,14 @@
 tmp
-node_modules
 zhistory
+node_modules
 bun.lockb
 package-lock.json
 **/.claude/settings.local.json
 .temp-execution-*.js
 __pycache__
+
+.ignores
+.alca
+.alca.cache
+.alca.local.toml
+.mise.local.toml

@@ -25,8 +25,8 @@ from utils import (
     find_agd_file,
     get_agents_dir,
     get_decisions_dir,
-    parse_frontmatter,
 )
+from simple_yaml import parse_frontmatter
 
 
 def validate_tags(tags_str: str, allowed_tags: list[str], filename: str) -> list[str]:
@@ -131,7 +131,7 @@ def validate_all_decisions(project_dir: Path) -> list[str]:
             errors.append(f"{agd_file.name}: cannot read file - {e}")
             continue
 
-        frontmatter = parse_frontmatter(content)
+        frontmatter, _ = parse_frontmatter(content)
 
         if 'tags' in frontmatter:
             errors.extend(validate_tags(frontmatter['tags'], allowed_tags, agd_file.name))
@@ -142,11 +142,13 @@ def validate_all_decisions(project_dir: Path) -> list[str]:
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: validate-agds.py <project_dir>", file=sys.stderr)
-        sys.exit(1)
-
-    project_dir = Path(sys.argv[1])
+    # Get project directory from: 1) argument, 2) CLAUDE_PROJECT_DIR env, 3) current directory
+    if len(sys.argv) >= 2:
+        project_dir = Path(sys.argv[1])
+    elif 'CLAUDE_PROJECT_DIR' in os.environ:
+        project_dir = Path(os.environ['CLAUDE_PROJECT_DIR'])
+    else:
+        project_dir = Path(os.getcwd())
 
     try:
         hook_input = json.load(sys.stdin)

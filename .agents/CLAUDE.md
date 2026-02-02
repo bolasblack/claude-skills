@@ -48,10 +48,8 @@ Create an AGD file when:
 title: "Decision Title"
 description: "Brief description"
 tags: tag1, tag2
-obsoleted_by: AGD-XXX, AGD-XXXX    # if this decision is obsoleted
-updated_by: AGD-XXX, AGD-XXXX      # if this decision is updated
-updates: AGD-XXX, AGD-XXXX         # decisions this one updates
-obsoletes: AGD-XXX, AGD-XXXX       # decisions this one obsoletes
+updates: AGD-XXX, AGD-XXXX         # decisions this one updates (optional)
+obsoletes: AGD-XXX, AGD-XXXX       # decisions this one obsoletes (optional)
 ---
 
 ## Context
@@ -63,6 +61,8 @@ What was decided.
 ## Consequences
 Impact of this decision.
 ```
+
+**Note:** The `obsoleted_by` and `updated_by` fields are automatically managed by `generate-index.py`. When you specify `updates: AGD-001` or `obsoletes: AGD-001` in your new AGD, the system will automatically add the reverse reference to AGD-001's frontmatter.
 
 ### Relationship Semantics
 

@@ -47,6 +47,10 @@ UPDATED=""
 for SCRIPT in "$SKILL_DIR/scripts/"*.py; do
     [ -f "$SCRIPT" ] || continue
     BASENAME=$(basename "$SCRIPT")
+
+    # Skip test files
+    [[ "$BASENAME" == *.test.py ]] && continue
+
     TARGET="$AGENTS_DIR/scripts/$BASENAME"
 
     # Check if disabled

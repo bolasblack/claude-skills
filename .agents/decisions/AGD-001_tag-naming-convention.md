@@ -1,5 +1,5 @@
 ---
-title: "Tag Naming Convention"
+title: Tag Naming Convention
 description: "Tags follow the pattern {type}/{name} based on project structure"
 tags: global
 ---
@@ -11,10 +11,12 @@ This project contains three types of extensions: skills, agents, and commands. E
 ## Decision
 
 Tags follow the pattern `{type}/{name}` where:
+
 - `{type}` is one of: `skills`, `agents`, `commands`
 - `{name}` is the directory name of the extension
 
 Examples:
+
 - `skills/agent-centric`
 - `agents/code-reviewer`
 - `commands/some-command`

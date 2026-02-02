@@ -4,15 +4,17 @@ Technical specifications for AGD (Agent-centric Governance Decision) files.
 
 ## Frontmatter Fields
 
-| Field          | Required | Description                                        |
-| -------------- | -------- | -------------------------------------------------- |
-| `title`        | Yes      | Decision title                                     |
-| `description`  | Yes      | Brief description                                  |
-| `tags`         | No       | Comma-separated tags (must be in config.json tags) |
-| `obsoleted_by` | No       | AGD number(s) that obsolete this decision          |
-| `updated_by`   | No       | AGD number(s) that update this decision            |
-| `updates`      | No       | AGD number(s) this decision updates                |
-| `obsoletes`    | No       | AGD number(s) this decision obsoletes              |
+| Field          | Required | Description                                                  |
+| -------------- | -------- | ------------------------------------------------------------ |
+| `title`        | Yes      | Decision title                                               |
+| `description`  | Yes      | Brief description                                            |
+| `tags`         | No       | Comma-separated tags (must be in config.json tags)           |
+| `updates`      | No       | AGD number(s) this decision updates                          |
+| `obsoletes`    | No       | AGD number(s) this decision obsoletes                        |
+| `updated_by`   | No       | **Auto-managed** - AGD number(s) that update this decision   |
+| `obsoleted_by` | No       | **Auto-managed** - AGD number(s) that obsolete this decision |
+
+**Note:** `obsoleted_by` and `updated_by` are automatically populated by `generate-index.py` based on reverse references from other AGDs. You only need to specify `updates` and `obsoletes` in your new AGD files.
 
 ## Relationship Semantics
 

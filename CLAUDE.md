@@ -41,3 +41,13 @@ Install extensions using the installation script:
 - Write prompts in English for consistency
 - Use the installation script to set up symlinks
 - Update README.md whenever adding or removing any command, agent, or skill
+
+## Modifying Agent Centric Scripts
+
+**IMPORTANT:** Files in `.agents/scripts/` are auto-managed by the `agent-centric` skill. Do NOT edit them directly.
+
+To modify these scripts:
+
+1. Edit the source files in `skills/agent-centric/scripts/`
+2. Run `./scripts/install.sh skills agent-centric` to sync changes
+3. The sync script will automatically update `.agents/scripts/`

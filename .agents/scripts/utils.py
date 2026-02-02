@@ -16,26 +16,6 @@ AGD_PATTERN = 'AGD-*.md'
 REF_FIELDS = ['obsoleted_by', 'updated_by', 'updates', 'obsoletes']
 
 
-def parse_frontmatter(content: str) -> dict[str, str]:
-    """Parse YAML frontmatter from markdown content."""
-    if not content.startswith('---'):
-        return {}
-
-    parts = content.split('---', 2)
-    if len(parts) < 3:
-        return {}
-
-    frontmatter = {}
-    for line in parts[1].strip().split('\n'):
-        if ':' in line:
-            key, value = line.split(':', 1)
-            key = key.strip()
-            value = value.strip().strip('"').strip("'")
-            frontmatter[key] = value
-
-    return frontmatter
-
-
 def get_agd_id(filename: str) -> str | None:
     """Extract AGD ID from filename (e.g., AGD-001 from AGD-001_name.md)."""
     match = re.match(r'(AGD-\d+)', filename)

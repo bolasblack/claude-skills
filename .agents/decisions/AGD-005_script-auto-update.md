@@ -35,6 +35,7 @@ agent-centric skill 会在项目中创建 `.agents/scripts/` 目录存放脚本�
 ### 脚本顶部提示
 
 每个脚本顶部包含注释：
+
 ```
 DO NOT MODIFY THIS FILE - it will be automatically updated from the skill directory.
 To disable auto-update, add this filename to disableAutoUpdateScripts in config.json.
@@ -43,10 +44,12 @@ To disable auto-update, add this filename to disableAutoUpdateScripts in config.
 ## Consequences
 
 **Benefits:**
+
 - Skill 更新后项目自动获得最新脚本
 - 用户可按需禁用特定脚本的更新
 - 允许用户自定义脚本（禁用更新后）
 
 **Trade-offs:**
+
 - 用户可能不知道脚本被更新了
 - 自定义修改会被覆盖（除非禁用）
