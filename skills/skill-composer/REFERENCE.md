@@ -1,6 +1,24 @@
-# Skill Maintainer Reference
+# Skill Composer Reference
 
-Technical specifications and field requirements for Claude Code Skills.
+Technical specifications, workflow patterns, and example analysis for Claude Code Skills.
+
+## Skills and MCP Relationship
+
+Think of it like a professional kitchen. **MCP provides the kitchen** — access to tools, ingredients, and equipment (connecting Claude to services like Notion, Asana, Linear, etc.). **Skills provide the recipes** — step-by-step instructions on how to create something valuable.
+
+Together, they enable users to accomplish complex tasks without needing to figure out every step themselves.
+
+| MCP (Connectivity) | Skills (Knowledge) |
+|--------------------|--------------------|
+| Connects Claude to your service | Teaches Claude how to use your service effectively |
+| Provides real-time data access and tool invocation | Captures workflows and best practices |
+| What Claude can do | How Claude should do it |
+
+**Without skills:** Users connect your MCP but don't know what to do next. Support tickets asking "how do I do X with your integration." Each conversation starts from scratch. Inconsistent results because users prompt differently each time.
+
+**With skills:** Pre-built workflows activate automatically when needed. Consistent, reliable tool usage. Best practices embedded in every interaction. Lower learning curve for your integration.
+
+Skills position your MCP as a complete solution — not just connectivity, but knowledge.
 
 ## YAML Frontmatter Specification
 
@@ -13,12 +31,10 @@ description: "What it does and when to use it"
 ---
 ```
 
-### Field Requirements
-
-| Field | Type | Constraints | Example |
-|-------|------|-------------|---------|
-| `name` | string | Lowercase letters, numbers, hyphens only. Max 64 characters. No spaces or underscores. | `"commit-helper"` |
-| `description` | string | Max 1024 characters. MUST include what skill does AND when to use it. | `"Generate commit messages. Use when committing or asked for commit help."` |
+| Field | Type | Constraints |
+|-------|------|-------------|
+| `name` | string | kebab-case only. Max 64 chars. No spaces, underscores, or capitals. Must match folder name. |
+| `description` | string | Max 1024 chars. MUST include what AND when. No XML tags (`<` `>`). |
 
 ### Optional Fields
 
@@ -27,21 +43,41 @@ description: "What it does and when to use it"
 name: "skill-name"
 description: "Description here"
 allowed-tools: Read, Grep, Glob
+license: MIT
+compatibility: "Requires Claude Code with bash access"
+metadata:
+  author: Company Name
+  version: 1.0.0
+  mcp-server: server-name
+  category: productivity
+  tags: [project-management, automation]
+  documentation: https://example.com/docs
+  support: support@example.com
 ---
 ```
 
-| Field | Type | Purpose | Example |
-|-------|------|---------|---------|
-| `allowed-tools` | comma-separated list | Restricts which tools Claude can use when skill is active | `Read, Grep, Glob` |
+| Field | Type | Purpose |
+|-------|------|---------|
+| `allowed-tools` | string | Restricts which tools Claude can use when skill is active |
+| `license` | string | Open source license (MIT, Apache-2.0, etc.) |
+| `compatibility` | string | Environment requirements, 1-500 chars |
+| `metadata` | object | Custom key-value pairs (author, version, mcp-server, etc.) |
 
-## Available Tools for Restriction
+### Security Restrictions
 
-When using `allowed-tools`, you can specify any combination of:
+**Forbidden in frontmatter**:
+- XML angle brackets (`<` `>`) - frontmatter appears in system prompt, could inject instructions
+- Names prefixed with "claude" or "anthropic" (reserved)
+- Code execution in YAML (safe YAML parsing enforced)
+
+## Tool Restrictions
+
+When using `allowed-tools`, specify any combination of:
 
 - **Read** - Read files from filesystem
 - **Write** - Write new files
 - **Edit** - Edit existing files
-- **Bash** - Execute shell commands
+- **Bash** - Execute shell commands (supports scoping: `Bash(python:*)`)
 - **Grep** - Search file contents with patterns
 - **Glob** - Find files by pattern matching
 - **WebFetch** - Fetch content from URLs
@@ -52,269 +88,488 @@ When using `allowed-tools`, you can specify any combination of:
 - **SlashCommand** - Execute slash commands
 - **AskUserQuestion** - Prompt user for input
 
-### Common Tool Restriction Patterns
+### Common Restriction Patterns
 
-**Read-only analysis**:
+**Read-only analysis** (code review, security audits):
 ```yaml
 allowed-tools: Read, Grep, Glob
 ```
-Use for: Code review, security audits, documentation analysis
 
-**Research only**:
+**Research only** (information gathering, docs lookup):
 ```yaml
 allowed-tools: Read, WebFetch, WebSearch, Grep, Glob
 ```
-Use for: Information gathering, documentation lookup
 
-**Safe file operations**:
+**Safe file operations** (generation, no destructive edits):
 ```yaml
 allowed-tools: Read, Write, Bash
 ```
-Use for: File generation, report creation (no destructive edits)
 
-**Full access** (default):
+**Scoped bash with web** (specific interpreters only):
 ```yaml
-# Omit allowed-tools field
+allowed-tools: "Bash(python:*) Bash(npm:*) WebFetch"
 ```
-Use for: Complex workflows requiring multiple tools
+
+**Full access** (default - omit `allowed-tools` field):
+```yaml
+# No allowed-tools field = all tools available
+```
 
 ## Directory Structure Patterns
 
-### Minimal Skill (Single File)
+### Minimal (Single File)
 
 ```
 skill-name/
 └── SKILL.md
 ```
 
-All instructions in SKILL.md. No supporting files.
+All instructions in one file. Best for focused, simple skills.
 
-### Simple Skill with Reference
-
-```
-skill-name/
-├── SKILL.md
-└── REFERENCE.md
-```
-
-SKILL.md contains workflow. REFERENCE.md contains technical details/API docs.
-
-### Complex Skill with Scripts
+### With References
 
 ```
 skill-name/
 ├── SKILL.md
-├── REFERENCE.md
-├── EXAMPLES.md
+└── references/
+    ├── api-guide.md
+    └── examples.md
+```
+
+Core workflow in SKILL.md. Technical details and examples in references/.
+
+### With Scripts
+
+```
+skill-name/
+├── SKILL.md
+├── references/
+│   └── api-guide.md
 └── scripts/
-    ├── helper.py
+    ├── process.py
     └── validate.sh
 ```
 
-Multiple supporting files. Scripts for utilities. Progressive disclosure.
+Scripts for programmatic validation and utilities. Remember `chmod +x` and shebang lines.
 
-### Full-Featured Skill
+### Full-Featured
 
 ```
 skill-name/
 ├── SKILL.md
-├── REFERENCE.md
-├── EXAMPLES.md
+├── references/
+│   ├── api-guide.md
+│   └── examples.md
 ├── scripts/
 │   ├── process.py
 │   └── validate.sh
-└── templates/
-    ├── config.json
-    └── output.txt
+└── assets/
+    ├── template.json
+    └── report-template.md
 ```
 
-Maximum organization. Templates for file generation.
+Maximum organization. Assets for templates, fonts, icons used in output.
 
-## Supporting File Naming Conventions
+### Script Requirements
 
-Claude Code recognizes these common patterns:
+- Execute permissions: `chmod +x scripts/*.sh`
+- Shebang lines: `#!/usr/bin/env python3` or `#!/usr/bin/env bash`
+- Forward slashes only (Unix-style paths)
+- Document dependencies in skill description
 
-- `REFERENCE.md` - Technical specifications, API documentation
-- `EXAMPLES.md` - Code samples, usage patterns
-- `scripts/` - Executable utilities (Python, Bash, etc.)
-- `templates/` - File templates for generation
+## Workflow Patterns
 
-Other markdown files work but these are conventional.
+### Pattern 1: Sequential Orchestration
 
-## Progressive Disclosure Behavior
-
-Claude loads files **on-demand** based on context:
-
-1. **Always loads**: SKILL.md (required starting point)
-2. **Loads when relevant**: Supporting files mentioned or contextually needed
-3. **Doesn't load**: Files not referenced or relevant to current task
-
-**Example**:
-```
-pdf-processing/
-├── SKILL.md       # Always loaded
-├── FORMS.md       # Loaded only when dealing with forms
-└── REFERENCE.md   # Loaded only when API details needed
-```
-
-This keeps context efficient while supporting complex capabilities.
-
-## File Path Conventions
-
-### In SKILL.md
-
-Reference supporting files with relative paths:
+**Use when**: Multi-step processes in a specific order.
 
 ```markdown
-For detailed API reference, see [REFERENCE.md](REFERENCE.md).
-For examples, see [EXAMPLES.md](EXAMPLES.md).
+## Workflow: Onboard New Customer
+
+### Step 1: Create Account
+Call tool: `create_customer`
+Parameters: name, email, company
+
+### Step 2: Setup Payment
+Call tool: `setup_payment_method`
+Wait for: payment method verification
+
+### Step 3: Create Subscription
+Call tool: `create_subscription`
+Parameters: plan_id, customer_id (from Step 1)
+
+### Step 4: Send Welcome Email
+Call tool: `send_email`
+Template: welcome_email_template
 ```
 
-Reference scripts:
+**Key techniques**: Explicit step ordering, dependencies between steps, validation at each stage, rollback instructions for failures.
+
+### Pattern 2: Multi-MCP Coordination
+
+**Use when**: Workflows spanning multiple services.
 
 ```markdown
-Run the validation script:
-```bash
-python scripts/validate.py
-```
-```
+### Phase 1: Design Export (Figma MCP)
+1. Export design assets
+2. Generate specifications
+3. Create asset manifest
 
-### In Scripts
+### Phase 2: Asset Storage (Drive MCP)
+1. Create project folder
+2. Upload all assets
+3. Generate shareable links
 
-Always use **forward slashes** (Unix-style):
+### Phase 3: Task Creation (Linear MCP)
+1. Create development tasks
+2. Attach asset links
+3. Assign to team
 
-```python
-# Good
-with open("templates/config.json") as f:
-
-# Bad (Windows-style)
-with open("templates\\config.json") as f:
-```
-
-## Script Requirements
-
-### Execute Permissions
-
-Scripts must be executable:
-
-```bash
-chmod +x scripts/helper.py
-chmod +x scripts/*.sh
+### Phase 4: Notification (Slack MCP)
+1. Post handoff summary to #engineering
+2. Include asset links and task references
 ```
 
-### Dependencies
+**Key techniques**: Clear phase separation, data passing between MCPs, validation before next phase, centralized error handling.
 
-Document required packages in skill description:
+### Pattern 3: Iterative Refinement
 
-```yaml
-description: "Process PDFs. Use when working with PDF files. Requires pypdf and pdfplumber packages."
+**Use when**: Output quality improves with iteration.
+
+```markdown
+### Initial Draft
+1. Fetch data via MCP
+2. Generate first draft
+3. Save to temporary file
+
+### Quality Check
+1. Run validation: `scripts/check_report.py`
+2. Identify issues (missing sections, formatting, data errors)
+
+### Refinement Loop
+1. Address each issue
+2. Regenerate affected sections
+3. Re-validate
+4. Repeat until quality threshold met
+
+### Finalization
+1. Apply final formatting
+2. Generate summary
+3. Save final version
 ```
 
-Pre-install dependencies in environment before Claude uses the skill.
+**Key techniques**: Explicit quality criteria, iterative improvement, validation scripts, know when to stop iterating.
 
-### Shebang Lines
+### Pattern 4: Context-Aware Selection
 
-Include shebang for script type:
+**Use when**: Same outcome, different tools depending on context.
 
-```python
-#!/usr/bin/env python3
+```markdown
+### Decision Tree
+1. Check file type and size
+2. Determine best approach:
+   - Large files (>10MB): Use cloud storage
+   - Collaborative docs: Use Notion/Docs
+   - Code files: Use GitHub
+   - Temporary files: Use local storage
+
+### Execute Based on Decision
+- Call appropriate tool
+- Apply service-specific metadata
+- Generate access link
+
+### Provide Context to User
+Explain why that approach was chosen
 ```
 
-```bash
-#!/usr/bin/env bash
+**Key techniques**: Clear decision criteria, fallback options, transparency about choices.
+
+### Pattern 5: Domain-Specific Intelligence
+
+**Use when**: Skill adds specialized knowledge beyond tool access.
+
+```markdown
+### Before Processing (Compliance Check)
+1. Fetch transaction details
+2. Apply compliance rules:
+   - Check sanctions lists
+   - Verify jurisdiction
+   - Assess risk level
+3. Document compliance decision
+
+### Processing
+IF compliance passed:
+- Process transaction
+- Apply fraud checks
+ELSE:
+- Flag for review
+- Create compliance case
+
+### Audit Trail
+- Log all checks
+- Record decisions
+- Generate audit report
 ```
 
-## Troubleshooting Reference
+**Key techniques**: Domain expertise embedded in logic, compliance before action, comprehensive documentation.
 
-### YAML Validation
+### Problem-First vs Tool-First
 
-Valid YAML structure:
+Think of it like Home Depot. You might walk in with a problem — "I need to fix a kitchen cabinet" — and an employee points you to the right tools. Or you might pick out a new drill and ask how to use it for your specific job.
 
-```yaml
----
-name: "skill-name"
-description: "Description here"
----
+Skills work the same way:
+
+- **Problem-first**: "I need to set up a project workspace" — Your skill orchestrates the right MCP calls in the right sequence. Users describe outcomes; the skill handles the tools.
+- **Tool-first**: "I have Notion MCP connected" — Your skill teaches Claude the optimal workflows and best practices. Users have access; the skill provides expertise.
+
+Most skills lean one direction. Knowing which framing fits your use case helps you choose the right pattern below.
+
+| Approach | User starts with | Skill provides | Best patterns |
+|----------|-----------------|----------------|---------------|
+| Problem-first | A goal or outcome | Tool orchestration, sequencing | Sequential Orchestration, Multi-MCP Coordination |
+| Tool-first | An MCP or tool | Best practices, domain knowledge | Domain-Specific Intelligence, Context-Aware Selection |
+
+## Pattern Selection Guide
+
+### From Real-World Examples
+
+#### Discipline Enforcement (like TDD example)
+**Use when**: Need to enforce strict methodology.
+**Techniques**: Iron Laws (unbreakable rules), rationalization tables (pre-empt excuses), verification checklists, red flags for self-monitoring.
+
+#### Four-Phase Methodology (like Systematic Debugging)
+**Use when**: Complex process with clear stages.
+**Techniques**: Phase gates, stopping rules (three-fix rule), sub-skill integration, meta-cognitive monitoring.
+
+#### Helper Scripts (like Web App Testing)
+**Use when**: Complex setup better handled by code.
+**Techniques**: Black box philosophy (don't pollute context), `--help` first (self-documenting), decision trees, extreme conciseness (~96 lines).
+
+#### Comprehensive Framework (like MCP Builder)
+**Use when**: Building complex systems with multiple phases.
+**Techniques**: Quoted design principles, WebFetch for external docs, progressive reference loading, evaluation framework.
+
+#### Production Standards (like XLSX)
+**Use when**: Domain-specific quality requirements.
+**Techniques**: Zero-tolerance policies, industry conventions (color coding), automated validation scripts, verification checklists.
+
+#### Decision Tree + Externals (like DOCX)
+**Use when**: Multiple workflows based on use case.
+**Techniques**: Decision tree upfront, external documentation (MANDATORY reads), batching strategy (3-10 items), minimal edits principle.
+
+#### Safety Workflow (like Git Worktrees)
+**Use when**: Automation with safety requirements.
+**Techniques**: Priority order (existing > config > ask), safety verification (.gitignore), auto-detection, baseline verification.
+
+### Common Patterns Across All Examples
+
+1. **Clear structure**: Well-defined sections
+2. **Explicit principles**: Core principles stated upfront
+3. **Concrete examples**: Code snippets, commands, workflows
+4. **Tables for reference**: Quick reference, comparisons, checklists
+5. **Red flags/warnings**: What NOT to do
+6. **Integration guidance**: How skills relate to each other
+
+### Key Insights
+
+**From Community (obra/superpowers)**:
+- Rationalization pre-emption (TDD)
+- Stopping rules (Systematic Debugging)
+- Safety verification (Git Worktrees)
+- Sub-skill integration
+- Human partner signals
+
+**From Official (anthropics/skills)**:
+- Extreme conciseness (Web App Testing: 96 lines)
+- Black box philosophy (helper scripts)
+- WebFetch integration (MCP Builder)
+- Zero-tolerance policies (XLSX)
+- MANDATORY reads (DOCX)
+- Progressive reference loading
+
+### Anti-Patterns
+
+What good skills DON'T do:
+- Vague descriptions
+- Multiple unrelated capabilities
+- Ambiguous instructions
+- Skip verification steps
+- Missing version history
+- Assume context without checking
+- Skip safety verification
+- Pollute context with large files
+
+**Tip: Code > language for validation.** For critical validations, consider bundling a script that performs checks programmatically rather than relying on language instructions alone. Code is deterministic; language interpretation isn't. See the Office skills (XLSX, DOCX) for examples of this pattern.
+
+## Testing Methodology
+
+### 1. Triggering Tests
+
+Goal: Skill loads at the right times.
+
+```
+Should trigger:
+- "Help me set up a new ProjectHub workspace"
+- "I need to create a project in ProjectHub"
+- "Initialize a ProjectHub project for Q4 planning"
+
+Should NOT trigger:
+- "What's the weather in San Francisco?"
+- "Help me write Python code"
+- "Create a spreadsheet" (unless skill handles that)
 ```
 
-Requirements:
-- Opening `---` on line 1
-- Closing `---` before content
-- Spaces for indentation (NOT tabs)
-- Quoted strings with special characters
+### 2. Functional Tests
 
-Common errors:
+Goal: Correct outputs produced.
 
-```yaml
-# Missing closing delimiter
----
-name: "skill-name"
-description: "Description"
-
-# Tabs instead of spaces
----
-name:	"skill-name"
-
-# Unquoted string with special characters
----
-description: Use "quotes" for values
+```
+Test: Create project with 5 tasks
+Given: Project name "Q4 Planning", 5 task descriptions
+When: Skill executes workflow
+Then:
+- Project created
+- 5 tasks with correct properties
+- All tasks linked to project
+- No API errors
 ```
 
-### File Location Verification
+### 3. Performance Comparison
 
-Check skill exists:
+Goal: Skill improves over baseline.
 
-```bash
-# Project/Local skills
-ls -la .claude/skills/*/SKILL.md
+| Metric | Without Skill | With Skill |
+|--------|--------------|------------|
+| Back-and-forth messages | 15 | 2 clarifying questions |
+| Failed API calls | 3 requiring retry | 0 |
+| Tokens consumed | 12,000 | 6,000 |
 
-# Global skills
-ls -la /Users/Shared/data/claude/ccc-files/skills/*/SKILL.md
-```
+Use your success criteria measurements to populate this table. Three testing approaches based on audience size: **Manual testing in Claude.ai** for fast iteration with no setup, **Scripted testing in Claude Code** for repeatable validation across changes, and **Programmatic testing via Skills API** for systematic evaluation at scale. Choose the approach that matches your quality requirements and deployment scope.
 
-Check specific skill structure:
+### Iteration Signals
 
-```bash
-tree .claude/skills/skill-name
-```
+**Undertriggering** (skill doesn't load when it should):
+- Users manually enabling it
+- Support questions about when to use it
+- Fix: Add more detail, keywords, and technical terms to description
 
-### Debug Mode
+**Overtriggering** (skill loads for unrelated queries):
+- Users disabling it
+- Confusion about purpose
+- Fix: Add negative triggers, be more specific, clarify scope
 
-Run Claude Code with debug flag:
+#### Execution Issues
+
+Symptoms: inconsistent results, API call failures, user corrections needed.
+- Workflows produce different outputs for the same input
+- MCP tool calls fail intermittently
+- Users need to manually correct or retry
+
+Fix: Improve instructions with more explicit steps, add error handling for common failure modes, and include retry logic or fallback approaches for unreliable operations.
+
+## Troubleshooting
+
+### Skill Won't Upload
+
+Error: "Could not find SKILL.md in uploaded folder"
+- Rename to exactly `SKILL.md` (case-sensitive)
+- Verify: `ls -la` should show `SKILL.md`
+
+Error: "Invalid frontmatter"
+- Check `---` delimiters (opening on line 1, closing before content)
+- Use spaces not tabs for indentation
+- Quote strings with special characters
+
+Error: "Invalid skill name"
+- Use kebab-case: `my-cool-skill` not `My Cool Skill`
+
+### Skill Doesn't Trigger
+
+Quick checks:
+- Is description too generic? ("Helps with projects" won't work)
+- Does it include trigger phrases users would actually say?
+- Does it mention relevant file types?
+
+Debug: Ask Claude "When would you use the [skill name] skill?" - adjust based on what's missing.
+
+### Skill Triggers Too Often
+
+1. Add negative triggers: `"Do NOT use for simple data exploration"`
+2. Be more specific: `"PDF legal documents for contract review"` not `"documents"`
+3. Clarify scope: `"Use specifically for online payment workflows, not for general financial queries"`
+
+### Instructions Not Followed
+
+1. **Too verbose** - Use bullet points, numbered lists, move details to references/
+2. **Instructions buried** - Put critical instructions at the top, use `## Critical` headers
+3. **Ambiguous language** - Replace "validate things properly" with explicit checklists
+4. **Model laziness** - When Claude rushes through tasks or skips validation steps, add explicit encouragement:
+
+   ```
+   ## Performance Notes
+   - Take your time to do this thoroughly
+   - Quality is more important than speed
+   - Do not skip validation steps
+   ```
+
+   Note: Adding this to user prompts is more effective than placing it in SKILL.md. Consider instructing users to include performance notes in their initial prompt for best results.
+
+### Large Context Issues
+
+Symptoms: Slow responses, degraded quality.
+
+Solutions:
+1. Keep SKILL.md under **5,000 words** - move details to references/
+2. Evaluate if more than 20-50 skills are enabled simultaneously
+3. Ensure progressive disclosure is working (not loading everything upfront)
+
+### Skill Packs
+
+If you have many related capabilities, consider grouping them into a **skill pack** — a single skill that bundles related functions together. This reduces the number of simultaneously enabled skills and helps Claude select the right capability without scanning dozens of descriptions.
+
+Use skill packs when:
+- You have 3+ skills that share the same MCP server or domain
+- Users typically need several related capabilities in one session
+- Description overlap causes triggering conflicts between related skills
+
+### MCP Connection Issues
+
+1. Verify MCP server is connected (Settings > Extensions)
+2. Check authentication (API keys valid, proper scopes)
+3. Test MCP independently (ask Claude to call MCP directly without skill)
+4. Verify tool names match MCP server documentation (case-sensitive)
+
+### Debug Mode (Claude Code)
 
 ```bash
 claude --debug
 ```
 
-Look for:
-- YAML parsing errors
-- File loading messages
-- Skill activation logs
+Look for YAML parsing errors, file loading messages, and skill activation logs.
 
-## Skills vs Slash Commands
+## Distribution
 
-| Aspect | Skills | Slash Commands |
-|--------|--------|----------------|
-| **Invocation** | Automatic (model-invoked) | Manual (user types /command) |
-| **Complexity** | Complex capabilities with structure | Simple prompts |
-| **Files** | Directory with SKILL.md + supporting files | Single markdown file |
-| **Discovery** | Based on description matching | Explicit user command |
-| **Use case** | Claude should discover automatically | User wants explicit control |
+### Claude.ai Upload Path
 
-**Choose Skills when**:
-- Claude should activate based on context
-- Complex workflows with multiple steps
-- Multiple files or scripts needed
-- Team needs standardized guidance
+How individual users get skills:
 
-**Choose Slash Commands when**:
-- User needs explicit invocation control
-- Simple, single-file prompt
-- Repeated identical instructions
+1. Download the skill folder
+2. Zip the folder (if needed)
+3. Upload to Claude.ai via Settings > Capabilities > Skills
+4. Or place in Claude Code skills directory
 
-## Plugin Distribution
+### When to Use API vs Claude.ai
 
-### Directory Structure
+| Use Case | Best Surface |
+|----------|-------------|
+| End users interacting with skills directly | Claude.ai / Claude Code |
+| Manual testing and iteration during development | Claude.ai / Claude Code |
+| Individual, ad-hoc workflows | Claude.ai / Claude Code |
+| Applications using skills programmatically | API |
+| Production deployments at scale | API |
+| Automated pipelines and agent systems | API |
+
+### Claude Code Plugin Structure
 
 ```
 my-plugin/
@@ -327,189 +582,186 @@ my-plugin/
         └── SKILL.md
 ```
 
-Skills in `skills/` directory become available automatically when plugin installed.
+Skills in `skills/` are discovered automatically - no plugin.json entries needed.
 
-### No Manifest Configuration
+### GitHub
 
-Unlike commands/agents, skills don't require plugin.json entries. They're discovered automatically from directory structure.
+1. Host skill in public repo with clear README (at repo level, not inside skill folder)
+2. Add installation instructions and example usage with screenshots
+3. Link from MCP documentation if applicable
+4. Compress as `.zip` for users who want to upload directly to Claude.ai
+
+The `anthropics/skills` repository on GitHub contains Anthropic-created skills you can browse and customize. See also the MCP documentation cross-reference guidance in [Document in Your MCP Repo](#document-in-your-mcp-repo) below.
+
+### Installation Guide Template
+
+Include a guide like this in your repo README:
+
+```markdown
+## Installing the [Your Service] skill
+
+1. Download the skill:
+   - Clone repo: `git clone https://github.com/yourcompany/skills`
+   - Or download ZIP from Releases
+
+2. Install in Claude:
+   - Open Claude.ai > Settings > skills
+   - Click "Upload skill"
+   - Select the skill folder (zipped)
+
+3. Enable the skill:
+   - Toggle on the [Your Service] skill
+   - Ensure your MCP server is connected
+
+4. Test:
+   - Ask Claude: "Set up a new project in [Your Service]"
+```
+
+### Positioning Your Skill
+
+How you describe your skill determines whether users understand its value and actually try it. When writing about your skill — in your README, documentation, or marketing — keep these principles in mind.
+
+**Focus on outcomes, not features:**
+
+Good: *"The ProjectHub skill enables teams to set up complete project workspaces in seconds — including pages, databases, and templates — instead of spending 30 minutes on manual setup."*
+
+Bad: *"The ProjectHub skill is a folder containing YAML frontmatter and Markdown instructions that calls our MCP server tools."*
+
+**Highlight the MCP + skills story:**
+
+*"Our MCP server gives Claude access to your Linear projects. Our skills teach Claude your team's sprint planning workflow. Together, they enable AI-powered project management."*
+
+### Document in Your MCP Repo
+
+If you maintain an MCP server, link to your skills from the MCP documentation:
+
+- Link to skills from MCP documentation
+- Explain the value of using both together
+- Provide a quick-start guide that covers MCP setup and skill installation
+
+### Organization Deployment
+
+Shipped December 18, 2025. Admins can deploy skills workspace-wide through the Claude Console:
+
+- **Workspace-wide deploy**: Push skills to all users in the organization at once
+- **Automatic updates**: Changes propagate without users needing to re-download
+- **Centralized management**: Control which skills are active across your organization
+
+#### Version Control through Claude Console
+
+Version control and management through the Claude Console lets admins track skill versions, roll back changes, and manage deployment across teams.
+
+#### Open Standard Philosophy
+
+Skills are designed as an open, portable standard. A skill built for Claude.ai works identically in Claude Code and the API. This cross-platform portability means you're not locked into a single surface — build once, deploy anywhere. The `compatibility` field in frontmatter captures environment requirements, enabling ecosystem collaboration where skills can declare what they need and run wherever those requirements are met.
+
+### API Usage
+
+For programmatic use cases — such as building applications, agents, or automated workflows that leverage skills — the API provides direct control over skill management and execution.
+
+Key capabilities:
+
+- `/v1/skills` endpoint for listing and managing skills
+- Add skills to Messages API requests via the `container.skills` parameter
+- Version control and management through the Claude Console
+- Works with the Claude Agent SDK for building custom agents
+
+Skills in the API require the Code Execution Tool beta, which provides the secure sandbox environment skills need to run.
+
+For implementation details, see:
+
+- Skills API Quickstart
+- Create Custom Skills
+- Skills in the Agent SDK
+
+## Skills vs Slash Commands
+
+| Aspect | Skills | Slash Commands |
+|--------|--------|----------------|
+| **Invocation** | Automatic (model-invoked) | Manual (user types /command) |
+| **Complexity** | Complex capabilities with structure | Simple prompts |
+| **Files** | Directory with SKILL.md + supporting files | Single markdown file |
+| **Discovery** | Based on description matching | Explicit user command |
+| **Use case** | Claude should discover automatically | User wants explicit control |
+
+**Choose Skills when**: Context-based activation needed, complex workflows, multiple files/scripts, team standardization.
+
+**Choose Slash Commands when**: Explicit invocation control, simple single-file prompt, repeated identical instructions.
 
 ## Version History Format
 
-Recommended format:
-
 ```markdown
 ## Version History
-
 - v2.0.0 (2025-11-15): Breaking change - new API format
 - v1.1.0 (2025-11-10): Added feature X
 - v1.0.1 (2025-11-05): Fixed bug Y
 - v1.0.0 (2025-11-03): Initial version
 ```
 
-Use semantic versioning:
-- **Major** (v2.0.0): Breaking changes
-- **Minor** (v1.1.0): New features, backward compatible
-- **Patch** (v1.0.1): Bug fixes
-
-## Quality Criteria Details
-
-From official documentation:
-
-- **Discoverable**: Description enables Claude to find skill when relevant
-- **Focused**: Single capability, not multiple unrelated features
-- **Specific**: File types, formats, use cases in description
-- **Documented**: Clear instructions and examples
-- **Testable**: Can verify activation with test queries
-- **Maintainable**: Version history tracks evolution
-- **Secure**: Tool restrictions where appropriate
-- **Shared**: Team access via git (project skills) or plugins
+Semantic versioning: Major (breaking), Minor (features, backward compatible), Patch (bug fixes).
 
 ## Skill Examples
 
-Six real-world examples from official repositories demonstrating different skill patterns.
+Seven real-world examples in [examples/](examples/):
 
-### Available Examples
+| Example | Lines | Pattern | Source | Key Feature |
+|---------|-------|---------|--------|-------------|
+| [TDD](examples/tdd.md) | ~365 | Discipline enforcement | obra/superpowers | Rationalization tables |
+| [Systematic Debugging](examples/systematic-debugging.md) | ~296 | Four-phase methodology | obra/superpowers | Three-fix rule |
+| [Web App Testing](examples/webapp-testing.md) | ~96 | Helper scripts | anthropics/skills | Black box philosophy |
+| [MCP Builder](examples/mcp-builder.md) | ~329 | Comprehensive framework | anthropics/skills | WebFetch integration |
+| [XLSX](examples/xlsx.md) | ~289 | Production standards | anthropics/skills | Zero formula errors |
+| [DOCX](examples/docx.md) | ~197 | Decision tree + externals | anthropics/skills | MANDATORY file reads |
+| [Git Worktrees](examples/git-worktrees.md) | ~214 | Safety workflow | obra/superpowers | .gitignore verification |
 
-#### [Test-Driven Development](examples/tdd.md)
-**Source**: obra/superpowers
-**Pattern**: Strict methodology enforcement with rationalization pre-emption
-**Features**: Iron Law, rationalization tables, Good/Bad tags, Graphviz diagram, verification checklist
+**By use case category:**
+- **Document & Asset Creation**: XLSX, DOCX — producing formatted documents and assets with domain-specific quality standards
+- **Workflow Automation**: TDD, Systematic Debugging, MCP Builder — enforcing step-by-step processes and consistent methodology
+- **MCP Enhancement**: Web App Testing, Git Worktrees — enhancing tool access with best practices and safety workflows
 
-#### [Systematic Debugging](examples/systematic-debugging.md)
-**Source**: obra/superpowers
-**Pattern**: Four-phase framework with stopping rules
-**Features**: Three-fix rule, multi-component diagnostics, sub-skill integration, human partner signals
+## Resources & Community
 
-#### [Web App Testing](examples/webapp-testing.md)
-**Source**: anthropics/skills (official)
-**Pattern**: Concise skill with helper scripts and decision tree
-**Features**: Black box philosophy, --help first, 96 lines total, reconnaissance-then-action
+If you're building your first skill, start with the Best Practices Guide, then reference the API docs as needed.
 
-#### [MCP Builder](examples/mcp-builder.md)
-**Source**: anthropics/skills (official)
-**Pattern**: Comprehensive four-phase framework with external references
-**Features**: Quoted design principles, WebFetch integration, 10 evaluation questions, progressive reference loading
+### Official Documentation
 
-#### [XLSX Spreadsheets](examples/xlsx.md)
-**Source**: anthropics/skills (official)
-**Pattern**: Production standards with zero-tolerance quality policy
-**Features**: Zero formula errors policy, color coding standards, recalc.py validation, formula vs hardcode emphasis
+- [Best Practices Guide](https://docs.anthropic.com/en/docs/build-with-claude/agent-skills/best-practices) — comprehensive guide to building effective skills
+- [Skills Documentation](https://docs.anthropic.com/en/docs/build-with-claude/agent-skills) — core concepts and configuration
+- [API Reference](https://docs.anthropic.com/en/api) — endpoints and parameters for programmatic usage
+- [MCP Documentation](https://modelcontextprotocol.io) — Model Context Protocol specification and guides
 
-#### [DOCX Documents](examples/docx.md)
-**Source**: anthropics/skills (official)
-**Pattern**: Multi-file with decision tree and external references
-**Features**: Workflow decision tree, MANDATORY file reads, batching strategy (3-10 changes), minimal edits principle
+### Blog Posts
 
-#### [Git Worktrees](examples/git-worktrees.md)
-**Source**: obra/superpowers
-**Pattern**: Workflow automation with safety verification
-**Features**: 3-step priority order, .gitignore safety verification, auto-detection, baseline testing
+- [Introducing Agent Skills](https://www.anthropic.com/news/agent-skills) — launch announcement and overview
+- [Engineering Blog: Equipping Agents for the Real World](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world) — technical deep-dive on agent architecture
+- [Skills Explained](https://www.anthropic.com/news/skills-explained) — conceptual overview of what skills are and why they matter
+- [How to Create Skills for Claude](https://www.anthropic.com/news/how-to-create-skills-for-claude) — step-by-step creation tutorial
+- [Building Skills for Claude Code](https://www.anthropic.com/news/building-skills-for-claude-code) — Claude Code-specific skill development
+- [Improving Frontend Design through Skills](https://www.anthropic.com/news/improving-frontend-design-through-skills) — case study on design-focused skills
 
-### Pattern Comparison
+### Public Skills Repository
 
-| Example | Lines | Pattern | Key Feature |
-|---------|-------|---------|-------------|
-| **TDD** | ~365 | Discipline enforcement | Rationalization tables |
-| **Systematic Debugging** | ~296 | Four-phase methodology | Three-fix rule |
-| **Web App Testing** | ~96 | Helper scripts | Black box philosophy |
-| **MCP Builder** | ~329 | Comprehensive framework | WebFetch integration |
-| **XLSX** | ~289 | Production standards | Zero formula errors |
-| **DOCX** | ~197 | Decision tree + externals | MANDATORY file reads |
-| **Git Worktrees** | ~214 | Safety workflow | .gitignore verification |
+GitHub: [anthropics/skills](https://github.com/anthropics/skills) — Contains Anthropic-created skills you can browse and customize. Use these as reference implementations when building your own.
 
-### Pattern Selection Guide
+### skill-creator Tool
 
-#### Discipline Enforcement (TDD)
-**Use when**: Need to enforce strict methodology
-**Techniques**:
-- Iron Laws (unbreakable rules)
-- Rationalization tables (pre-empt excuses)
-- Verification checklists
-- Red flags for self-monitoring
+Built into Claude.ai and available for Claude Code:
 
-#### Four-Phase Methodology (Systematic Debugging)
-**Use when**: Complex process with clear stages
-**Techniques**:
-- Phase gates (must complete each)
-- Stopping rules (three-fix rule)
-- Sub-skill integration
-- Meta-cognitive monitoring
+- Generate skills from descriptions: "Help me build a skill using skill-creator"
+- Review existing skills: "Review this skill and suggest improvements"
+- Validates structure, frontmatter, and best practices
+- Use it to generate your first draft, then iterate manually
 
-#### Helper Scripts (Web App Testing)
-**Use when**: Complex setup better handled by code
-**Techniques**:
-- Black box philosophy (don't pollute context)
-- --help first (self-documenting)
-- Decision trees (guide approach)
-- Extreme conciseness (96 lines)
+### Getting Support
 
-#### Comprehensive Framework (MCP Builder)
-**Use when**: Building complex systems with multiple phases
-**Techniques**:
-- Quoted design principles
-- WebFetch for external docs
-- Progressive reference loading
-- Evaluation framework
+**For technical questions:**
+- Community forums at the [Claude Developers Discord](https://discord.gg/claudedev) — general questions, best practices, sharing skills
 
-#### Production Standards (XLSX)
-**Use when**: Domain-specific quality requirements
-**Techniques**:
-- Zero-tolerance policies
-- Industry conventions (color coding)
-- Automated validation (recalc.py)
-- Verification checklists
+**For bug reports:**
+- GitHub Issues: [anthropics/skills/issues](https://github.com/anthropics/skills/issues)
+- Include: skill name, error message, steps to reproduce
 
-#### Decision Tree + Externals (DOCX)
-**Use when**: Multiple workflows based on use case
-**Techniques**:
-- Decision tree upfront
-- External documentation (MANDATORY reads)
-- Batching strategy (3-10 items)
-- Minimal edits principle
+## Version History
 
-#### Safety Workflow (Git Worktrees)
-**Use when**: Automation with safety requirements
-**Techniques**:
-- Priority order (existing > config > ask)
-- Safety verification (.gitignore)
-- Auto-detection
-- Baseline verification
-
-### Common Patterns Across All Examples
-
-1. **Clear structure**: All have well-defined sections
-2. **Explicit principles**: Core principles stated upfront
-3. **Concrete examples**: Code snippets, commands, workflows
-4. **Tables for reference**: Quick reference, comparisons, checklists
-5. **Red flags/warnings**: What NOT to do
-6. **Integration guidance**: How skills relate to each other
-
-### Key Insights
-
-#### From Community (obra/superpowers)
-- **Rationalization pre-emption** (TDD)
-- **Stopping rules** (Systematic Debugging)
-- **Safety verification** (Git Worktrees)
-- **Sub-skill integration**
-- **Human partner signals**
-
-#### From Official (anthropics/skills)
-- **Extreme conciseness** (Web App Testing: 96 lines)
-- **Black box philosophy** (helper scripts)
-- **WebFetch integration** (MCP Builder)
-- **Zero-tolerance policies** (XLSX)
-- **MANDATORY reads** (DOCX)
-- **Progressive reference loading**
-
-### Anti-Patterns
-
-What these examples DON'T do:
-
-- No vague descriptions
-- No multiple unrelated capabilities
-- No ambiguous instructions
-- No verification steps skipped
-- No version history missing
-- No assuming context without checking
-- No skipping safety verification
-- No polluting context with large files
+- v3.1.0 (2026-03-03): Aligned with Anthropic's Complete Guide to Building Skills PDF
+- v3.0.0 (2026-03-03): Initial reference document

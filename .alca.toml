@@ -4,6 +4,7 @@ image = 'debian:bookworm-slim'
 workdir_exclude = [
   ".alca*",
   ".mise.local.toml",
+  "__pycache__",
 ]
 
 mounts = [
