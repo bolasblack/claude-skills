@@ -1,7 +1,7 @@
 # Claude Extensions
 
 Personal collection of Claude Code skills, commands, and agents.
-Compatible with Claude Code, Codex, and OpenCode.
+Compatible with Claude Code, Codex, OpenCode, and pi.
 
 **See [.agents/CLAUDE.md](.agents/CLAUDE.md) for the Agent Centric framework.**
 
@@ -12,6 +12,7 @@ Compatible with Claude Code, Codex, and OpenCode.
 ├── skills/          # Skill definitions (SKILL.md)
 ├── commands/        # Command definitions (COMMAND.md)
 ├── agents/          # Agent definitions (AGENT.md)
+├── pi-extensions/   # Pi extension files and directories
 └── scripts/         # Installation and utility scripts
 ```
 
@@ -25,15 +26,17 @@ Install extensions using the installation script:
 ./scripts/install.sh skills color-master    # Install specific skill
 ./scripts/install.sh commands ALL           # Install all commands
 ./scripts/install.sh agents code-reviewer   # Install specific agent
+./scripts/install.sh pi-extensions ALL      # Install all pi extensions
 ```
 
 ## Compatibility
 
-| Type     | Claude Code | Codex | OpenCode |
-| -------- | ----------- | ----- | -------- |
-| Skills   | ✓           | ✓     | ✓        |
-| Commands | ✓           | ✗     | ✓        |
-| Agents   | ✓           | ✗     | ✓        |
+| Type     | Claude Code | Codex | OpenCode | pi |
+| -------- | ----------- | ----- | -------- | -- |
+| Skills   | ✓           | ✓     | ✓        | ✓  |
+| Commands | ✓           | ✗     | ✓        | ✗  |
+| Agents   | ✓           | ✗     | ✓        | ✓  |
+| Pi Extensions | ✗      | ✗     | ✗        | ✓  |
 
 ## Guidelines
 

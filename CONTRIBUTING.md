@@ -2,6 +2,8 @@
 
 Guide for importing or creating Claude Code skills, commands, and agents.
 
+This repository installs to Claude Code, Codex, OpenCode, and pi.
+
 ## Directory Structure
 
 ```
@@ -150,4 +152,5 @@ After creating or importing an extension:
 ./scripts/install.sh skills <skill-name>
 ./scripts/install.sh commands <command-name>
 ./scripts/install.sh agents <agent-name>
+./scripts/install.sh pi-extensions <extension-name>
 ```

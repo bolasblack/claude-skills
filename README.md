@@ -1,7 +1,7 @@
 # Claude Extensions
 
 Personal collection of Claude Code skills, commands, and agents.
-Compatible with **Claude Code**, **Codex**, and **OpenCode**.
+Compatible with **Claude Code**, **Codex**, **OpenCode**, and **pi**.
 
 ## Skills
 
@@ -42,15 +42,17 @@ Install extensions as symlinks to your AI coding tool:
 ./scripts/install.sh skills color-master    # Install specific skill
 ./scripts/install.sh commands ALL           # Install all commands
 ./scripts/install.sh agents code-reviewer   # Install specific agent
+./scripts/install.sh pi-extensions ALL      # Install all pi extensions
 ```
 
 ## Compatibility
 
-| Type     | Claude Code | Codex | OpenCode |
-|----------|-------------|-------|----------|
-| Skills   | ✓           | ✓     | ✓        |
-| Commands | ✓           | ✗     | ✓        |
-| Agents   | ✓           | ✗     | ✓        |
+| Type     | Claude Code | Codex | OpenCode | pi |
+|----------|-------------|-------|----------|----|
+| Skills   | ✓           | ✓     | ✓        | ✓  |
+| Commands | ✓           | ✗     | ✓        | ✗  |
+| Agents   | ✓           | ✗     | ✓        | ✓  |
+| Pi Extensions | ✗      | ✗     | ✗        | ✓  |
 
 ## Structure
 
@@ -68,6 +70,11 @@ Install extensions as symlinks to your AI coding tool:
 │   ├── code-reviewer/
 │   │   └── AGENT.md
 │   └── ...
+├── pi-extensions/
+│   ├── permission-guard/
+│   │   └── index.ts
+│   └── system-notify/
+│       └── index.ts
 └── scripts/
     └── install.sh
 ```

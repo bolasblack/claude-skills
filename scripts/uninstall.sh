@@ -12,6 +12,14 @@ source "$SCRIPT_DIR/common.sh"
 TOTAL_REMOVED=0
 TOTAL_SKIPPED=0
 
+get_pi_extensions_dir() {
+    if [[ -d "$PROJECT_DIR/pi-extensions/extensions" ]]; then
+        echo "$PROJECT_DIR/pi-extensions/extensions"
+    else
+        echo "$PROJECT_DIR/pi-extensions"
+    fi
+}
+
 uninstall_from_tool() {
     local tool_root="$1"
     local tool_name="$2"
@@ -63,10 +71,65 @@ uninstall_extension() {
     if [[ "$type" == "skills" || "$type" == "commands" ]]; then
         uninstall_from_tool "$HOME/.config/opencode" "opencode" "$type" "$name"
     fi
+
+    # pi (skills and agents)
+    if [[ "$type" == "skills" || "$type" == "agents" ]]; then
+        uninstall_from_tool "$HOME/.pi/agent" "pi" "$type" "$name"
+    fi
+}
+
+uninstall_pi_extension() {
+    local name="$1"
+    local pi_extensions_dir
+    pi_extensions_dir=$(get_pi_extensions_dir)
+    local source_path="$pi_extensions_dir/$name"
+    local target_dir="$HOME/.pi/agent/extensions"
+    local target_path="$target_dir/$name"
+
+    if [[ ! -e "$source_path" ]]; then
+        echo "Error: Pi extension not found: $source_path"
+        return 1
+    fi
+
+    if [[ ! -d "$target_path" && ! -L "$target_path" && ! -f "$target_path" ]]; then
+        return 0
+    fi
+
+    local managed_by_file
+    if [[ -d "$source_path" ]]; then
+        managed_by_file="$target_path/.managed-by"
+    else
+        managed_by_file="$target_dir/.${name}.managed-by"
+    fi
+
+    if is_managed_by_us "$target_path" "$managed_by_file"; then
+        rm -rf "$target_path"
+        [[ -f "$managed_by_file" ]] && rm -f "$managed_by_file"
+        echo "  - pi: Removed"
+        TOTAL_REMOVED=$((TOTAL_REMOVED + 1))
+    else
+        echo "  - pi: Skipped (not managed by us)"
+        TOTAL_SKIPPED=$((TOTAL_SKIPPED + 1))
+    fi
 }
 
 uninstall_all_of_type() {
     local type="$1"
+
+    if [[ "$type" == "pi-extensions" ]]; then
+        local pi_extensions_dir
+        pi_extensions_dir=$(get_pi_extensions_dir)
+        for path in "$pi_extensions_dir"/*; do
+            if [[ -e "$path" ]]; then
+                local name
+                name=$(basename "$path")
+                echo "[$type/$name]"
+                uninstall_pi_extension "$name"
+            fi
+        done
+        return 0
+    fi
+
     local main_file
     main_file=$(get_main_file "$type")
 
@@ -85,7 +148,7 @@ usage() {
     echo "Uninstall extensions managed by this repository"
     echo ""
     echo "Arguments:"
-    echo "  TYPE    Extension type: ALL, skills, commands, or agents"
+    echo "  TYPE    Extension type: ALL, skills, commands, agents, or pi-extensions"
     echo "  NAME    One or more extension names, or ALL for all of that type"
     echo ""
     echo "Examples:"
@@ -93,6 +156,8 @@ usage() {
     echo "  $0 skills ALL                   # Uninstall all skills"
     echo "  $0 skills color-master          # Uninstall specific skill"
     echo "  $0 skills skill-1 skill-2       # Uninstall multiple skills"
+    echo "  $0 pi-extensions ALL            # Uninstall all pi extensions"
+    echo "  $0 pi-extensions permission-guard.ts  # Uninstall specific pi extension"
     exit 1
 }
 
@@ -101,7 +166,7 @@ if [[ $# -eq 0 ]]; then
     usage
 elif [[ $# -eq 1 ]]; then
     if [[ "$1" == "ALL" ]]; then
-        for type in skills commands agents; do
+        for type in skills commands agents pi-extensions; do
             if [[ -d "$PROJECT_DIR/$type" ]]; then
                 uninstall_all_of_type "$type"
             fi
@@ -112,12 +177,15 @@ elif [[ $# -eq 1 ]]; then
 elif [[ $# -ge 2 ]]; then
     type="$1"
     shift
-    if [[ "$type" != "skills" && "$type" != "commands" && "$type" != "agents" ]]; then
+    if [[ "$type" != "skills" && "$type" != "commands" && "$type" != "agents" && "$type" != "pi-extensions" ]]; then
         usage
     fi
     for name in "$@"; do
         if [[ "$name" == "ALL" ]]; then
             uninstall_all_of_type "$type"
+        elif [[ "$type" == "pi-extensions" ]]; then
+            echo "[$type/$name]"
+            uninstall_pi_extension "$name"
         else
             uninstall_extension "$type" "$name"
         fi

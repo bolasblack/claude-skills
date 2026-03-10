@@ -14,13 +14,21 @@ TOTAL_UPDATED=0
 TOTAL_SKIPPED=0
 TOTAL_WARNINGS=0
 
+get_pi_extensions_dir() {
+    if [[ -d "$PROJECT_DIR/pi-extensions/extensions" ]]; then
+        echo "$PROJECT_DIR/pi-extensions/extensions"
+    else
+        echo "$PROJECT_DIR/pi-extensions"
+    fi
+}
+
 usage() {
     echo "Usage: $0 <TYPE> <NAME...>"
     echo ""
-    echo "Install extensions by copying to Claude Code, Codex, and OpenCode"
+    echo "Install extensions by copying to Claude Code, Codex, OpenCode, and pi"
     echo ""
     echo "Arguments:"
-    echo "  TYPE    Extension type: ALL, skills, commands, or agents"
+    echo "  TYPE    Extension type: ALL, skills, commands, agents, or pi-extensions"
     echo "  NAME    One or more extension names, or ALL for all of that type"
     echo ""
     echo "Examples:"
@@ -30,6 +38,8 @@ usage() {
     echo "  $0 skills skill-1 skill-2       # Install multiple skills"
     echo "  $0 commands ALL                 # Install all commands"
     echo "  $0 agents code-reviewer         # Install specific agent"
+    echo "  $0 pi-extensions ALL            # Install all pi extensions"
+    echo "  $0 pi-extensions permission-guard.ts  # Install specific pi extension"
     echo ""
     echo "Available extensions:"
     echo ""
@@ -51,6 +61,15 @@ usage() {
     for dir in "$PROJECT_DIR"/agents/*/; do
         if [[ -d "$dir" && -f "$dir/AGENT.md" ]]; then
             echo "  $(basename "$dir")"
+        fi
+    done
+    echo ""
+    echo "Pi Extensions:"
+    local pi_extensions_dir
+    pi_extensions_dir=$(get_pi_extensions_dir)
+    for path in "$pi_extensions_dir"/*; do
+        if [[ -e "$path" ]]; then
+            echo "  $(basename "$path")"
         fi
     done
     exit 1
@@ -149,11 +168,88 @@ install_extension() {
         install_to_tool "$HOME/.config/opencode" "opencode" "$type" "$name" "$source_path"
     fi
 
+    # pi: supports skills and agents
+    if [[ "$type" == "skills" || "$type" == "agents" ]]; then
+        install_to_tool "$HOME/.pi/agent" "pi" "$type" "$name" "$source_path"
+    fi
+
     return 0
+}
+
+install_pi_extension() {
+    local name="$1"
+    local pi_extensions_dir
+    pi_extensions_dir=$(get_pi_extensions_dir)
+    local source_path="$pi_extensions_dir/$name"
+    local target_dir="$HOME/.pi/agent/extensions"
+
+    if [[ ! -e "$source_path" ]]; then
+        echo "Error: Pi extension not found: $source_path"
+        return 1
+    fi
+
+    if [[ ! -d "$HOME/.pi/agent" ]]; then
+        return 0
+    fi
+
+    mkdir -p "$target_dir"
+
+    local target_path="$target_dir/$name"
+    local managed_by_file
+    if [[ -d "$source_path" ]]; then
+        managed_by_file="$target_path/.managed-by"
+    else
+        managed_by_file="$target_dir/.${name}.managed-by"
+    fi
+
+    local is_update=false
+    if [[ -e "$target_path" || -L "$target_path" ]]; then
+        if is_managed_by_us "$target_path" "$managed_by_file"; then
+            rm -rf "$target_path"
+            [[ -f "$managed_by_file" ]] && rm -f "$managed_by_file"
+            is_update=true
+        else
+            echo "  - pi: WARNING - Skipped (already exists, not managed by us)"
+            TOTAL_WARNINGS=$((TOTAL_WARNINGS + 1))
+            TOTAL_SKIPPED=$((TOTAL_SKIPPED + 1))
+            return 0
+        fi
+    fi
+
+    if [[ -d "$source_path" ]]; then
+        cp -r "$source_path" "$target_path"
+        echo "$REPO_NAME" > "$target_path/.managed-by"
+    else
+        cp "$source_path" "$target_path"
+        echo "$REPO_NAME" > "$managed_by_file"
+    fi
+
+    if [[ "$is_update" == true ]]; then
+        echo "  - pi: Updated"
+        TOTAL_UPDATED=$((TOTAL_UPDATED + 1))
+    else
+        echo "  - pi: Installed"
+        TOTAL_INSTALLED=$((TOTAL_INSTALLED + 1))
+    fi
 }
 
 install_all_of_type() {
     local type="$1"
+
+    if [[ "$type" == "pi-extensions" ]]; then
+        local pi_extensions_dir
+        pi_extensions_dir=$(get_pi_extensions_dir)
+        for path in "$pi_extensions_dir"/*; do
+            if [[ -e "$path" ]]; then
+                local name
+                name=$(basename "$path")
+                echo "[$type/$name]"
+                install_pi_extension "$name"
+            fi
+        done
+        return 0
+    fi
+
     local main_file
     main_file=$(get_main_file "$type")
 
@@ -172,7 +268,7 @@ if [[ $# -eq 0 ]]; then
 elif [[ $# -eq 1 ]]; then
     if [[ "$1" == "ALL" ]]; then
         # Install everything
-        for type in skills commands agents; do
+        for type in skills commands agents pi-extensions; do
             if [[ -d "$PROJECT_DIR/$type" ]]; then
                 install_all_of_type "$type"
             fi
@@ -183,12 +279,15 @@ elif [[ $# -eq 1 ]]; then
 elif [[ $# -ge 2 ]]; then
     type="$1"
     shift
-    if [[ "$type" != "skills" && "$type" != "commands" && "$type" != "agents" ]]; then
+    if [[ "$type" != "skills" && "$type" != "commands" && "$type" != "agents" && "$type" != "pi-extensions" ]]; then
         usage
     fi
     for name in "$@"; do
         if [[ "$name" == "ALL" ]]; then
             install_all_of_type "$type"
+        elif [[ "$type" == "pi-extensions" ]]; then
+            echo "[$type/$name]"
+            install_pi_extension "$name"
         else
             install_extension "$type" "$name"
         fi
