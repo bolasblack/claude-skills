@@ -28,6 +28,7 @@ PUBLIC_SKILLS=(
     mcp-grep
     mcp-skill-generator
     parallel-agent-workflow
+    pi-extension-dev
     playwright
     seo-article-optimizer
     seo-site-audit

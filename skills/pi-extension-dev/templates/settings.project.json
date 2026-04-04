@@ -1,0 +1,18 @@
+{
+  "extensions": ["./extensions"],
+  "skills": ["./skills"],
+  "prompts": ["./prompts"],
+  "themes": ["./themes"],
+  "enableSkillCommands": true,
+  "compaction": {
+    "enabled": true,
+    "reserveTokens": 16384,
+    "keepRecentTokens": 20000
+  },
+  "retry": {
+    "enabled": true,
+    "maxRetries": 3,
+    "baseDelayMs": 2000,
+    "maxDelayMs": 60000
+  }
+}
