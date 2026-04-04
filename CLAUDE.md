@@ -21,8 +21,10 @@ Compatible with Claude Code, Codex, OpenCode, and pi.
 Install extensions using the installation script:
 
 ```bash
-./scripts/install.sh ALL                    # Install all extensions of all types
-./scripts/install.sh skills ALL             # Install all skills
+./scripts/install.sh ALL                    # Install all public extensions of all types
+./scripts/install.sh __ALL                  # Install all extensions including experimental
+./scripts/install.sh skills ALL             # Install all public skills
+./scripts/install.sh skills __ALL           # Install all skills including experimental
 ./scripts/install.sh skills color-master    # Install specific skill
 ./scripts/install.sh commands ALL           # Install all commands
 ./scripts/install.sh agents code-reviewer   # Install specific agent
@@ -44,6 +46,7 @@ Install extensions using the installation script:
 - Write prompts in English for consistency
 - Use the installation script to set up symlinks
 - Update README.md whenever adding or removing any command, agent, or skill
+- Experimental skills (under the "Experimental" subsection in README.md) are tied to the author's environment and not guaranteed to work elsewhere. Place environment-specific or unpublished skills there instead of the general list
 
 ## Modifying Agent Centric Scripts
 

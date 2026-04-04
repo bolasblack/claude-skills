@@ -23,6 +23,14 @@ Compatible with **Claude Code**, **Codex**, **OpenCode**, and **pi**.
 | [mcp-fetch](./skills/mcp-fetch/) | Web content fetching and conversion to markdown for efficient LLM consumption |
 | [mcp-grep](./skills/mcp-grep/) | Search GitHub repositories for real-world code examples using grep.app |
 
+### Experimental
+
+Experimental skills are tied to the author's environment and not guaranteed to work elsewhere.
+
+| Skill | Description |
+|-------|-------------|
+| [tmux-fork](./skills/tmux-fork/) | Fork the current pi session into a new tmux pane or window |
+
 ## Agents
 
 | Agent | Description |
@@ -32,13 +40,23 @@ Compatible with **Claude Code**, **Codex**, **OpenCode**, and **pi**.
 | [security-auditor](./agents/security-auditor/) | Expert security auditor specializing in comprehensive security assessments, compliance validation, and risk management |
 | [prompt-injection-auditor](./agents/prompt-injection-auditor/) | Expert in detecting prompt injection attacks, invisible characters, AI security review bypasses, and LLM-specific security risks |
 
+## Pi Extensions
+
+| Extension | Description |
+|-----------|-------------|
+| [permission-guard](./pi-extensions/permission-guard/) | Tool permission guard with deny-by-confirmation policy and persisted allow rules |
+| [system-notify](./pi-extensions/system-notify/) | System-level notifications for pi events, used by permission-guard for action prompts |
+| [web-search](./pi-extensions/web-search/) | Multi-provider web search tool for pi with automatic retry and zero external dependencies |
+
 ## Installation
 
 Install extensions as symlinks to your AI coding tool:
 
 ```bash
-./scripts/install.sh ALL                    # Install all extensions of all types
-./scripts/install.sh skills ALL             # Install all skills
+./scripts/install.sh ALL                    # Install all public extensions of all types
+./scripts/install.sh __ALL                  # Install all extensions including experimental
+./scripts/install.sh skills ALL             # Install all public skills
+./scripts/install.sh skills __ALL           # Install all skills including experimental
 ./scripts/install.sh skills color-master    # Install specific skill
 ./scripts/install.sh commands ALL           # Install all commands
 ./scripts/install.sh agents code-reviewer   # Install specific agent
@@ -73,7 +91,9 @@ Install extensions as symlinks to your AI coding tool:
 ├── pi-extensions/
 │   ├── permission-guard/
 │   │   └── index.ts
-│   └── system-notify/
+│   ├── system-notify/
+│   │   └── index.ts
+│   └── web-search/
 │       └── index.ts
 └── scripts/
     └── install.sh
