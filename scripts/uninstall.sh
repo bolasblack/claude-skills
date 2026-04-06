@@ -12,6 +12,9 @@ source "$SCRIPT_DIR/common.sh"
 TOTAL_REMOVED=0
 TOTAL_SKIPPED=0
 
+# Base directory for uninstallation (default: $HOME, override with --project <dir>)
+BASE_DIR="$HOME"
+
 get_pi_extensions_dir() {
     if [[ -d "$PROJECT_DIR/pi-extensions/extensions" ]]; then
         echo "$PROJECT_DIR/pi-extensions/extensions"
@@ -60,21 +63,21 @@ uninstall_extension() {
     echo "[$type/$name]"
 
     # Claude Code
-    uninstall_from_tool "$HOME/.claude" "claude" "$type" "$name"
+    uninstall_from_tool "$BASE_DIR/.claude" "claude" "$type" "$name"
 
     # Codex (only skills)
     if [[ "$type" == "skills" ]]; then
-        uninstall_from_tool "$HOME/.codex" "codex" "$type" "$name"
+        uninstall_from_tool "$BASE_DIR/.codex" "codex" "$type" "$name"
     fi
 
     # OpenCode (skills and commands)
     if [[ "$type" == "skills" || "$type" == "commands" ]]; then
-        uninstall_from_tool "$HOME/.config/opencode" "opencode" "$type" "$name"
+        uninstall_from_tool "$BASE_DIR/.config/opencode" "opencode" "$type" "$name"
     fi
 
     # pi (skills and agents)
     if [[ "$type" == "skills" || "$type" == "agents" ]]; then
-        uninstall_from_tool "$HOME/.pi/agent" "pi" "$type" "$name"
+        uninstall_from_tool "$BASE_DIR/.pi/agent" "pi" "$type" "$name"
     fi
 }
 
@@ -83,7 +86,7 @@ uninstall_pi_extension() {
     local pi_extensions_dir
     pi_extensions_dir=$(get_pi_extensions_dir)
     local source_path="$pi_extensions_dir/$name"
-    local target_dir="$HOME/.pi/agent/extensions"
+    local target_dir="$BASE_DIR/.pi/agent/extensions"
     local target_path="$target_dir/$name"
 
     if [[ ! -e "$source_path" ]]; then
@@ -143,16 +146,20 @@ uninstall_all_of_type() {
 }
 
 usage() {
-    echo "Usage: $0 <TYPE> <NAME...>"
+    echo "Usage: $0 [--project <dir>] <TYPE> <NAME...>"
     echo ""
     echo "Uninstall extensions managed by this repository"
+    echo ""
+    echo "Options:"
+    echo "  --project <dir>  Uninstall from a specific project directory instead of home directory"
     echo ""
     echo "Arguments:"
     echo "  TYPE    Extension type: ALL, skills, commands, agents, or pi-extensions"
     echo "  NAME    One or more extension names, or ALL for all of that type"
     echo ""
     echo "Examples:"
-    echo "  $0 ALL                          # Uninstall all extensions of all types"
+    echo "  $0 ALL                          # Uninstall all extensions from home directory"
+    echo "  $0 --project /path/to/myapp ALL # Uninstall all from a project"
     echo "  $0 skills ALL                   # Uninstall all skills"
     echo "  $0 skills color-master          # Uninstall specific skill"
     echo "  $0 skills skill-1 skill-2       # Uninstall multiple skills"
@@ -160,6 +167,27 @@ usage() {
     echo "  $0 pi-extensions permission-guard.ts  # Uninstall specific pi extension"
     exit 1
 }
+
+# Parse --project flag
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --project)
+            if [[ -z "$2" || "$2" == --* ]]; then
+                echo "Error: --project requires a directory argument" >&2
+                exit 1
+            fi
+            BASE_DIR="$(cd "$2" && pwd)"
+            shift 2
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+if [[ "$BASE_DIR" != "$HOME" ]]; then
+    echo "Uninstalling from project: $BASE_DIR"
+fi
 
 # Main logic
 if [[ $# -eq 0 ]]; then

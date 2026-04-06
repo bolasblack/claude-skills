@@ -1,5 +1,5 @@
 includes = ['./.alca.*.toml']
-image = 'debian:bookworm-slim'
+image = 'ghcr.io/bolasblack/alca-debian:latest'
 
 workdir_exclude = [
   ".alca*",
@@ -8,37 +8,35 @@ workdir_exclude = [
 ]
 
 mounts = [
-  ".alca.cache/mise:/root/.local/share/mise",
+  '.alca.mounts/mise:/mise',
+  '.alca.mounts/extra-bin:/extra-bin',
+  '.alca.mounts/extra-scripts:/extra-scripts'
 ]
 
 [resources]
 memory = "16g"
 cpus = 8
 
-[commands]
-# prepare the environment
-up = """
-apt update -y && \
-apt install -y curl && \
-install -dm 755 /etc/apt/keyrings && \
-curl -fSs https://mise.jdx.dev/gpg-key.pub | tee /etc/apt/keyrings/mise-archive-keyring.asc 1> /dev/null && \
-echo "deb [signed-by=/etc/apt/keyrings/mise-archive-keyring.asc] https://mise.jdx.dev/deb stable main" | tee /etc/apt/sources.list.d/mise.list && \
-apt update -y && 
-apt install -y mise
+[envs]
+IS_SANDBOX = '1'
 
-# other tools
-apt install -y vim tmux git
+[commands]
+up = """
+apt install -y vim tmux
 
 echo '
-export LANG=C.UTF-8
-export LC_ALL=C.UTF-8
-export PATH="/root/.local/share/mise/shims:$PATH"
-[ -x /extra-scripts/source.sh ] && . /extra-scripts/source.sh
-' >> ~/.bashrc
-. ~/.bashrc
+export PATH="/extra-bin:/mise/shims/:$PATH"
+' >> ~/.profile
+. ~/.profile
 
-mise trust
+[ -x /extra-scripts/source.sh ] && . /extra-scripts/source.sh
+
+mise trust -a
 mise install
 
 [ -x /extra-scripts/init.sh ] && /extra-scripts/init.sh
+"""
+enter = """
+[ -x /extra-scripts/source.sh ] && . /extra-scripts/source.sh
+. ~/.profile
 """

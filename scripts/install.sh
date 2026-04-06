@@ -14,12 +14,14 @@ TOTAL_UPDATED=0
 TOTAL_SKIPPED=0
 TOTAL_WARNINGS=0
 
+# Base directory for installation (default: $HOME, override with --project <dir>)
+BASE_DIR="$HOME"
+
 # Public skills included in "ALL" installs.
 # Experimental skills (environment-specific) are excluded from ALL
 # but included in __ALL.
 PUBLIC_SKILLS=(
     agent-centric
-    color-master
     command-creator
     frontend-design
     mcp-context7
@@ -33,7 +35,6 @@ PUBLIC_SKILLS=(
     seo-article-optimizer
     seo-site-audit
     skill-composer
-    skill-reviewer
 )
 
 get_pi_extensions_dir() {
@@ -45,16 +46,20 @@ get_pi_extensions_dir() {
 }
 
 usage() {
-    echo "Usage: $0 <TYPE> <NAME...>"
+    echo "Usage: $0 [--project <dir>] <TYPE> <NAME...>"
     echo ""
     echo "Install extensions by copying to Claude Code, Codex, OpenCode, and pi"
+    echo ""
+    echo "Options:"
+    echo "  --project <dir>  Install to a specific project directory instead of home directory"
     echo ""
     echo "Arguments:"
     echo "  TYPE    Extension type: ALL, __ALL, skills, commands, agents, or pi-extensions"
     echo "  NAME    One or more extension names, ALL for public, or __ALL for all (incl. experimental)"
     echo ""
     echo "Examples:"
-    echo "  $0 ALL                          # Install all public extensions of all types"
+    echo "  $0 ALL                          # Install all public extensions to home directory"
+    echo "  $0 --project /path/to/myapp skills ALL  # Install all skills to a project"
     echo "  $0 __ALL                        # Install all extensions including experimental"
     echo "  $0 skills ALL                   # Install all public skills"
     echo "  $0 skills __ALL                 # Install all skills including experimental"
@@ -180,21 +185,21 @@ install_extension() {
     echo "[$type/$name]"
 
     # Claude Code: supports skills, commands, agents
-    install_to_tool "$HOME/.claude" "claude" "$type" "$name" "$source_path"
+    install_to_tool "$BASE_DIR/.claude" "claude" "$type" "$name" "$source_path"
 
     # Codex: only supports skills
     if [[ "$type" == "skills" ]]; then
-        install_to_tool "$HOME/.codex" "codex" "$type" "$name" "$source_path"
+        install_to_tool "$BASE_DIR/.codex" "codex" "$type" "$name" "$source_path"
     fi
 
     # OpenCode: supports skills, commands (as command)
     if [[ "$type" == "skills" || "$type" == "commands" ]]; then
-        install_to_tool "$HOME/.config/opencode" "opencode" "$type" "$name" "$source_path"
+        install_to_tool "$BASE_DIR/.config/opencode" "opencode" "$type" "$name" "$source_path"
     fi
 
     # pi: supports skills and agents
     if [[ "$type" == "skills" || "$type" == "agents" ]]; then
-        install_to_tool "$HOME/.pi/agent" "pi" "$type" "$name" "$source_path"
+        install_to_tool "$BASE_DIR/.pi/agent" "pi" "$type" "$name" "$source_path"
     fi
 
     return 0
@@ -205,14 +210,14 @@ install_pi_extension() {
     local pi_extensions_dir
     pi_extensions_dir=$(get_pi_extensions_dir)
     local source_path="$pi_extensions_dir/$name"
-    local target_dir="$HOME/.pi/agent/extensions"
+    local target_dir="$BASE_DIR/.pi/agent/extensions"
 
     if [[ ! -e "$source_path" ]]; then
         echo "Error: Pi extension not found: $source_path"
         return 1
     fi
 
-    if [[ ! -d "$HOME/.pi/agent" ]]; then
+    if [[ ! -d "$BASE_DIR/.pi/agent" ]]; then
         return 0
     fi
 
@@ -302,6 +307,29 @@ install_all_of_type() {
         fi
     done
 }
+
+# Parse --project flag
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --project)
+            if [[ -z "$2" || "$2" == --* ]]; then
+                echo "Error: --project requires a directory argument" >&2
+                exit 1
+            fi
+            BASE_DIR="$(cd "$2" && pwd)"
+            shift 2
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+if [[ "$BASE_DIR" != "$HOME" ]]; then
+    echo "Installing to project: $BASE_DIR"
+    # For project-local installs, create tool directories as needed
+    mkdir -p "$BASE_DIR/.claude"
+fi
 
 # Main logic
 if [[ $# -eq 0 ]]; then

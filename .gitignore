@@ -7,8 +7,7 @@ package-lock.json
 .temp-execution-*.js
 __pycache__
 
-.ignores
 .alca
-.alca.cache
+.alca.mounts
 .alca.local.toml
 .mise.local.toml
