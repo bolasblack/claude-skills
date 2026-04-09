@@ -23,6 +23,7 @@ BASE_DIR="$HOME"
 PUBLIC_SKILLS=(
     agent-centric
     command-creator
+    design-md
     frontend-design
     mcp-context7
     mcp-deepwiki

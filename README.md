@@ -20,6 +20,7 @@ The agent will analyze your project, recommend relevant extensions, and walk you
 |-------|-------------|
 | ⭐ [agent-centric](./skills/agent-centric/) | Framework for agent-centric development with AGD (decision records) tracking, validation and indexing |
 | ⭐ [mcp-skill-generator](./skills/mcp-skill-generator/) | Convert MCP servers to Claude Code skills with progressive disclosure. Generates programmatic API for AI to write code that calls MCP tools |
+| [design-md](./skills/design-md/) | Generate or update a DESIGN.MD file — a design system document that AI agents read to produce consistent UI. Based on Google's [Stitch DESIGN.MD overview](https://stitch.withgoogle.com/docs/design-md/overview) |
 | [frontend-design](./skills/frontend-design/) | Create distinctive, production-grade frontend interfaces with high design quality |
 | [playwright](./skills/playwright/) | Complete browser automation with Playwright. Auto-detects dev servers, writes test scripts, takes screenshots, validates web functionality |
 | [seo-site-audit](./skills/seo-site-audit/) | Website SEO / technical SEO audit with engineering-ready backlog. Covers robots.txt, sitemap, canonical, redirects, meta tags, OG/Twitter, JSON-LD, internal linking, Core Web Vitals |
