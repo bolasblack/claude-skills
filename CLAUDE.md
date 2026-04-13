@@ -48,6 +48,24 @@ Install extensions using the installation script:
 - Update README.md whenever adding or removing any command, agent, or skill
 - Experimental skills (under the "Experimental" subsection in README.md) are tied to the author's environment and not guaranteed to work elsewhere. Place environment-specific or unpublished skills there instead of the general list
 
+## Thinking Principles
+
+- Reason from first principles, not by analogy or convention.
+- POSIWID: the purpose of a system is what it does. Judge designs by actual outcomes, not stated intentions.
+
+## Task Delegation
+
+- **Interactive tasks** (code changes, refactoring, debugging): do them directly in the main conversation.
+- **Fire-and-forget tasks** (research, codebase exploration, analysis): delegate to background subagents (`run_in_background: true`). Inherit the current model and context where possible.
+
+## Testing
+
+- Red/green TDD: write a failing test first, then write the minimum code to make it pass.
+- Tests describe and verify expected behavior, not implementation details.
+- Test files colocated with source:
+  - Python: `[name]_test.py`.
+  - Others: `[name].test.[ext]`
+
 ## Modifying Agent Centric Scripts
 
 **IMPORTANT:** Files in `.agents/scripts/` are auto-managed by the `agent-centric` skill. Do NOT edit them directly.
