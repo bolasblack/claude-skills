@@ -109,6 +109,46 @@ related: AGD-001""",
         self.assertEqual(frontmatter.get("updated_by"), "AGD-002")
         self.assertNotIn("related", frontmatter)
 
+    def test_managed_reverse_references_are_pruned_to_computed_values(self):
+        self.write_agd(
+            "AGD-001_original.md",
+            """title: \"Original\"
+description: \"Original decision\"
+updated_by: AGD-999
+obsoleted_by: AGD-998""",
+        )
+        self.write_agd(
+            "AGD-002_update.md",
+            """title: \"Update\"
+description: \"Updates original\"
+updates: AGD-001""",
+        )
+
+        generate_index.generate_indexes(self.project_dir)
+
+        original_content = (self.decisions_dir / "AGD-001_original.md").read_text()
+        frontmatter, _ = parse_frontmatter(original_content)
+
+        self.assertEqual(frontmatter.get("updated_by"), "AGD-002")
+        self.assertNotIn("obsoleted_by", frontmatter)
+
+    def test_managed_reverse_references_are_removed_when_no_longer_present(self):
+        self.write_agd(
+            "AGD-001_original.md",
+            """title: \"Original\"
+description: \"Original decision\"
+updated_by: AGD-002
+obsoleted_by: AGD-003""",
+        )
+
+        generate_index.generate_indexes(self.project_dir)
+
+        original_content = (self.decisions_dir / "AGD-001_original.md").read_text()
+        frontmatter, _ = parse_frontmatter(original_content)
+
+        self.assertNotIn("updated_by", frontmatter)
+        self.assertNotIn("obsoleted_by", frontmatter)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

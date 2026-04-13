@@ -79,7 +79,7 @@ What was decided.
 Impact of this decision.
 ```
 
-**Note:** The `obsoleted_by` and `updated_by` fields are automatically managed by `generate-index.py`. When you specify `updates: AGD-001` or `obsoletes: AGD-001` in your new AGD, the system will automatically add the reverse reference to AGD-001's frontmatter. `related` is intentionally not reverse-synced; use the relations index to discover incoming related links.
+**Note:** The `obsoleted_by` and `updated_by` fields are fully managed by `generate-index.py`. When you specify `updates: AGD-001` or `obsoletes: AGD-001` in your new AGD, the system will automatically add, normalize, or remove the reverse reference in AGD-001's frontmatter as needed. `related` is intentionally not reverse-synced; use the relations index to discover incoming related links.
 
 ### Relationship Semantics
 

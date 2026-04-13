@@ -57,6 +57,19 @@ related: AGD-999""",
             errors,
         )
 
+    def test_auto_managed_reverse_references_are_not_validated(self):
+        self.write_agd(
+            "AGD-001_original.md",
+            """title: \"Original\"
+description: \"Original decision\"
+updated_by: definitely-not-an-agd
+obsoleted_by: AGD-999""",
+        )
+
+        errors = validate_agds.validate_all_decisions(self.project_dir)
+
+        self.assertEqual(errors, [])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

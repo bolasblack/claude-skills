@@ -23,7 +23,7 @@ Each AGD should act as a durable reference for why some code, convention, or pro
 | `updated_by`   | No       | **Auto-managed** - AGD number(s) that update this decision   |
 | `obsoleted_by` | No       | **Auto-managed** - AGD number(s) that obsolete this decision |
 
-**Note:** `obsoleted_by` and `updated_by` are automatically populated by `generate-index.py` based on reverse references from other AGDs. You only need to specify `updates`, `obsoletes`, and `related` in your new AGD files.
+**Note:** `obsoleted_by` and `updated_by` are fully managed by `generate-index.py` based on reverse references from other AGDs. They are automatically added, normalized, and pruned as forward links change. You only need to specify `updates`, `obsoletes`, and `related` in your new AGD files.
 
 ## Relationship Semantics
 

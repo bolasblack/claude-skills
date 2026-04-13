@@ -11,7 +11,7 @@ Usage:
 Generates:
     - INDEX-TAGS.md: Files with their tags
     - INDEX-AGD-RELATIONS.md: AGD relationship index (obsoletes/updates/related)
-    - Bidirectional sync: Updates target AGD files with reverse references for managed relations
+    - Bidirectional sync: Rewrites managed reverse references on AGD files
 """
 
 import os
@@ -30,6 +30,11 @@ from utils import (
     get_decisions_dir,
 )
 from simple_yaml import parse_frontmatter, serialize_frontmatter
+
+
+def empty_managed_reverse_refs() -> dict[str, set[str]]:
+    """Create a fresh mapping for auto-managed reverse-reference fields."""
+    return {managed_field: set() for managed_field in REVERSE_REF_FIELDS.values()}
 
 
 def collect_agd_data(decisions_dir: Path) -> tuple[list, list, dict]:
@@ -69,9 +74,7 @@ def collect_agd_data(decisions_dir: Path) -> tuple[list, list, dict]:
                             continue
 
                         if target_file not in reverse_refs:
-                            reverse_refs[target_file] = {
-                                managed_field: set() for managed_field in REVERSE_REF_FIELDS.values()
-                            }
+                            reverse_refs[target_file] = empty_managed_reverse_refs()
 
                         from utils import get_agd_id
                         source_id = get_agd_id(agd_file.name)
@@ -106,18 +109,25 @@ def write_relations_index(agents_dir: Path, relations_data: list) -> None:
     (agents_dir / 'INDEX-AGD-RELATIONS.md').write_text(content)
 
 
-def sync_reverse_references(reverse_refs: dict) -> int:
+def sync_reverse_references(decisions_dir: Path, reverse_refs: dict) -> int:
     """
-    Update target AGD files with computed reverse references.
+    Rewrite managed reverse references on all AGD files.
+
+    The managed fields (`updated_by`, `obsoleted_by`) are derived entirely from
+    forward references, so this step both adds missing values and prunes stale
+    ones.
+
     Returns number of files modified.
     """
     modified_count = 0
 
-    for target_file, refs in reverse_refs.items():
+    for agd_file in sorted(decisions_dir.glob(AGD_PATTERN), key=lambda f: get_agd_sort_key(f.name)):
         try:
-            content = target_file.read_text()
+            content = agd_file.read_text()
         except IOError:
             continue
+
+        refs = reverse_refs.get(agd_file, empty_managed_reverse_refs())
 
         # Parse current frontmatter
         frontmatter, _ = parse_frontmatter(content)
@@ -129,24 +139,17 @@ def sync_reverse_references(reverse_refs: dict) -> int:
         else:
             body = content
 
-        # Compute needed reverse refs
         needs_update = False
         for field in REVERSE_REF_FIELDS.values():
-            computed_refs = refs[field]
-            if not computed_refs:
-                continue
+            computed_refs = ', '.join(sorted(refs[field], key=get_agd_sort_key))
+            existing_refs = frontmatter.get(field)
 
-            # Get existing refs in frontmatter
-            existing = set()
-            if field in frontmatter and frontmatter[field]:
-                existing = {r.strip() for r in frontmatter[field].split(',') if r.strip()}
-
-            # Merge: add computed refs to existing (additive only)
-            merged = existing | computed_refs
-
-            # Update if changed
-            if merged != existing:
-                frontmatter[field] = ', '.join(sorted(merged, key=get_agd_sort_key))
+            if computed_refs:
+                if existing_refs != computed_refs:
+                    frontmatter[field] = computed_refs
+                    needs_update = True
+            elif field in frontmatter:
+                del frontmatter[field]
                 needs_update = True
 
         if not needs_update:
@@ -157,7 +160,7 @@ def sync_reverse_references(reverse_refs: dict) -> int:
 
         with tempfile.NamedTemporaryFile(
             mode='w',
-            dir=target_file.parent,
+            dir=agd_file.parent,
             delete=False,
             prefix='.tmp_',
             suffix='.md'
@@ -166,7 +169,7 @@ def sync_reverse_references(reverse_refs: dict) -> int:
             tmp_path = Path(tmp.name)
 
         # Atomic rename
-        tmp_path.replace(target_file)
+        tmp_path.replace(agd_file)
         modified_count += 1
 
     return modified_count
@@ -185,7 +188,7 @@ def generate_indexes(project_dir: Path) -> None:
     write_relations_index(agents_dir, relations_data)
 
     # Sync reverse references back to target files
-    modified_count = sync_reverse_references(reverse_refs)
+    modified_count = sync_reverse_references(decisions_dir, reverse_refs)
     if modified_count > 0:
         print(f"Updated {modified_count} AGD file(s) with reverse references")
 
