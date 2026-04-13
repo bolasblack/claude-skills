@@ -21,7 +21,13 @@ AGD (Agent-centric Governance Decision) is a decision record mechanism, similar 
 
 AGD covers **any important decision**, not just architecture - including design patterns, conventions, tool choices, process decisions, etc.
 
-Decisions can be **updated** (extended) or **obsoleted** (replaced) by later decisions, but original files are preserved, forming a complete decision history for future reference.
+AGD follows the RFC archival model: original files are preserved, and later decisions express how earlier ones evolve.
+
+- **updates**: extends or modifies an earlier decision; the earlier decision remains partially valid
+- **obsoletes**: completely replaces an earlier decision; the earlier decision is no longer current
+- **related**: reference-only connection, similar to RFC `see-also`; does not change validity of either decision
+
+AGD exists to give the project stable references for important decisions and durable rationale that survives code evolution. It should let us trace from today's implementation back to why it was chosen, and then judge whether that decision still stands, has been updated, or has been replaced.
 
 ## When to Use
 
@@ -72,6 +78,7 @@ description: "Brief description"
 tags: tag1, tag2
 updates: AGD-001
 obsoletes: AGD-002
+related: AGD-003
 ---
 
 ## Context
@@ -118,6 +125,7 @@ See [references/config.md](references/config.md) for config details.
 
 ## Version History
 
+- v1.6.0 (2026-04-13): Add `related` relationship with RFC-style `see-also` semantics, extend relation index with `-(r)->`, clarify archival relationship model
 - v1.5.0 (2026-01-23): Remove PreToolUse hook (PostToolUse validation sufficient), fix exit codes to use code 2 for blocking errors
 - v1.4.0 (2026-01-22): Add PreToolUse hook to block invalid AGD creation, auto-detect project dir
 - v1.3.0 (2025-01-22): Split references/, renamed validate-agds.py

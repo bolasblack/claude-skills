@@ -19,17 +19,19 @@ grep "#tagname" "$CLAUDE_PROJECT_DIR/.agents/INDEX-TAGS.md"
 
 ## INDEX-AGD-RELATIONS.md
 
-Lists all AGD relationships (obsoletes/updates).
+Lists all AGD relationships (obsoletes/updates/related).
 
 **Format:**
 ```
 decisions/AGD-005_new.md -(o)-> decisions/AGD-001_old.md
 decisions/AGD-003_update.md -(u)-> decisions/AGD-001_original.md
+decisions/AGD-006_related.md -(r)-> decisions/AGD-001_reference.md
 ```
 
 **Symbols:**
 - `-(o)->`: obsoletes relationship
 - `-(u)->`: updates relationship
+- `-(r)->`: related/reference-only relationship
 
 **Search relationships:**
 ```bash

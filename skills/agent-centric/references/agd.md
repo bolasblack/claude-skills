@@ -2,6 +2,14 @@
 
 Technical specifications for AGD (Agent-centric Governance Decision) files.
 
+## Purpose
+
+AGD exists to preserve a stable, growing history of project decisions.
+
+Each AGD should act as a durable reference for why some code, convention, or process was chosen at the time. When revisiting the project later, the goal is to quickly recover the original rationale and see whether the decision still stands, was updated, or was obsoleted.
+
+"Decision history tree" is a useful intuition, but the actual structure is closer to a decision history graph because AGDs can have multiple `updates`, `obsoletes`, and `related` links.
+
 ## Frontmatter Fields
 
 | Field          | Required | Description                                                  |
@@ -11,15 +19,21 @@ Technical specifications for AGD (Agent-centric Governance Decision) files.
 | `tags`         | No       | Comma-separated tags (must be in config.json tags)           |
 | `updates`      | No       | AGD number(s) this decision updates                          |
 | `obsoletes`    | No       | AGD number(s) this decision obsoletes                        |
+| `related`      | No       | AGD number(s) that are related for reference only            |
 | `updated_by`   | No       | **Auto-managed** - AGD number(s) that update this decision   |
 | `obsoleted_by` | No       | **Auto-managed** - AGD number(s) that obsolete this decision |
 
-**Note:** `obsoleted_by` and `updated_by` are automatically populated by `generate-index.py` based on reverse references from other AGDs. You only need to specify `updates` and `obsoletes` in your new AGD files.
+**Note:** `obsoleted_by` and `updated_by` are automatically populated by `generate-index.py` based on reverse references from other AGDs. You only need to specify `updates`, `obsoletes`, and `related` in your new AGD files.
 
 ## Relationship Semantics
 
+AGD follows the RFC archival model: existing decision files are preserved, and later AGDs express how decisions evolve.
+
 - **updates**: Extends or modifies, original decision still partially valid
 - **obsoletes**: Completely replaces, original decision no longer valid
+- **related**: Reference-only connection, similar to RFC `see-also`; does not change validity of either decision
+
+`related` is intentionally **not** reverse-synced into the target AGD frontmatter. Reverse discovery happens through `INDEX-AGD-RELATIONS.md`, while only `updated_by` and `obsoleted_by` are auto-managed reverse fields.
 
 ## Assigning AGD Numbers
 

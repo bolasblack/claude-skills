@@ -14,7 +14,15 @@ Unlike traditional ADRs that focus solely on architecture, AGD covers **any impo
 - API contracts
 - Team agreements
 
-Decisions can be **updated** (extended) or **obsoleted** (replaced) by later decisions, but original files are preserved, forming a complete decision history.
+AGD follows the RFC archival model: original files are preserved, and later decisions express how earlier ones evolve.
+
+- **updates**: extends or modifies an earlier decision; the earlier decision remains partially valid
+- **obsoletes**: completely replaces an earlier decision; the earlier decision is no longer current
+- **related**: reference-only connection, similar to RFC `see-also`; does not change validity of either decision
+
+AGD exists to build a persistent, growing history of project decisions with stable references. Decision records do not disappear when code changes; they preserve why an implementation, convention, or process was chosen, make that rationale easy to recover later, and help determine whether a decision still stands, has been updated, or has been replaced.
+
+People may describe this as a "decision history tree", but structurally it is closer to a decision history graph because AGDs can point to multiple related decisions.
 
 ## Installation
 
@@ -44,9 +52,12 @@ Decisions can be **updated** (extended) or **obsoleted** (replaced) by later dec
    .agents/decisions/AGD-001_use-postgresql.md
    ```
 
-4. **Automatic validation** - Hooks run automatically:
-   - PreToolUse validates tags before creation
-   - PostToolUse validates files and regenerates indexes
+4. **Automatic validation** - PostToolUse hooks validate files and regenerate indexes after AGD changes
+
+5. **Relationship indexing** - `INDEX-AGD-RELATIONS.md` records:
+   - `-(u)->` for updates
+   - `-(o)->` for obsoletes
+   - `-(r)->` for related/reference-only links
 
 ## Script Auto-Update
 

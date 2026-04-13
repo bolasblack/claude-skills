@@ -10,8 +10,8 @@ Usage:
 
 Generates:
     - INDEX-TAGS.md: Files with their tags
-    - INDEX-AGD-RELATIONS.md: AGD obsoletes/updates relationships
-    - Bidirectional sync: Updates target AGD files with reverse references
+    - INDEX-AGD-RELATIONS.md: AGD relationship index (obsoletes/updates/related)
+    - Bidirectional sync: Updates target AGD files with reverse references for managed relations
 """
 
 import os
@@ -22,6 +22,8 @@ from pathlib import Path
 from utils import (
     AGD_PATTERN,
     DECISIONS_DIR,
+    RELATION_FIELDS,
+    REVERSE_REF_FIELDS,
     find_agd_file,
     get_agd_sort_key,
     get_agents_dir,
@@ -52,7 +54,7 @@ def collect_agd_data(decisions_dir: Path) -> tuple[list, list, dict]:
                 tags_data.append((relative_path, tags))
 
         # Collect relationships
-        for field, rel_type in [('obsoletes', 'o'), ('updates', 'u')]:
+        for field, rel_type in RELATION_FIELDS:
             if field in frontmatter and frontmatter[field]:
                 refs = [r.strip() for r in frontmatter[field].split(',') if r.strip()]
                 for ref in refs:
@@ -61,11 +63,16 @@ def collect_agd_data(decisions_dir: Path) -> tuple[list, list, dict]:
                         target_path = f"{DECISIONS_DIR}/{target_file.name}"
                         relations_data.append((relative_path, target_path, rel_type))
 
-                        # Build reverse mapping
-                        if target_file not in reverse_refs:
-                            reverse_refs[target_file] = {'updated_by': set(), 'obsoleted_by': set()}
+                        # Build reverse mapping for managed reverse-reference fields only
+                        reverse_field = REVERSE_REF_FIELDS.get(field)
+                        if not reverse_field:
+                            continue
 
-                        reverse_field = 'obsoleted_by' if field == 'obsoletes' else 'updated_by'
+                        if target_file not in reverse_refs:
+                            reverse_refs[target_file] = {
+                                managed_field: set() for managed_field in REVERSE_REF_FIELDS.values()
+                            }
+
                         from utils import get_agd_id
                         source_id = get_agd_id(agd_file.name)
                         if source_id:
@@ -90,7 +97,7 @@ def write_relations_index(agents_dir: Path, relations_data: list) -> None:
     """Write INDEX-AGD-RELATIONS.md file."""
     content = "# AGD Relations Index\n\n"
     content += "<!-- AUTO-GENERATED - DO NOT EDIT -->\n"
-    content += "<!-- -(o)-> : obsoletes, -(u)-> : updates -->\n"
+    content += "<!-- -(o)-> : obsoletes, -(u)-> : updates, -(r)-> : related -->\n"
     content += "<!-- Search with: grep \"AGD-001\" INDEX-AGD-RELATIONS.md -->\n\n"
 
     for source, target, rel_type in sorted(relations_data, key=lambda x: get_agd_sort_key(x[0])):
@@ -124,7 +131,7 @@ def sync_reverse_references(reverse_refs: dict) -> int:
 
         # Compute needed reverse refs
         needs_update = False
-        for field in ['updated_by', 'obsoleted_by']:
+        for field in REVERSE_REF_FIELDS.values():
             computed_refs = refs[field]
             if not computed_refs:
                 continue

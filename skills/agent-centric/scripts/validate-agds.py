@@ -43,7 +43,7 @@ def validate_tags(tags_str: str, allowed_tags: list[str], filename: str) -> list
 
 
 def validate_references(frontmatter: dict, decisions_dir: Path, filename: str) -> list[str]:
-    """Validate that all AGD references point to existing files."""
+    """Validate that all AGD references, including related links, point to existing files."""
     errors = []
 
     for field in REF_FIELDS:

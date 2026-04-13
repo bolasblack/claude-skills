@@ -1,8 +1,10 @@
 ---
-title: "AGD Index File Design"
-description: "Index files use grep-friendly format with symbolic relationship markers"
+title: AGD Index File Design
+description: Index files use grep-friendly format with symbolic relationship markers
 tags: skills/agent-centric
+updated_by: AGD-006
 ---
+
 
 ## Context
 
