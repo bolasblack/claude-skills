@@ -26,10 +26,9 @@ People may describe this as a "decision history tree", but structurally it is cl
 
 ## Installation
 
-```bash
-# From the claude-skills directory
-./scripts/install.sh skills agent-centric
-```
+Paste this into Claude Code, Codex, OpenCode, or any compatible AI coding agent:
+
+> Read https://raw.githubusercontent.com/bolasblack/claude-skills/master/llms.install.md and follow the instructions to install the `agent-centric` skill.
 
 ## Quick Start
 

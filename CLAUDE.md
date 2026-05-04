@@ -18,7 +18,9 @@ Compatible with Claude Code, Codex, OpenCode, and pi.
 
 ## Usage
 
-Install extensions using the installation script:
+For end-user installation, follow the README flow: paste the install prompt into Claude Code, Codex, OpenCode, or any compatible AI coding agent.
+
+Use `./scripts/install.sh` from the repo root for repository maintenance, local development, and testing symlink setup:
 
 ```bash
 ./scripts/install.sh ALL                    # Install all public extensions of all types

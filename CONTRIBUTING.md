@@ -146,7 +146,9 @@ Observe:
 
 ## Installation
 
-After creating or importing an extension:
+For end-user installation, follow the README flow: paste the install prompt into Claude Code, Codex, OpenCode, or any compatible AI coding agent.
+
+For local development and testing after creating or importing an extension, run the repository script from the repo root:
 
 ```bash
 ./scripts/install.sh skills <skill-name>
