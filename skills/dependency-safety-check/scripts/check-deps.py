@@ -284,6 +284,246 @@ def check_github_advisory(name, ecosystem="npm"):
     return result
 
 
+def parse_semver(version):
+    """Parse a npm semver-ish version into comparable parts."""
+    if not version:
+        return None
+    version = version.strip()
+    if version.startswith("v"):
+        version = version[1:]
+    version = version.split("+", 1)[0]
+    main_and_pre = version.split("-", 1)
+    main = main_and_pre[0]
+    pre = main_and_pre[1] if len(main_and_pre) > 1 else ""
+    parts = main.split(".")
+    if len(parts) < 1 or len(parts) > 3:
+        return None
+
+    nums = []
+    for part in parts:
+        if part in ("", "x", "X", "*"):
+            nums.append(0)
+        elif part.isdigit():
+            nums.append(int(part))
+        else:
+            return None
+    while len(nums) < 3:
+        nums.append(0)
+
+    return (nums[0], nums[1], nums[2], pre)
+
+
+def compare_semver(a, b):
+    """Compare parsed semver tuples; stable versions sort after prereleases."""
+    for index in range(3):
+        if a[index] < b[index]:
+            return -1
+        if a[index] > b[index]:
+            return 1
+
+    a_pre = a[3]
+    b_pre = b[3]
+    if a_pre == b_pre:
+        return 0
+    if not a_pre:
+        return 1
+    if not b_pre:
+        return -1
+    if a_pre < b_pre:
+        return -1
+    if a_pre > b_pre:
+        return 1
+    return 0
+
+
+def semver_lt(a, b):
+    return compare_semver(a, b) < 0
+
+
+def semver_lte(a, b):
+    return compare_semver(a, b) <= 0
+
+
+def semver_gt(a, b):
+    return compare_semver(a, b) > 0
+
+
+def semver_gte(a, b):
+    return compare_semver(a, b) >= 0
+
+
+def version_bound_from_partial(version):
+    """Return parsed lower bound and count of explicit numeric components."""
+    version = version.strip()
+    if version.startswith("v"):
+        version = version[1:]
+    version = version.split("+", 1)[0].split("-", 1)[0]
+    parts = version.split(".")
+    explicit = 0
+    nums = []
+    for part in parts[:3]:
+        if part in ("", "x", "X", "*"):
+            nums.append(0)
+        elif part.isdigit():
+            explicit += 1
+            nums.append(int(part))
+        else:
+            return None, 0
+    while len(nums) < 3:
+        nums.append(0)
+    return (nums[0], nums[1], nums[2], ""), explicit
+
+
+def satisfies_comparator(parsed, comparator, version):
+    bound = parse_semver(version)
+    if not bound:
+        return False
+    if comparator in ("", "="):
+        return compare_semver(parsed, bound) == 0
+    if comparator == ">":
+        return semver_gt(parsed, bound)
+    if comparator == ">=":
+        return semver_gte(parsed, bound)
+    if comparator == "<":
+        return semver_lt(parsed, bound)
+    if comparator == "<=":
+        return semver_lte(parsed, bound)
+    return False
+
+
+def satisfies_simple_range(parsed, range_part):
+    """Support common npm ranges without pulling in a semver dependency."""
+    range_part = range_part.strip()
+    if not range_part or range_part in ("*", "latest"):
+        return True
+    range_part = range_part.replace(",", " ")
+    tokens = [token for token in range_part.split() if token]
+    index = 0
+
+    while index < len(tokens):
+        token = tokens[index]
+        if token in ("-", "||"):
+            return False
+
+        if token in (">", ">=", "<", "<=", "="):
+            if index + 1 >= len(tokens):
+                return False
+            comparator = token
+            version = tokens[index + 1]
+            index += 2
+        else:
+            match = re.match(r"^(>=|<=|>|<|=)?(.+)$", token)
+            if not match:
+                return False
+            comparator = match.group(1) or ""
+            version = match.group(2)
+            index += 1
+
+        if version in ("*", "x", "X"):
+            continue
+
+        if version.startswith("^"):
+            lower, explicit = version_bound_from_partial(version[1:])
+            if not lower or not semver_gte(parsed, lower):
+                return False
+            major, minor, patch = lower[0], lower[1], lower[2]
+            if major > 0:
+                upper = (major + 1, 0, 0, "")
+            elif minor > 0:
+                upper = (0, minor + 1, 0, "")
+            else:
+                upper = (0, 0, patch + 1, "")
+            if not semver_lt(parsed, upper):
+                return False
+            continue
+
+        if version.startswith("~"):
+            lower, explicit = version_bound_from_partial(version[1:])
+            if not lower or not semver_gte(parsed, lower):
+                return False
+            major, minor = lower[0], lower[1]
+            if explicit <= 1:
+                upper = (major + 1, 0, 0, "")
+            else:
+                upper = (major, minor + 1, 0, "")
+            if not semver_lt(parsed, upper):
+                return False
+            continue
+
+        if any(wildcard in version for wildcard in ("x", "X", "*")):
+            lower, explicit = version_bound_from_partial(version)
+            if not lower or not semver_gte(parsed, lower):
+                return False
+            if explicit == 0:
+                continue
+            if explicit == 1:
+                upper = (lower[0] + 1, 0, 0, "")
+            elif explicit == 2:
+                upper = (lower[0], lower[1] + 1, 0, "")
+            else:
+                upper = (lower[0], lower[1], lower[2] + 1, "")
+            if not semver_lt(parsed, upper):
+                return False
+            continue
+
+        if comparator:
+            if not satisfies_comparator(parsed, comparator, version):
+                return False
+            continue
+
+        lower, explicit = version_bound_from_partial(version)
+        if not lower:
+            return False
+        if explicit < 3:
+            if not semver_gte(parsed, lower):
+                return False
+            if explicit == 1:
+                upper = (lower[0] + 1, 0, 0, "")
+            else:
+                upper = (lower[0], lower[1] + 1, 0, "")
+            if not semver_lt(parsed, upper):
+                return False
+        elif not satisfies_comparator(parsed, "=", version):
+            return False
+
+    return True
+
+
+def satisfies_npm_range(version, range_spec):
+    parsed = parse_semver(version)
+    if not parsed:
+        return False
+
+    for part in (range_spec or "latest").split("||"):
+        if satisfies_simple_range(parsed, part):
+            return True
+    return False
+
+
+def resolve_npm_dependency_version(pkg, range_spec):
+    """Resolve a dependency range to the highest published satisfying version."""
+    versions = pkg.get("versions", {})
+    candidates = []
+    for version in versions:
+        parsed = parse_semver(version)
+        if not parsed:
+            continue
+        if parsed[3] and "-" not in (range_spec or ""):
+            continue
+        if satisfies_npm_range(version, range_spec):
+            candidates.append((parsed, version))
+
+    if not candidates:
+        dist_tags = pkg.get("dist-tags", {})
+        latest = dist_tags.get("latest", "")
+        if latest and satisfies_npm_range(latest, range_spec):
+            return latest
+        return None
+
+    candidates.sort(key=lambda item: item[0])
+    return candidates[-1][1]
+
+
 def check_socket_dev(name, version, ecosystem="npm"):
     """Check Socket.dev for package risk signals (public page scrape)."""
     result = {"source": "socket.dev", "findings": []}
@@ -345,35 +585,39 @@ def check_transitive_deps(name, version, ecosystem="npm"):
     issues = []
     checked = []
 
-    for dep_name in deps:
+    for dep_name, dep_range in deps.items():
         dep_pkg = fetch_json("https://registry.npmjs.org/%s" % quote(dep_name, safe=""))
         if not dep_pkg or "_error" in dep_pkg:
             issues.append("%s: failed to fetch" % dep_name)
             continue
 
-        # Get latest version publish date
-        dist_tags = dep_pkg.get("dist-tags", {})
-        latest = dist_tags.get("latest", "")
-        time_map = dep_pkg.get("time", {})
+        resolved = resolve_npm_dependency_version(dep_pkg, dep_range)
+        if not resolved:
+            issues.append("%s@%s: failed to resolve satisfying version" % (dep_name, dep_range))
+            continue
 
-        if latest and latest in time_map:
-            pub_date = time_map[latest][:10]
+        time_map = dep_pkg.get("time", {})
+        if resolved and resolved in time_map:
+            pub_date = time_map[resolved][:10]
             try:
                 pub_ts = time.mktime(time.strptime(pub_date, "%Y-%m-%d"))
                 age_days = int((time.time() - pub_ts) / 86400)
-                checked.append("%s@%s (%dd)" % (dep_name, latest, age_days))
+                checked.append("%s@%s from %s (%dd)" % (dep_name, resolved, dep_range, age_days))
                 if age_days < 7:
-                    issues.append("%s@%s published %d days ago — VERY RECENT" % (dep_name, latest, age_days))
+                    issues.append("%s@%s published %d days ago — VERY RECENT" % (dep_name, resolved, age_days))
+                elif age_days < 30:
+                    issues.append("%s@%s published %d days ago — recent transitive dependency" % (dep_name, resolved, age_days))
             except (ValueError, OverflowError):
                 pass
 
-        # Quick OSV check for each dep
+        # Quick OSV check for each resolved dep version.
         osv_resp = fetch_json("https://api.osv.dev/v1/query", data={
-            "package": {"name": dep_name, "ecosystem": "npm"}
+            "package": {"name": dep_name, "ecosystem": "npm"},
+            "version": resolved,
         })
         if osv_resp and "vulns" in osv_resp and osv_resp["vulns"]:
             vuln_count = len(osv_resp["vulns"])
-            issues.append("%s: %d known vulnerability(ies) in OSV.dev" % (dep_name, vuln_count))
+            issues.append("%s@%s: %d known vulnerability(ies) in OSV.dev" % (dep_name, resolved, vuln_count))
 
         # Rate limit courtesy
         time.sleep(0.2)
