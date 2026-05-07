@@ -11,6 +11,179 @@ MANAGED_REPOS=(
     "c4605/claude-skills"
 )
 
+AVAILABLE_TOOLS=(agents claude codex opencode pi)
+SELECTED_TOOLS=()
+TOOLS_SPECIFIED=false
+RESOLVED_TARGETS=()
+
+is_project_install() {
+    [[ "$BASE_DIR" != "$HOME" ]]
+}
+
+is_supported_tool() {
+    local tool="$1"
+    local available_tool
+    for available_tool in "${AVAILABLE_TOOLS[@]}"; do
+        if [[ "$available_tool" == "$tool" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+add_selected_tool() {
+    local tool="$1"
+    if ! is_supported_tool "$tool"; then
+        echo "Error: Unsupported tool: $tool" >&2
+        echo "Supported tools: ${AVAILABLE_TOOLS[*]}" >&2
+        return 1
+    fi
+
+    local selected_tool
+    for selected_tool in "${SELECTED_TOOLS[@]}"; do
+        if [[ "$selected_tool" == "$tool" ]]; then
+            return 0
+        fi
+    done
+
+    SELECTED_TOOLS+=("$tool")
+}
+
+parse_tools_arg() {
+    local tools_arg="$1"
+    if [[ -z "$tools_arg" ]]; then
+        echo "Error: --tools requires a comma-separated tool list" >&2
+        return 1
+    fi
+
+    TOOLS_SPECIFIED=true
+
+    local parts
+    local old_ifs="$IFS"
+    IFS=',' read -r -a parts <<< "$tools_arg"
+    IFS="$old_ifs"
+
+    local tool
+    for tool in "${parts[@]}"; do
+        tool="${tool//[[:space:]]/}"
+        if [[ -n "$tool" ]]; then
+            add_selected_tool "$tool" || return 1
+        fi
+    done
+
+    if [[ ${#SELECTED_TOOLS[@]} -eq 0 ]]; then
+        echo "Error: --tools requires at least one tool" >&2
+        return 1
+    fi
+}
+
+add_resolved_target() {
+    local tool_name="$1"
+    local target_dir="$2"
+    local detect_path="$3"
+
+    if [[ "$TOOLS_SPECIFIED" != "true" && ! -d "$detect_path" ]]; then
+        return 0
+    fi
+
+    local resolved_target
+    for resolved_target in "${RESOLVED_TARGETS[@]}"; do
+        if [[ "${resolved_target#*|}" == "$target_dir" ]]; then
+            return 0
+        fi
+    done
+
+    RESOLVED_TARGETS+=("$tool_name|$target_dir")
+}
+
+add_tool_target() {
+    local tool_name="$1"
+    local type="$2"
+    local detect_path target_dir target_subdir
+
+    case "$tool_name" in
+        agents)
+            [[ "$type" != "skills" ]] && return 0
+            detect_path="$BASE_DIR/.agents"
+            target_dir="$BASE_DIR/.agents/skills"
+            ;;
+        claude)
+            [[ "$type" == "pi-extensions" ]] && return 0
+            detect_path="$BASE_DIR/.claude"
+            target_subdir=$(get_target_subdir "claude" "$type")
+            target_dir="$detect_path/$target_subdir"
+            ;;
+        codex)
+            [[ "$type" != "skills" ]] && return 0
+            if is_project_install; then
+                detect_path="$BASE_DIR/.codex"
+                target_dir="$BASE_DIR/.agents/skills"
+            else
+                detect_path="$BASE_DIR/.codex"
+                target_dir="$BASE_DIR/.codex/skills"
+            fi
+            ;;
+        opencode)
+            [[ "$type" == "pi-extensions" ]] && return 0
+            if is_project_install && [[ "$type" == "skills" ]]; then
+                detect_path="$BASE_DIR/.opencode"
+                target_dir="$BASE_DIR/.agents/skills"
+            else
+                if is_project_install; then
+                    detect_path="$BASE_DIR/.opencode"
+                else
+                    detect_path="$BASE_DIR/.config/opencode"
+                fi
+                target_subdir=$(get_target_subdir "opencode" "$type")
+                target_dir="$detect_path/$target_subdir"
+            fi
+            ;;
+        pi)
+            case "$type" in
+                skills|agents)
+                    if is_project_install; then
+                        detect_path="$BASE_DIR/.pi"
+                    else
+                        detect_path="$BASE_DIR/.pi/agent"
+                    fi
+                    target_subdir=$(get_target_subdir "pi" "$type")
+                    target_dir="$detect_path/$target_subdir"
+                    ;;
+                pi-extensions)
+                    if is_project_install; then
+                        detect_path="$BASE_DIR/.pi"
+                    else
+                        detect_path="$BASE_DIR/.pi/agent"
+                    fi
+                    target_dir="$detect_path/extensions"
+                    ;;
+                *)
+                    return 0
+                    ;;
+            esac
+            ;;
+    esac
+
+    add_resolved_target "$tool_name" "$target_dir" "$detect_path"
+}
+
+resolve_targets() {
+    local type="$1"
+    RESOLVED_TARGETS=()
+
+    local tools
+    if [[ "$TOOLS_SPECIFIED" == "true" ]]; then
+        tools=("${SELECTED_TOOLS[@]}")
+    else
+        tools=(claude agents codex opencode pi)
+    fi
+
+    local tool_name
+    for tool_name in "${tools[@]}"; do
+        add_tool_target "$tool_name" "$type"
+    done
+}
+
 # Get the main file name for a given extension type
 get_main_file() {
     local type="$1"

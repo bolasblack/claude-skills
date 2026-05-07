@@ -76,8 +76,11 @@ cd ~/.c4-skills
 ./scripts/install.sh agents code-reviewer   # Install specific agent
 ./scripts/install.sh pi-extensions ALL      # Install all pi extensions
 
+# Install to explicit tools (agents, claude, codex, opencode, pi):
+./scripts/install.sh --tools claude,pi skills ALL
+
 # Install to a specific project directory:
-./scripts/install.sh --project /path/to/myapp skills ALL
+./scripts/install.sh --project /path/to/myapp --tools agents,claude skills ALL
 ```
 
 ## Compatibility

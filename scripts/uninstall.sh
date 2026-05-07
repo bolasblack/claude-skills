@@ -23,23 +23,24 @@ get_pi_extensions_dir() {
     fi
 }
 
-uninstall_from_tool() {
-    local tool_root="$1"
-    local tool_name="$2"
+uninstall_from_target() {
+    local tool_name="$1"
+    local target_dir="$2"
     local type="$3"
     local name="$4"
+    local source_path="${5:-}"
 
-    if [[ ! -d "$tool_root" ]]; then
-        return 0
-    fi
-
-    local target_subdir
-    target_subdir=$(get_target_subdir "$tool_name" "$type")
-    local target_dir="$tool_root/$target_subdir"
-
-    # Get target paths (sets target_path and managed_by_file)
     local target_path managed_by_file
-    get_target_paths "$target_dir" "$type" "$name"
+    if [[ "$type" == "pi-extensions" ]]; then
+        target_path="$target_dir/$name"
+        if [[ -d "$source_path" ]]; then
+            managed_by_file="$target_path/.managed-by"
+        else
+            managed_by_file="$target_dir/.${name}.managed-by"
+        fi
+    else
+        get_target_paths "$target_dir" "$type" "$name"
+    fi
 
     if [[ ! -e "$target_path" && ! -L "$target_path" ]]; then
         return 0
@@ -47,7 +48,7 @@ uninstall_from_tool() {
 
     if is_managed_by_us "$target_path" "$managed_by_file"; then
         rm -rf "$target_path"
-        [[ "$type" != "skills" ]] && rm -f "$managed_by_file"
+        [[ "$type" != "skills" && -f "$managed_by_file" ]] && rm -f "$managed_by_file"
         echo "  - $tool_name: Removed"
         TOTAL_REMOVED=$((TOTAL_REMOVED + 1))
     else
@@ -56,29 +57,31 @@ uninstall_from_tool() {
     fi
 }
 
+uninstall_from_source() {
+    local type="$1"
+    local name="$2"
+    local source_path="${3:-}"
+
+    resolve_targets "$type"
+    if [[ ${#RESOLVED_TARGETS[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    echo "[$type/$name]"
+
+    local resolved_target tool_name target_dir
+    for resolved_target in "${RESOLVED_TARGETS[@]}"; do
+        tool_name="${resolved_target%%|*}"
+        target_dir="${resolved_target#*|}"
+        uninstall_from_target "$tool_name" "$target_dir" "$type" "$name" "$source_path"
+    done
+}
+
 uninstall_extension() {
     local type="$1"
     local name="$2"
 
-    echo "[$type/$name]"
-
-    # Claude Code
-    uninstall_from_tool "$BASE_DIR/.claude" "claude" "$type" "$name"
-
-    # Codex (only skills)
-    if [[ "$type" == "skills" ]]; then
-        uninstall_from_tool "$BASE_DIR/.codex" "codex" "$type" "$name"
-    fi
-
-    # OpenCode (skills and commands)
-    if [[ "$type" == "skills" || "$type" == "commands" ]]; then
-        uninstall_from_tool "$BASE_DIR/.config/opencode" "opencode" "$type" "$name"
-    fi
-
-    # pi (skills and agents)
-    if [[ "$type" == "skills" || "$type" == "agents" ]]; then
-        uninstall_from_tool "$BASE_DIR/.pi/agent" "pi" "$type" "$name"
-    fi
+    uninstall_from_source "$type" "$name"
 }
 
 uninstall_pi_extension() {
@@ -86,34 +89,13 @@ uninstall_pi_extension() {
     local pi_extensions_dir
     pi_extensions_dir=$(get_pi_extensions_dir)
     local source_path="$pi_extensions_dir/$name"
-    local target_dir="$BASE_DIR/.pi/agent/extensions"
-    local target_path="$target_dir/$name"
 
     if [[ ! -e "$source_path" ]]; then
         echo "Error: Pi extension not found: $source_path"
         return 1
     fi
 
-    if [[ ! -d "$target_path" && ! -L "$target_path" && ! -f "$target_path" ]]; then
-        return 0
-    fi
-
-    local managed_by_file
-    if [[ -d "$source_path" ]]; then
-        managed_by_file="$target_path/.managed-by"
-    else
-        managed_by_file="$target_dir/.${name}.managed-by"
-    fi
-
-    if is_managed_by_us "$target_path" "$managed_by_file"; then
-        rm -rf "$target_path"
-        [[ -f "$managed_by_file" ]] && rm -f "$managed_by_file"
-        echo "  - pi: Removed"
-        TOTAL_REMOVED=$((TOTAL_REMOVED + 1))
-    else
-        echo "  - pi: Skipped (not managed by us)"
-        TOTAL_SKIPPED=$((TOTAL_SKIPPED + 1))
-    fi
+    uninstall_from_source "pi-extensions" "$name" "$source_path"
 }
 
 uninstall_all_of_type() {
@@ -126,7 +108,6 @@ uninstall_all_of_type() {
             if [[ -e "$path" ]]; then
                 local name
                 name=$(basename "$path")
-                echo "[$type/$name]"
                 uninstall_pi_extension "$name"
             fi
         done
@@ -146,20 +127,22 @@ uninstall_all_of_type() {
 }
 
 usage() {
-    echo "Usage: $0 [--project <dir>] <TYPE> <NAME...>"
+    echo "Usage: $0 [--project <dir>] [--tools <tools>] <TYPE> <NAME...>"
     echo ""
     echo "Uninstall extensions managed by this repository"
     echo ""
     echo "Options:"
-    echo "  --project <dir>  Uninstall from a specific project directory instead of home directory"
+    echo "  --project <dir>   Uninstall from a specific project directory instead of home directory"
+    echo "  --tools <tools>   Comma-separated targets: agents,claude,codex,opencode,pi"
     echo ""
     echo "Arguments:"
     echo "  TYPE    Extension type: ALL, skills, commands, agents, or pi-extensions"
     echo "  NAME    One or more extension names, or ALL for all of that type"
     echo ""
     echo "Examples:"
-    echo "  $0 ALL                          # Uninstall all extensions from home directory"
-    echo "  $0 --project /path/to/myapp ALL # Uninstall all from a project"
+    echo "  $0 ALL                          # Uninstall all extensions from detected tools"
+    echo "  $0 --tools claude,pi skills ALL # Uninstall all skills from Claude Code and pi"
+    echo "  $0 --project /path/to/myapp --tools agents,claude ALL # Uninstall from a project"
     echo "  $0 skills ALL                   # Uninstall all skills"
     echo "  $0 skills color-master          # Uninstall specific skill"
     echo "  $0 skills skill-1 skill-2       # Uninstall multiple skills"
@@ -168,7 +151,7 @@ usage() {
     exit 1
 }
 
-# Parse --project flag
+# Parse options
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --project)
@@ -179,13 +162,21 @@ while [[ $# -gt 0 ]]; do
             BASE_DIR="$(cd "$2" && pwd)"
             shift 2
             ;;
+        --tools)
+            if [[ -z "$2" || "$2" == --* ]]; then
+                echo "Error: --tools requires a comma-separated tool list" >&2
+                exit 1
+            fi
+            parse_tools_arg "$2" || exit 1
+            shift 2
+            ;;
         *)
             break
             ;;
     esac
 done
 
-if [[ "$BASE_DIR" != "$HOME" ]]; then
+if is_project_install; then
     echo "Uninstalling from project: $BASE_DIR"
 fi
 
@@ -212,7 +203,6 @@ elif [[ $# -ge 2 ]]; then
         if [[ "$name" == "ALL" ]]; then
             uninstall_all_of_type "$type"
         elif [[ "$type" == "pi-extensions" ]]; then
-            echo "[$type/$name]"
             uninstall_pi_extension "$name"
         else
             uninstall_extension "$type" "$name"

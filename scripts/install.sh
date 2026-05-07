@@ -47,20 +47,22 @@ get_pi_extensions_dir() {
 }
 
 usage() {
-    echo "Usage: $0 [--project <dir>] <TYPE> <NAME...>"
+    echo "Usage: $0 [--project <dir>] [--tools <tools>] <TYPE> <NAME...>"
     echo ""
-    echo "Install extensions by copying to Claude Code, Codex, OpenCode, and pi"
+    echo "Install extensions by copying to Claude Code, Codex, OpenCode, agents, and pi"
     echo ""
     echo "Options:"
-    echo "  --project <dir>  Install to a specific project directory instead of home directory"
+    echo "  --project <dir>   Install to a specific project directory instead of home directory"
+    echo "  --tools <tools>   Comma-separated targets: agents,claude,codex,opencode,pi"
     echo ""
     echo "Arguments:"
     echo "  TYPE    Extension type: ALL, __ALL, skills, commands, agents, or pi-extensions"
     echo "  NAME    One or more extension names, ALL for public, or __ALL for all (incl. experimental)"
     echo ""
     echo "Examples:"
-    echo "  $0 ALL                          # Install all public extensions to home directory"
-    echo "  $0 --project /path/to/myapp skills ALL  # Install all skills to a project"
+    echo "  $0 ALL                          # Install all public extensions to detected tools"
+    echo "  $0 --tools claude,pi skills ALL # Install all public skills to Claude Code and pi"
+    echo "  $0 --project /path/to/myapp --tools agents,claude skills ALL  # Install skills to a project"
     echo "  $0 __ALL                        # Install all extensions including experimental"
     echo "  $0 skills ALL                   # Install all public skills"
     echo "  $0 skills __ALL                 # Install all skills including experimental"
@@ -105,34 +107,32 @@ usage() {
     exit 1
 }
 
-install_to_tool() {
-    local tool_root="$1"
-    local tool_name="$2"
+install_to_target() {
+    local tool_name="$1"
+    local target_dir="$2"
     local type="$3"
     local name="$4"
     local source_path="$5"
 
-    # Check if tool directory exists
-    if [[ ! -d "$tool_root" ]]; then
-        return 0
-    fi
-
-    local target_subdir
-    target_subdir=$(get_target_subdir "$tool_name" "$type")
-    local target_dir="$tool_root/$target_subdir"
     mkdir -p "$target_dir"
 
-    # Get target paths (sets target_path and managed_by_file)
     local target_path managed_by_file
-    get_target_paths "$target_dir" "$type" "$name"
+    if [[ "$type" == "pi-extensions" ]]; then
+        target_path="$target_dir/$name"
+        if [[ -d "$source_path" ]]; then
+            managed_by_file="$target_path/.managed-by"
+        else
+            managed_by_file="$target_dir/.${name}.managed-by"
+        fi
+    else
+        get_target_paths "$target_dir" "$type" "$name"
+    fi
 
-    # Check if target already exists
     local is_update=false
     if [[ -e "$target_path" || -L "$target_path" ]]; then
         if is_managed_by_us "$target_path" "$managed_by_file"; then
-            # Remove existing installation for update
             rm -rf "$target_path"
-            [[ "$type" != "skills" ]] && rm -f "$managed_by_file"
+            [[ "$type" != "skills" && -f "$managed_by_file" ]] && rm -f "$managed_by_file"
             is_update=true
         else
             echo "  - $tool_name: WARNING - Skipped (already exists, not managed by us)"
@@ -142,18 +142,17 @@ install_to_tool() {
         fi
     fi
 
-    # Install
-    if [[ "$type" == "skills" ]]; then
-        # Copy entire directory
+    if [[ "$type" == "skills" ]] || [[ "$type" == "pi-extensions" && -d "$source_path" ]]; then
         cp -r "$source_path" "$target_path"
-        # Add .managed-by file inside the skill directory
         echo "$REPO_NAME" > "$target_path/.managed-by"
     else
-        # Copy main file only
         local main_file
-        main_file=$(get_main_file "$type")
-        cp "$source_path/$main_file" "$target_path"
-        # Add .managed-by file as hidden file alongside the target
+        if [[ "$type" == "pi-extensions" ]]; then
+            cp "$source_path" "$target_path"
+        else
+            main_file=$(get_main_file "$type")
+            cp "$source_path/$main_file" "$target_path"
+        fi
         echo "$REPO_NAME" > "$managed_by_file"
     fi
 
@@ -164,6 +163,26 @@ install_to_tool() {
         echo "  - $tool_name: Installed"
         TOTAL_INSTALLED=$((TOTAL_INSTALLED + 1))
     fi
+}
+
+install_from_source() {
+    local type="$1"
+    local name="$2"
+    local source_path="$3"
+
+    resolve_targets "$type"
+    if [[ ${#RESOLVED_TARGETS[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    echo "[$type/$name]"
+
+    local resolved_target tool_name target_dir
+    for resolved_target in "${RESOLVED_TARGETS[@]}"; do
+        tool_name="${resolved_target%%|*}"
+        target_dir="${resolved_target#*|}"
+        install_to_target "$tool_name" "$target_dir" "$type" "$name" "$source_path"
+    done
 }
 
 install_extension() {
@@ -183,27 +202,7 @@ install_extension() {
         return 1
     fi
 
-    echo "[$type/$name]"
-
-    # Claude Code: supports skills, commands, agents
-    install_to_tool "$BASE_DIR/.claude" "claude" "$type" "$name" "$source_path"
-
-    # Codex: only supports skills
-    if [[ "$type" == "skills" ]]; then
-        install_to_tool "$BASE_DIR/.codex" "codex" "$type" "$name" "$source_path"
-    fi
-
-    # OpenCode: supports skills, commands (as command)
-    if [[ "$type" == "skills" || "$type" == "commands" ]]; then
-        install_to_tool "$BASE_DIR/.config/opencode" "opencode" "$type" "$name" "$source_path"
-    fi
-
-    # pi: supports skills and agents
-    if [[ "$type" == "skills" || "$type" == "agents" ]]; then
-        install_to_tool "$BASE_DIR/.pi/agent" "pi" "$type" "$name" "$source_path"
-    fi
-
-    return 0
+    install_from_source "$type" "$name" "$source_path"
 }
 
 install_pi_extension() {
@@ -211,56 +210,13 @@ install_pi_extension() {
     local pi_extensions_dir
     pi_extensions_dir=$(get_pi_extensions_dir)
     local source_path="$pi_extensions_dir/$name"
-    local target_dir="$BASE_DIR/.pi/agent/extensions"
 
     if [[ ! -e "$source_path" ]]; then
         echo "Error: Pi extension not found: $source_path"
         return 1
     fi
 
-    if [[ ! -d "$BASE_DIR/.pi/agent" ]]; then
-        return 0
-    fi
-
-    mkdir -p "$target_dir"
-
-    local target_path="$target_dir/$name"
-    local managed_by_file
-    if [[ -d "$source_path" ]]; then
-        managed_by_file="$target_path/.managed-by"
-    else
-        managed_by_file="$target_dir/.${name}.managed-by"
-    fi
-
-    local is_update=false
-    if [[ -e "$target_path" || -L "$target_path" ]]; then
-        if is_managed_by_us "$target_path" "$managed_by_file"; then
-            rm -rf "$target_path"
-            [[ -f "$managed_by_file" ]] && rm -f "$managed_by_file"
-            is_update=true
-        else
-            echo "  - pi: WARNING - Skipped (already exists, not managed by us)"
-            TOTAL_WARNINGS=$((TOTAL_WARNINGS + 1))
-            TOTAL_SKIPPED=$((TOTAL_SKIPPED + 1))
-            return 0
-        fi
-    fi
-
-    if [[ -d "$source_path" ]]; then
-        cp -r "$source_path" "$target_path"
-        echo "$REPO_NAME" > "$target_path/.managed-by"
-    else
-        cp "$source_path" "$target_path"
-        echo "$REPO_NAME" > "$managed_by_file"
-    fi
-
-    if [[ "$is_update" == true ]]; then
-        echo "  - pi: Updated"
-        TOTAL_UPDATED=$((TOTAL_UPDATED + 1))
-    else
-        echo "  - pi: Installed"
-        TOTAL_INSTALLED=$((TOTAL_INSTALLED + 1))
-    fi
+    install_from_source "pi-extensions" "$name" "$source_path"
 }
 
 is_public_skill() {
@@ -284,7 +240,6 @@ install_all_of_type() {
             if [[ -e "$path" ]]; then
                 local name
                 name=$(basename "$path")
-                echo "[$type/$name]"
                 install_pi_extension "$name"
             fi
         done
@@ -309,7 +264,7 @@ install_all_of_type() {
     done
 }
 
-# Parse --project flag
+# Parse options
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --project)
@@ -320,16 +275,22 @@ while [[ $# -gt 0 ]]; do
             BASE_DIR="$(cd "$2" && pwd)"
             shift 2
             ;;
+        --tools)
+            if [[ -z "$2" || "$2" == --* ]]; then
+                echo "Error: --tools requires a comma-separated tool list" >&2
+                exit 1
+            fi
+            parse_tools_arg "$2" || exit 1
+            shift 2
+            ;;
         *)
             break
             ;;
     esac
 done
 
-if [[ "$BASE_DIR" != "$HOME" ]]; then
+if is_project_install; then
     echo "Installing to project: $BASE_DIR"
-    # For project-local installs, create tool directories as needed
-    mkdir -p "$BASE_DIR/.claude"
 fi
 
 # Main logic
@@ -359,7 +320,6 @@ elif [[ $# -ge 2 ]]; then
             [[ "$name" == "__ALL" ]] && local_include_experimental="true"
             install_all_of_type "$type" "$local_include_experimental"
         elif [[ "$type" == "pi-extensions" ]]; then
-            echo "[$type/$name]"
             install_pi_extension "$name"
         else
             install_extension "$type" "$name"

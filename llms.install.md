@@ -11,7 +11,7 @@ Do these three things together, before asking the user anything:
 2. **Analyze the current working directory**: Is this a project directory (has `package.json`, `Cargo.toml`, `go.mod`, `.git`, `pyproject.toml`, `Makefile`, etc.)? If so, scan briefly: languages, frameworks, existing tooling, test setup, CI config. Note the project root path.
 3. **Read the README**: Fetch `https://raw.githubusercontent.com/bolasblack/claude-skills/master/README.md` to get the full list of available skills, agents, commands, and pi-extensions with their descriptions.
 
-Then present your findings and ask the user **two things at once**:
+Then present your findings and ask the user **three things at once**:
 
 ### What to install
 
@@ -41,11 +41,29 @@ If the user specified a type in their original message (e.g. "install skills"), 
 
 **If in a home directory**, skip this question — install to home directory.
 
+### Which tools to install for
+
+Ask which target tools should receive the extensions:
+
+> Install for which tools?
+> - **Auto-detect** existing tool directories (default)
+> - `agents` — generic `.agents/skills` project-compatible skills directory
+> - `claude` — Claude Code
+> - `codex` — Codex skills
+> - `opencode` — OpenCode
+> - `pi` — pi skills, agents, and extensions
+
+If installing to a project directory, recommend explicit tools instead of auto-detect so the installer can create the intended project-local directories. Good defaults:
+- Skills for broad project sharing: `agents,claude,pi`
+- Claude Code only: `claude`
+- Pi extensions: `pi`
+
 ### How to respond
 
 Tell the user:
 
-> Pick by letter or name (e.g. "A, C, D" or "playwright, code-reviewer").
+> Pick extensions by letter or name (e.g. "A, C, D" or "playwright, code-reviewer").
+> Pick tools by name or say "auto" (e.g. "install A and D to this project for agents,claude").
 > Say **"show all"** to see the complete list, or **"all"** / **"__all"** to install everything.
 
 Wait for the user's response before proceeding.
@@ -70,22 +88,27 @@ Set `REPO_DIR=/tmp/c4-skills`.
 
 ## Step 3: Install chosen extensions
 
-Run the install script based on the user's choices from Step 1:
+Run the install script based on the user's choices from Step 1.
+
+Use `--tools <comma-separated-tools>` when the user chose explicit tools. Omit `--tools` only for auto-detect.
 
 ```bash
-# Home directory (default):
+# Home directory, auto-detect existing tool directories:
 cd $REPO_DIR && ./scripts/install.sh skills <name1> <name2> ...
 
-# Project directory:
-cd $REPO_DIR && ./scripts/install.sh --project <project_dir> skills <name1> <name2> ...
+# Home directory, explicit tools:
+cd $REPO_DIR && ./scripts/install.sh --tools claude,pi skills <name1> <name2> ...
+
+# Project directory, explicit tools recommended:
+cd $REPO_DIR && ./scripts/install.sh --project <project_dir> --tools agents,claude skills <name1> <name2> ...
 
 # Same pattern for other types:
-cd $REPO_DIR && ./scripts/install.sh [--project <dir>] agents <name1> <name2> ...
-cd $REPO_DIR && ./scripts/install.sh [--project <dir>] commands <name1> <name2> ...
-cd $REPO_DIR && ./scripts/install.sh [--project <dir>] pi-extensions <name1> <name2> ...
+cd $REPO_DIR && ./scripts/install.sh [--project <dir>] [--tools <tools>] agents <name1> <name2> ...
+cd $REPO_DIR && ./scripts/install.sh [--project <dir>] [--tools <tools>] commands <name1> <name2> ...
+cd $REPO_DIR && ./scripts/install.sh [--project <dir>] [--tools pi] pi-extensions <name1> <name2> ...
 
 # Or everything:
-cd $REPO_DIR && ./scripts/install.sh [--project <dir>] ALL
+cd $REPO_DIR && ./scripts/install.sh [--project <dir>] [--tools <tools>] ALL
 ```
 
 Show the install output to the user.
