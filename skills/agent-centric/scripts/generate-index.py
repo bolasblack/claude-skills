@@ -2,6 +2,7 @@
 """
 Generate index files for the Agent Centric framework.
 
+Managed by: agent-centric skill
 DO NOT MODIFY THIS FILE - it will be automatically updated from the skill directory.
 To disable auto-update, add this filename to disableAutoUpdateScripts in config.json.
 
@@ -28,6 +29,7 @@ from utils import (
     get_agd_sort_key,
     get_agents_dir,
     get_decisions_dir,
+    run_configured_scripts,
 )
 from simple_yaml import parse_frontmatter, serialize_frontmatter
 
@@ -191,6 +193,8 @@ def generate_indexes(project_dir: Path) -> None:
     modified_count = sync_reverse_references(decisions_dir, reverse_refs)
     if modified_count > 0:
         print(f"Updated {modified_count} AGD file(s) with reverse references")
+
+    run_configured_scripts(project_dir, 'postGenerateIndexScripts')
 
 
 def main():

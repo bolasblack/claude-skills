@@ -44,7 +44,9 @@ if [ ! -f "$AGENTS_DIR/config.json" ]; then
     cat > "$AGENTS_DIR/config.json" << 'EOF'
 {
   "tags": [],
-  "disableAutoUpdateScripts": []
+  "disableAutoUpdateScripts": [],
+  "postValidateAgdsScripts": [],
+  "postGenerateIndexScripts": []
 }
 EOF
     echo "Created config.json"

@@ -2,6 +2,7 @@
 """Tests for generate-index.py relationship indexing and reverse references."""
 
 import importlib.util
+import json
 import sys
 import tempfile
 import unittest
@@ -33,7 +34,10 @@ class TestGenerateIndex(unittest.TestCase):
         self.project_dir = Path(self.temp_dir.name)
         self.agents_dir = self.project_dir / ".agents"
         self.decisions_dir = self.agents_dir / "decisions"
+        self.scripts_dir = self.agents_dir / "scripts"
         self.decisions_dir.mkdir(parents=True)
+        self.scripts_dir.mkdir(parents=True)
+        (self.agents_dir / "config.json").write_text(json.dumps({"tags": []}))
 
     def tearDown(self):
         self.temp_dir.cleanup()
@@ -148,6 +152,29 @@ obsoleted_by: AGD-003""",
 
         self.assertNotIn("updated_by", frontmatter)
         self.assertNotIn("obsoleted_by", frontmatter)
+
+    def test_post_generate_index_scripts_run_after_indexes_are_written(self):
+        hook_dir = self.agents_dir / "hooks"
+        hook_dir.mkdir()
+        hook_script = hook_dir / "local-post-generate.py"
+        marker_file = self.agents_dir / "post-generate-marker.txt"
+        hook_script.write_text(
+            "#!/usr/bin/env python3\n"
+            "import sys\n"
+            "from pathlib import Path\n"
+            "project_dir = Path(sys.argv[1])\n"
+            "index_exists = (project_dir / '.agents' / 'INDEX-TAGS.md').exists()\n"
+            f"Path({str(marker_file)!r}).write_text(str(index_exists))\n"
+        )
+        hook_script.chmod(0o755)
+        (self.agents_dir / "config.json").write_text(json.dumps({
+            "tags": [],
+            "postGenerateIndexScripts": ["hooks/local-post-generate.py"],
+        }))
+
+        generate_index.generate_indexes(self.project_dir)
+
+        self.assertEqual(marker_file.read_text(), "True")
 
 
 if __name__ == "__main__":

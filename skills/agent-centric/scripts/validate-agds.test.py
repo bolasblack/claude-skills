@@ -32,7 +32,9 @@ class TestValidateAgds(unittest.TestCase):
         self.project_dir = Path(self.temp_dir.name)
         self.agents_dir = self.project_dir / ".agents"
         self.decisions_dir = self.agents_dir / "decisions"
+        self.scripts_dir = self.agents_dir / "scripts"
         self.decisions_dir.mkdir(parents=True)
+        self.scripts_dir.mkdir(parents=True)
         (self.agents_dir / "config.json").write_text(json.dumps({"tags": []}))
 
     def tearDown(self):
@@ -69,6 +71,28 @@ obsoleted_by: AGD-999""",
         errors = validate_agds.validate_all_decisions(self.project_dir)
 
         self.assertEqual(errors, [])
+
+    def test_post_validate_agds_scripts_run_after_validation(self):
+        hook_dir = self.agents_dir / "hooks"
+        hook_dir.mkdir()
+        hook_script = hook_dir / "local-post-validate.py"
+        marker_file = self.agents_dir / "post-validate-marker.txt"
+        hook_script.write_text(
+            "#!/usr/bin/env python3\n"
+            "import sys\n"
+            "from pathlib import Path\n"
+            "project_dir = Path(sys.argv[1])\n"
+            f"Path({str(marker_file)!r}).write_text(str(project_dir))\n"
+        )
+        hook_script.chmod(0o755)
+        (self.agents_dir / "config.json").write_text(json.dumps({
+            "tags": [],
+            "postValidateAgdsScripts": ["hooks/local-post-validate.py"],
+        }))
+
+        validate_agds.run_post_validate_scripts(self.project_dir)
+
+        self.assertEqual(marker_file.read_text(), str(self.project_dir))
 
 
 if __name__ == "__main__":

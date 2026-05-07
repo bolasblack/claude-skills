@@ -2,6 +2,7 @@
 """
 Validate AGD (Agent-centric Governance Decision) files.
 
+Managed by: agent-centric skill
 DO NOT MODIFY THIS FILE - it will be automatically updated from the skill directory.
 To disable auto-update, add this filename to disableAutoUpdateScripts in config.json.
 
@@ -15,6 +16,7 @@ Reads hook input from stdin to determine if validation is needed.
 import json
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -24,6 +26,7 @@ from utils import (
     find_agd_file,
     get_agents_dir,
     get_decisions_dir,
+    run_configured_scripts,
 )
 from simple_yaml import parse_frontmatter
 
@@ -91,8 +94,8 @@ def check_script_updates(project_dir: Path, skill_dir: Path | None) -> None:
     if not skill_scripts_dir.exists():
         return
 
-    for script_file in skill_scripts_dir.glob('*'):
-        if script_file.name in disable_config:
+    for script_file in skill_scripts_dir.glob('*.py'):
+        if script_file.name.endswith('.test.py') or script_file.name in disable_config:
             continue
 
         target_file = scripts_dir / script_file.name
@@ -108,6 +111,11 @@ def check_script_updates(project_dir: Path, skill_dir: Path | None) -> None:
                 target_file.chmod(target_file.stat().st_mode | 0o111)
         except IOError:
             pass
+
+
+def run_post_validate_scripts(project_dir: Path) -> None:
+    """Run configured scripts after AGD validation succeeds."""
+    run_configured_scripts(project_dir, 'postValidateAgdsScripts')
 
 
 def validate_all_decisions(project_dir: Path) -> list[str]:
@@ -178,9 +186,18 @@ def main():
             print(f"  - {error}", file=sys.stderr)
         sys.exit(1)
 
+    try:
+        run_post_validate_scripts(project_dir)
+    except Exception as e:
+        print(f"postValidateAgdsScripts failed: {e}", file=sys.stderr)
+        sys.exit(1)
+
     generate_index_script = get_agents_dir(project_dir) / 'scripts' / 'generate-index.py'
     if generate_index_script.exists():
-        os.system(f'python3 "{generate_index_script}" "{project_dir}"')
+        try:
+            subprocess.run([sys.executable, str(generate_index_script), str(project_dir)], check=True)
+        except subprocess.CalledProcessError as e:
+            sys.exit(e.returncode)
 
     sys.exit(0)
 

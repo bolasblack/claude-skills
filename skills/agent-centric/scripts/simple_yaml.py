@@ -2,6 +2,7 @@
 """
 Simple YAML frontmatter parser and serializer using only Python stdlib.
 
+Managed by: agent-centric skill
 Handles markdown files with YAML frontmatter (---\n...\n---).
 Preserves types: str, int, float, bool, None.
 """

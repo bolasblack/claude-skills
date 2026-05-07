@@ -11,7 +11,9 @@ Configuration options for the Agent Centric framework.
 ```json
 {
   "tags": [],
-  "disableAutoUpdateScripts": []
+  "disableAutoUpdateScripts": [],
+  "postValidateAgdsScripts": [],
+  "postGenerateIndexScripts": []
 }
 ```
 
@@ -54,6 +56,30 @@ Controls automatic script updates from the skill directory.
 ```json
 {
   "disableAutoUpdateScripts": []
+}
+```
+
+### postValidateAgdsScripts
+
+Array of project-local scripts to run after AGD validation succeeds and before indexes are regenerated.
+
+Scripts must be listed as paths relative to `.agents/config.json`. Each script receives the project directory as its first argument.
+
+```json
+{
+  "postValidateAgdsScripts": ["hooks/local-post-validate.py"]
+}
+```
+
+### postGenerateIndexScripts
+
+Array of project-local scripts to run after built-in indexes and reverse references are generated.
+
+Scripts must be listed as paths relative to `.agents/config.json`. Each script receives the project directory as its first argument.
+
+```json
+{
+  "postGenerateIndexScripts": ["hooks/local-post-generate.py"]
 }
 ```
 
