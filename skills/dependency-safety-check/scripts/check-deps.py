@@ -6,6 +6,7 @@ Compatible with Python 2.7+ and Python 3.6+. No external dependencies.
 
 Usage:
     python check-deps.py gray-matter@4.0.3 glob@11.0.0
+    python check-deps.py --min-age-days 7 gray-matter@4.0.3
     python check-deps.py --ecosystem pypi requests@2.31.0
 """
 
@@ -29,7 +30,8 @@ except ImportError:
 # --- Config ---
 
 DEFAULT_ECOSYSTEM = "npm"
-THIRTY_DAYS = 30 * 24 * 3600
+DEFAULT_MIN_AGE_DAYS = 30
+MIN_ALLOWED_AGE_DAYS = 7
 REQUEST_TIMEOUT = 15
 
 # Disable SSL verification warnings for older Python versions
@@ -89,7 +91,7 @@ def fetch_text(url):
 # --- Checkers ---
 
 
-def check_npm_registry(name, version):
+def check_npm_registry(name, version, min_age_days):
     """Check npm registry for package metadata and publish date."""
     result = {"source": "npm-registry", "findings": []}
 
@@ -140,15 +142,15 @@ def check_npm_registry(name, version):
             result["publish_date"] = pub_date
             result["age_days"] = age_days
 
-            if age_days < 30:
+            if age_days < min_age_days:
                 result["findings"].append({
                     "severity": "error",
-                    "message": "Version %s was published %d days ago (< 30 days). REJECT." % (version, age_days),
+                    "message": "Version %s was published %d days ago (< %d days). REJECT." % (version, age_days, min_age_days),
                 })
             else:
                 result["findings"].append({
                     "severity": "ok",
-                    "message": "Version %s published %d days ago (%s). Age OK." % (version, age_days, pub_date),
+                    "message": "Version %s published %d days ago (%s). Age OK (minimum: %d days)." % (version, age_days, pub_date, min_age_days),
                 })
         except (ValueError, OverflowError):
             result["findings"].append({
@@ -555,7 +557,7 @@ def check_snyk(name, ecosystem="npm"):
     return result
 
 
-def check_transitive_deps(name, version, ecosystem="npm"):
+def check_transitive_deps(name, version, ecosystem="npm", min_age_days=DEFAULT_MIN_AGE_DAYS):
     """Check transitive dependencies for recent publish dates and vulnerabilities."""
     result = {"source": "transitive-deps", "findings": []}
 
@@ -603,10 +605,11 @@ def check_transitive_deps(name, version, ecosystem="npm"):
                 pub_ts = time.mktime(time.strptime(pub_date, "%Y-%m-%d"))
                 age_days = int((time.time() - pub_ts) / 86400)
                 checked.append("%s@%s from %s (%dd)" % (dep_name, resolved, dep_range, age_days))
-                if age_days < 7:
-                    issues.append("%s@%s published %d days ago — VERY RECENT" % (dep_name, resolved, age_days))
-                elif age_days < 30:
-                    issues.append("%s@%s published %d days ago — recent transitive dependency" % (dep_name, resolved, age_days))
+                if age_days < min_age_days:
+                    if age_days < MIN_ALLOWED_AGE_DAYS:
+                        issues.append("%s@%s published %d days ago — VERY RECENT" % (dep_name, resolved, age_days))
+                    else:
+                        issues.append("%s@%s published %d days ago — below %d-day minimum" % (dep_name, resolved, age_days, min_age_days))
             except (ValueError, OverflowError):
                 pass
 
@@ -637,23 +640,24 @@ def check_transitive_deps(name, version, ecosystem="npm"):
 
 # --- Main ---
 
-def check_package(name, version, ecosystem):
+def check_package(name, version, ecosystem, min_age_days):
     """Run all checks on a single package."""
     print("=" * 60)
     print("Package: %s@%s (%s)" % (name, version or "latest", ecosystem))
+    print("Minimum package age: %d days" % min_age_days)
     print("=" * 60)
 
     checks = []
 
     if ecosystem == "npm":
-        checks.append(check_npm_registry(name, version))
+        checks.append(check_npm_registry(name, version, min_age_days))
     checks.append(check_osv(name, version, ecosystem))
     checks.append(check_github_advisory(name, ecosystem))
     checks.append(check_socket_dev(name, version, ecosystem))
     checks.append(check_snyk(name, ecosystem))
 
     if ecosystem == "npm":
-        checks.append(check_transitive_deps(name, version, ecosystem))
+        checks.append(check_transitive_deps(name, version, ecosystem, min_age_days))
 
     has_error = False
     has_warning = False
@@ -692,61 +696,101 @@ def check_package(name, version, ecosystem):
     return not has_error
 
 
-def main():
-    args = sys.argv[1:]
-    ecosystem = DEFAULT_ECOSYSTEM
+def print_usage(out=sys.stdout):
+    print("Usage: python check-deps.py [--ecosystem npm|pypi|cargo] [--min-age-days DAYS] pkg@version [pkg@version ...]", file=out)
+    print("", file=out)
+    print("Checks multiple security databases for known vulnerabilities,", file=out)
+    print("supply chain risks, and publish date compliance.", file=out)
+    print("", file=out)
+    print("Options:", file=out)
+    print("  --ecosystem npm|pypi|cargo   Package ecosystem to query. Default: npm", file=out)
+    print("  --min-age-days DAYS          Reject direct npm versions newer than DAYS. Default: %d; minimum: %d" % (DEFAULT_MIN_AGE_DAYS, MIN_ALLOWED_AGE_DAYS), file=out)
+    print("", file=out)
+    print("Examples:", file=out)
+    print("  python check-deps.py gray-matter@4.0.3 glob@11.0.0", file=out)
+    print("  python check-deps.py --min-age-days 7 gray-matter@4.0.3", file=out)
+    print("  python check-deps.py --ecosystem pypi requests@2.31.0", file=out)
 
-    # Parse --ecosystem flag
-    filtered_args = []
+
+def parse_package_spec(arg):
+    if "@" in arg and not arg.startswith("@"):
+        name, version = arg.rsplit("@", 1)
+        return name, version
+    if arg.startswith("@") and "@" in arg[1:]:
+        rest = arg[1:]
+        parts = rest.rsplit("@", 1)
+        if len(parts) == 2:
+            return "@" + parts[0], parts[1]
+    return arg, None
+
+
+def parse_args(args):
+    ecosystem = DEFAULT_ECOSYSTEM
+    min_age_days = DEFAULT_MIN_AGE_DAYS
+    package_args = []
     i = 0
+
     while i < len(args):
-        if args[i] == "--ecosystem" and i + 1 < len(args):
+        arg = args[i]
+        if arg == "--ecosystem":
+            if i + 1 >= len(args):
+                print("Error: --ecosystem requires a value.", file=sys.stderr)
+                sys.exit(1)
             ecosystem = args[i + 1]
             i += 2
-        elif args[i].startswith("--ecosystem="):
-            ecosystem = args[i].split("=", 1)[1]
+        elif arg.startswith("--ecosystem="):
+            ecosystem = arg.split("=", 1)[1]
             i += 1
-        elif args[i] in ("-h", "--help"):
-            print("Usage: python check-deps.py [--ecosystem npm|pypi|cargo] pkg@version [pkg@version ...]")
-            print("")
-            print("Checks multiple security databases for known vulnerabilities,")
-            print("supply chain risks, and publish date compliance (30-day rule).")
-            print("")
-            print("Examples:")
-            print("  python check-deps.py gray-matter@4.0.3 glob@11.0.0")
-            print("  python check-deps.py --ecosystem pypi requests@2.31.0")
+        elif arg == "--min-age-days":
+            if i + 1 >= len(args):
+                print("Error: --min-age-days requires a value.", file=sys.stderr)
+                sys.exit(1)
+            min_age_days = parse_min_age_days(args[i + 1])
+            i += 2
+        elif arg.startswith("--min-age-days="):
+            min_age_days = parse_min_age_days(arg.split("=", 1)[1])
+            i += 1
+        elif arg in ("-h", "--help"):
+            print_usage()
             sys.exit(0)
+        elif arg.startswith("--"):
+            print("Error: Unknown option: %s" % arg, file=sys.stderr)
+            print_usage(sys.stderr)
+            sys.exit(1)
         else:
-            filtered_args.append(args[i])
+            package_args.append(arg)
             i += 1
 
-    if not filtered_args:
+    if not package_args:
         print("Error: No packages specified.", file=sys.stderr)
-        print("Usage: python check-deps.py [--ecosystem npm|pypi|cargo] pkg@version [pkg@version ...]", file=sys.stderr)
+        print_usage(sys.stderr)
         sys.exit(1)
 
-    packages = []
-    for arg in filtered_args:
-        if "@" in arg and not arg.startswith("@"):
-            name, version = arg.rsplit("@", 1)
-        elif arg.startswith("@") and "@" in arg[1:]:
-            # Scoped npm package like @scope/name@version
-            rest = arg[1:]
-            parts = rest.rsplit("@", 1)
-            if len(parts) == 2:
-                name = "@" + parts[0]
-                version = parts[1]
-            else:
-                name = arg
-                version = None
-        else:
-            name = arg
-            version = None
-        packages.append((name, version))
+    return {
+        "ecosystem": ecosystem,
+        "min_age_days": min_age_days,
+        "packages": [parse_package_spec(arg) for arg in package_args],
+    }
+
+
+def parse_min_age_days(value):
+    try:
+        days = int(value)
+    except ValueError:
+        print("Error: --min-age-days must be an integer.", file=sys.stderr)
+        sys.exit(1)
+    if days < MIN_ALLOWED_AGE_DAYS:
+        print("Error: --min-age-days must be %d or greater." % MIN_ALLOWED_AGE_DAYS, file=sys.stderr)
+        sys.exit(1)
+    return days
+
+
+def main():
+    options = parse_args(sys.argv[1:])
 
     all_pass = True
-    for name, version in packages:
-        if not check_package(name, version, ecosystem):
+    for name, version in options["packages"]:
+        if not check_package(name, version, options["ecosystem"], options["min_age_days"]):
             all_pass = False
 
     if not all_pass:

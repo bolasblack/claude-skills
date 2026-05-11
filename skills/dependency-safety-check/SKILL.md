@@ -12,6 +12,8 @@ Run a dependency security screen before installing third-party project packages.
 ## Critical Rules
 
 - **Always run `scripts/check-deps.py` before installing or upgrading third-party dependencies.**
+- **Use the default 30-day minimum package age unless the user or project policy explicitly chooses another value.**
+- **Never set the minimum age below 7 days.**
 - **Never silently skip the check because the user seems in a hurry.**
 - **If the checker returns `REJECT`, do not install unless the user explicitly overrides the risk.**
 - **If the checker returns `REVIEW`, summarize the warnings and ask before proceeding.**
@@ -51,10 +53,11 @@ fi
 
 ### 3. Run the checker before installation
 
-Run the bundled script from this skill:
+Run the bundled script from this skill. The publish-age gate defaults to 30 days; override it only when the user or project policy names a different threshold.
 
 ```bash
 "$PYTHON_BIN" "$CHECK_DEPS" <pkg[@version]> [more packages...]
+"$PYTHON_BIN" "$CHECK_DEPS" --min-age-days 7 <pkg[@version]> [more packages...]
 "$PYTHON_BIN" "$CHECK_DEPS" --ecosystem pypi <pkg[@version]> [more packages...]
 "$PYTHON_BIN" "$CHECK_DEPS" --ecosystem cargo <pkg[@version]> [more packages...]
 ```
@@ -63,6 +66,7 @@ Examples:
 
 ```bash
 "$PYTHON_BIN" "$CHECK_DEPS" react-router-dom@7.0.2
+"$PYTHON_BIN" "$CHECK_DEPS" --min-age-days 7 react-router-dom@7.0.2
 "$PYTHON_BIN" "$CHECK_DEPS" --ecosystem pypi httpx@0.28.1
 "$PYTHON_BIN" "$CHECK_DEPS" --ecosystem cargo serde@1.0.217
 ```
@@ -111,12 +115,24 @@ Examples:
 **Actions:**
 1. Detect npm ecosystem from `package.json`.
 2. Resolve the target version if needed.
-3. Run `scripts/check-deps.py` for that package.
+3. Run `scripts/check-deps.py` for that package using the default 30-day minimum age.
 4. If verdict is `PASS`, run the install command.
 
 **Result:** Package is installed only after the dependency safety screen completes.
 
-### Example 2: Python dependency upgrade
+### Example 2: npm package install with a 7-day policy
+
+**User says:** "Use a 7-day release-age policy and install `react-router-dom`."
+
+**Actions:**
+1. Detect npm ecosystem from `package.json`.
+2. Resolve the target version if needed.
+3. Run `scripts/check-deps.py --min-age-days 7` for that package.
+4. If verdict is `PASS`, run the install command.
+
+**Result:** Package is installed only after the dependency safety screen uses the requested 7-day threshold.
+
+### Example 3: Python dependency upgrade
 
 **User says:** "Upgrade `httpx` in this project."
 
@@ -128,7 +144,7 @@ Examples:
 
 **Result:** Upgrade proceeds only after the script reports an acceptable result.
 
-### Example 3: Repo bootstrap install
+### Example 4: Repo bootstrap install
 
 **User says:** "Install project dependencies."
 
@@ -142,4 +158,5 @@ Examples:
 
 ## Version History
 
+- v1.1.0 (2026-05-11): Added configurable minimum package age with a 30-day default.
 - v1.0.0 (2026-04-13): Initial version

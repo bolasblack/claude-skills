@@ -1,3 +1,4 @@
 [tools]
 node = "lts"
+"npm:agent-browser" = "latest"
 python = "latest"
