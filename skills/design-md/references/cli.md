@@ -1,6 +1,11 @@
 # DESIGN.md CLI
 
-Source: `https://stitch.withgoogle.com/docs/design-md/cli`
+Sources:
+
+- Stitch docs: `https://stitch.withgoogle.com/docs/design-md/cli`
+- Implementation/tooling source: `https://github.com/google-labs-code/design.md`
+
+If the Stitch page appears empty or only shows the app shell, inspect the nested iframe content; the actual docs may be two iframe layers deep, and the innermost documentation frame URL may change over time.
 
 The official CLI package is `@google/design.md`.
 
@@ -27,13 +32,19 @@ Official docs show:
 npm install @google/design.md
 ```
 
+On Windows shells, quote the scoped package if needed:
+
+```bash
+npm install "@google/design.md"
+```
+
 Or direct execution:
 
 ```bash
 npx @google/design.md lint DESIGN.md
 ```
 
-Treat both as dependency-sensitive commands unless the package is already present.
+Treat both as dependency-sensitive commands unless the package is already present. On Windows, the package may expose a `designmd` script alias. If npm reports `ENOVERSIONS`, treat it as a registry/package-resolution issue and do not retry installation without checking the package metadata.
 
 ## Lint
 
@@ -58,7 +69,7 @@ Options:
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `file` | positional | required | Path to `DESIGN.md` or `-` for stdin |
-| `--format` | `json` or `text` | `json` | Output format |
+| `--format` | `json` | `json` | Output format |
 
 Example output shape:
 
@@ -96,10 +107,16 @@ Exit code is 1 if regressions are detected.
 
 Convert `DESIGN.md` tokens to other formats.
 
-Tailwind CSS:
+Tailwind JSON:
 
 ```bash
-npx @google/design.md export --format tailwind DESIGN.md
+npx @google/design.md export --format json-tailwind DESIGN.md
+```
+
+Tailwind CSS variables:
+
+```bash
+npx @google/design.md export --format css-tailwind DESIGN.md
 ```
 
 DTCG / W3C Design Tokens:
@@ -110,7 +127,9 @@ npx @google/design.md export --format dtcg DESIGN.md
 
 Export formats:
 
-- `tailwind`: JSON object with colors, fontFamily, fontSize, borderRadius, and spacing mapped from design tokens
+- `json-tailwind`: JSON object with colors, fontFamily, fontSize, borderRadius, and spacing mapped from design tokens
+- `css-tailwind`: CSS variables for Tailwind-oriented consumption
+- `tailwind`: alias for Tailwind JSON in older examples
 - `dtcg`: W3C Design Tokens Format Module compliant `tokens.json`
 
 ## Spec

@@ -1,8 +1,13 @@
 # View, Edit, and Export DESIGN.md
 
-Source: `https://stitch.withgoogle.com/docs/design-md/usage`
+Sources:
 
-This page describes how Stitch exposes and exports design systems, and how `DESIGN.md` remains useful outside Stitch.
+- Stitch docs: `https://stitch.withgoogle.com/docs/design-md/usage`
+- Implementation/tooling source: `https://github.com/google-labs-code/design.md`
+
+If the Stitch page appears empty or only shows the app shell, inspect the nested iframe content; the actual docs may be two iframe layers deep, and the innermost documentation frame URL may change over time.
+
+This page describes how Stitch exposes and exports design systems, and how `DESIGN.md` remains useful outside Stitch. If live Stitch UI behavior differs from this summary, prefer the live UI and current official docs.
 
 ## View the design system
 

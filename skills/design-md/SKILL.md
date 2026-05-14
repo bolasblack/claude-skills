@@ -1,15 +1,22 @@
 ---
 name: design-md
-description: "Create, update, or validate DESIGN.md files following Google's Stitch DESIGN.md spec. Use when the user asks to write/update DESIGN.md, create a design system document, generate design tokens, encode brand/UI guidelines, export a Stitch design system, or document UI consistency rules for AI agents. Do NOT use for ordinary UI implementation unless the user asks for DESIGN.md or design-system documentation."
+description: "Create, update, validate, diff, or export DESIGN.md files following the Google Stitch DESIGN.md spec and @google/design.md tooling. Use when the user asks to write/update DESIGN.md, create a design system document, generate design tokens, encode brand/UI guidelines, export a design system, or document UI consistency rules for AI agents. Do NOT use for ordinary UI implementation unless the user asks for DESIGN.md or design-system documentation."
 ---
 
 # DESIGN.md
 
-Create or update a project-root `DESIGN.md` using the Stitch DESIGN.md format: YAML front matter for machine-readable design tokens, followed by markdown sections for human-readable design rationale.
+Create or update a project-root `DESIGN.md` using the DESIGN.md format: preferably YAML front matter for machine-readable design tokens, followed by markdown sections for human-readable design rationale.
 
 ## Source of Truth
 
 Read `references/format.md` first. It is the reference index and tells you which detailed files to load for the task.
+
+Use two upstream sources:
+
+1. `google-labs-code/design.md` is authoritative for spec, CLI, linter, export formats, and what `@google/design.md` accepts.
+2. Stitch docs explain product/UI behavior and examples. When opening Stitch documentation pages, the actual documentation content may be nested inside two iframe layers; inspect the page's nested iframe tree and open the innermost documentation frame if normal page text is empty.
+
+If these sources conflict, prefer `google-labs-code/design.md` for validation/tooling behavior and Stitch docs for Stitch UI behavior. When creating new files, generate YAML front matter by default; when validating existing files, accept prose-only files if the official tooling accepts them, but recommend adding front matter for precise agent/tool control.
 
 Detailed references:
 - `references/overview.md` for the DESIGN.md concept, creation paths, and minimal example.
@@ -18,7 +25,7 @@ Detailed references:
 - `references/cli.md` for `@google/design.md` lint, diff, export, spec, and programmatic API behavior.
 - `references/linting-rules.md` for the 8 linter rules and manual validation checklist.
 
-The core rule: tokens are normative; prose explains how to apply them. Do not use the old prose-only 6-section format.
+The core rule: tokens are the normative values; prose provides context for how to apply them. Generate the token layer and rationale layer together.
 
 ## What This Skill Covers
 
@@ -54,7 +61,7 @@ If the project has no design context and the user gave no direction, ask for the
 
 ### 3. Write the YAML token layer
 
-`DESIGN.md` should start with YAML front matter delimited by `---` lines.
+For new or substantially rebuilt files, `DESIGN.md` should start with YAML front matter delimited by `---` lines. For existing prose-only files, do not mark the file invalid solely because front matter is absent if the official tooling accepts it; recommend adding front matter when precise token control matters.
 
 Use the Stitch token schema:
 
@@ -100,9 +107,9 @@ Use the `@google/design.md` CLI only when it is already installed in the project
 
 If the CLI is unavailable, validate manually using `references/format.md`. If the user wants CLI validation and the package is not installed, first run the dependency-safety workflow and get explicit approval before installing or invoking package-manager commands that may install it.
 
-- YAML front matter parses and has valid token types.
+- YAML front matter parses and has valid token types when present; new files should include it.
 - Token references resolve.
-- Component sub-token properties are recognized.
+- Unknown component sub-token properties are intentional and reported as warnings; prefer recognized properties for interoperability.
 - Sections are in canonical order.
 - Component text/background color pairs meet WCAG AA 4.5:1.
 - Colors include `primary` when colors are defined.

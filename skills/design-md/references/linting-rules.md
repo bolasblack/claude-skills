@@ -1,6 +1,11 @@
 # DESIGN.md Linting Rules
 
-Source: `https://stitch.withgoogle.com/docs/design-md/linting-rules`
+Sources:
+
+- Stitch docs: `https://stitch.withgoogle.com/docs/design-md/linting-rules`
+- Implementation/tooling source: `https://github.com/google-labs-code/design.md`
+
+If the Stitch page appears empty or only shows the app shell, inspect the nested iframe content; the actual docs may be two iframe layers deep, and the innermost documentation frame URL may change over time.
 
 The `@google/design.md` linter runs 8 rules against a parsed `DESIGN.md` file. Each rule produces findings with a fixed severity: `error`, `warning`, or `info`.
 
@@ -8,7 +13,7 @@ The `@google/design.md` linter runs 8 rules against a parsed `DESIGN.md` file. E
 
 | Rule | Severity | What it checks |
 |------|----------|----------------|
-| `broken-ref` | error | Token references that do not resolve; unknown component sub-token property names |
+| `broken-ref` | error | Token references that do not resolve |
 | `missing-primary` | warning | Colors defined but no `primary` exists |
 | `contrast-ratio` | warning | Component `backgroundColor`/`textColor` pairs below WCAG AA 4.5:1 |
 | `orphaned-tokens` | warning | Color tokens defined but never referenced by a component |
@@ -21,12 +26,11 @@ The `@google/design.md` linter runs 8 rules against a parsed `DESIGN.md` file. E
 
 Severity: error
 
-Detects token references such as `{path.to.token}` that do not resolve to any defined token in YAML front matter. Also flags unknown component sub-token property names.
+Detects token references such as `{path.to.token}` that do not resolve to any defined token in YAML front matter.
 
-Triggers when:
+Triggers when a component references a missing token path, for example `{colors.accent}` when no accent color is defined.
 
-- A component references a missing token path, for example `{colors.accent}` when no accent color is defined.
-- A component uses a property name outside the recognized set.
+Unknown component property names are accepted with a warning; prefer recognized component properties when possible.
 
 Recognized component properties:
 
@@ -43,7 +47,7 @@ Resolution:
 
 - Define the missing token.
 - Correct the reference path.
-- Use a recognized component property.
+- Rename unknown component properties to recognized names when strict interoperability matters.
 
 ## missing-primary
 
@@ -136,10 +140,11 @@ No fix needed.
 Use this when the CLI is unavailable:
 
 - [ ] All token references resolve.
-- [ ] Component sub-token property names are recognized, or unknown properties are reported as warnings.
+- [ ] Unknown component sub-token property names are intentional and reported as warnings.
 - [ ] `colors.primary` exists when colors are defined.
 - [ ] Component `backgroundColor`/`textColor` pairs meet 4.5:1 contrast.
 - [ ] Defined color tokens are referenced by components when components exist, or intentionally left unused.
 - [ ] Typography tokens exist when colors exist.
 - [ ] Recognized markdown sections are in canonical order.
+- [ ] No duplicate recognized markdown sections exist.
 - [ ] Optional `spacing` and `rounded` are present when explicit control matters.

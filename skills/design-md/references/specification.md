@@ -1,8 +1,13 @@
 # DESIGN.md Specification
 
-Source: `https://stitch.withgoogle.com/docs/design-md/specification`
+Sources:
 
-A `DESIGN.md` file has two layers:
+- Stitch docs: `https://stitch.withgoogle.com/docs/design-md/specification`
+- Implementation/tooling spec: `https://github.com/google-labs-code/design.md/blob/main/docs/spec.md`
+
+If the Stitch page appears empty or only shows the app shell, inspect the nested iframe content; the actual docs may be two iframe layers deep, and the innermost documentation frame URL may change over time.
+
+A fully structured `DESIGN.md` file has two layers:
 
 - YAML front matter with machine-readable design tokens.
 - Markdown body with human-readable design rationale organized into `##` sections.
@@ -13,7 +18,7 @@ The spec is a foundation, not a prescription. It provides common ground while pr
 
 ## YAML front matter
 
-The front matter block must begin with a line containing exactly `---` and end with a line containing exactly `---`.
+When front matter is present, the block must begin with a line containing exactly `---` and end with a line containing exactly `---`. Generate front matter for new files unless the user explicitly wants prose-only guidance.
 
 ```yaml
 ---

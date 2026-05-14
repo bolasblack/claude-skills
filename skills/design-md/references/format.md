@@ -4,11 +4,15 @@ This is the entry point for the `design-md` skill. Read this file first, then lo
 
 Source docs:
 
-- What is DESIGN.md?: `https://stitch.withgoogle.com/docs/design-md/overview`
-- The specification: `https://stitch.withgoogle.com/docs/design-md/specification`
-- View, edit, and export: `https://stitch.withgoogle.com/docs/design-md/usage`
-- Validate with the CLI: `https://stitch.withgoogle.com/docs/design-md/cli`
-- Linting rules: `https://stitch.withgoogle.com/docs/design-md/linting-rules`
+- Implementation/spec/tooling source: `https://github.com/google-labs-code/design.md`
+- Implementation spec markdown: `https://github.com/google-labs-code/design.md/blob/main/docs/spec.md`
+- Stitch product docs overview: `https://stitch.withgoogle.com/docs/design-md/overview`
+- Stitch product docs specification: `https://stitch.withgoogle.com/docs/design-md/specification`
+- Stitch product docs usage: `https://stitch.withgoogle.com/docs/design-md/usage`
+- Stitch product docs CLI: `https://stitch.withgoogle.com/docs/design-md/cli`
+- Stitch product docs linting rules: `https://stitch.withgoogle.com/docs/design-md/linting-rules`
+
+When inspecting Stitch docs in a browser, the actual documentation content may be nested inside two iframe layers. If the visible page has little or no text, inspect the page's nested iframe tree and open the innermost documentation frame.
 
 ## Which reference to read
 
@@ -21,20 +25,24 @@ Source docs:
 | Diagnose validation findings | `linting-rules.md`, then `specification.md` if needed |
 | Full rebuild or major reconciliation | all reference files |
 
+## Source priority
+
+Use `google-labs-code/design.md` as authoritative for the formal spec, CLI, linter, export formats, and what official tooling accepts. Use Stitch docs for Stitch product/UI behavior and examples. If they conflict, validate against the GitHub implementation/tooling source.
+
 ## Core model
 
-`DESIGN.md` has two layers:
+A fully structured `DESIGN.md` has two layers:
 
 1. YAML front matter with machine-readable design tokens.
 2. Markdown body with human-readable design rationale.
 
-Tokens are normative. Prose explains why the tokens exist and how to apply them.
+Tokens are normative. Prose explains why the tokens exist and how to apply them. New files should include the token layer; existing prose-only files may still be accepted by official tooling, but provide less precise control.
 
-## Required output shape
+## Recommended output shape
 
 Use `DESIGN.md` as the file name.
 
-Start with YAML front matter delimited by `---`, then write markdown sections. The canonical recognized markdown section order is:
+For new or substantially rebuilt files, start with YAML front matter delimited by `---`, then write markdown sections. When validating existing files, do not reject prose-only files solely for lacking front matter if official tooling accepts them. The canonical recognized markdown section order is:
 
 1. `## Overview`
 2. `## Colors`
@@ -55,11 +63,11 @@ Recognized aliases:
 
 Before reporting a `DESIGN.md` as done, check:
 
-- YAML front matter parses and includes a `name`.
+- YAML front matter starts and ends with exact `---` delimiter lines and includes a `name` when present; new files should include front matter.
 - Token references use `{path.to.token}` and resolve.
-- Components use recognized sub-token properties or explicitly preserve unknown properties with a warning.
+- Unknown component sub-token properties are intentional and reported as warnings; prefer recognized properties for interoperability.
 - Recognized markdown sections are in canonical order.
-- No duplicate recognized markdown sections exist.
+- No duplicate recognized markdown sections exist; duplicate recognized headings are errors.
 - If colors are defined, include `primary`.
 - If colors are defined, include typography tokens unless there is a deliberate reason not to.
 - Component `backgroundColor` and `textColor` pairs meet WCAG AA 4.5:1.

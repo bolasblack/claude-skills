@@ -2,6 +2,8 @@
 
 Source: `https://stitch.withgoogle.com/docs/design-md/overview`
 
+If this Stitch page appears empty or only shows the app shell, inspect the nested iframe content; the actual docs may be two iframe layers deep, and the innermost documentation frame URL may change over time.
+
 `DESIGN.md` is a design system document that AI agents read to generate consistent UI across a project.
 
 It is the design counterpart to `AGENTS.md`:
@@ -20,12 +22,12 @@ When a design agent reads `DESIGN.md`, generated screens follow the same visual 
 
 ## Two-layer model
 
-Every `DESIGN.md` has two layers:
+A fully structured `DESIGN.md` has two layers:
 
 1. **YAML front matter** containing machine-readable design tokens: exact hex values, font properties, spacing scales.
 2. **Markdown body** providing human-readable design rationale.
 
-Tokens give agents precise values. Prose tells them why those values exist.
+Tokens give agents precise values. Prose tells them why those values exist. Generate both layers for new files; existing prose-only files can still be useful, but are less precise for tools and agents.
 
 ## Philosophy
 
@@ -51,7 +53,7 @@ If branding already exists, provide a URL or image. The agent extracts palette, 
 
 ### Write it by hand
 
-Advanced users can author `DESIGN.md` directly. Every section is markdown with optional YAML front matter for design tokens. No special syntax beyond standard markdown and YAML.
+Advanced users can author `DESIGN.md` directly. Prefer starting with YAML front matter for design tokens, then use standard markdown for rationale. No special syntax beyond standard YAML and markdown.
 
 ## Minimal example from the docs
 
@@ -99,5 +101,5 @@ Clean lines, low visual noise, high information density.
 ## Do's and Don'ts
 - Do use the primary color sparingly, only for the most important action
 - Don't mix rounded and sharp corners in the same view
-- Do maintain 4:1 contrast ratio for all text
+- Do maintain 4.5:1 contrast ratio for all body text
 ```
