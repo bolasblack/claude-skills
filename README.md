@@ -19,6 +19,7 @@ The agent will analyze your project, recommend relevant extensions, and walk you
 | Skill | Description |
 |-------|-------------|
 | ⭐ [agent-centric](./skills/agent-centric/) | Framework for agent-centric development with AGD (decision records) tracking, validation and indexing |
+| ⭐ [guardrails](./skills/guardrails/) | Rendered guardrail framework for bounded agent context. Keeps hard project rules in one-rule-per-file GRL sources behind a compact router, with a Bun CLI to validate, render on demand, and review changes |
 | ⭐ [mcp-skill-generator](./skills/mcp-skill-generator/) | Convert MCP servers to Claude Code skills with progressive disclosure. Generates programmatic API for AI to write code that calls MCP tools |
 | [design-md](./skills/design-md/) | Create, update, validate, diff, or export DESIGN.md files following Google's [Stitch DESIGN.md spec](https://stitch.withgoogle.com/docs/design-md/overview) |
 | [frontend-design](./skills/frontend-design/) | Create distinctive, production-grade frontend interfaces with high design quality |

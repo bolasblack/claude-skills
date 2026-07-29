@@ -78,6 +78,10 @@ To disable all script updates:
 }
 ```
 
+## Works Well With
+
+The [guardrails](../guardrails/) skill is the natural companion: an AGD records *why* a decision was made, and when a decision produces a hard rule the repository must enforce, that rule becomes a guardrail (GRL) whose `references` field points back at the AGD. AGD keeps the decision history; guardrails keep the enforceable rules. Both frameworks live side by side under `.agents/`.
+
 ## Acknowledgments
 
 Inspired by [caoer](https://github.com/caoer).

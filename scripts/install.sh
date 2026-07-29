@@ -25,6 +25,7 @@ PUBLIC_SKILLS=(
     command-creator
     design-md
     frontend-design
+    guardrails
     mcp-context7
     mcp-deepwiki
     mcp-fetch
