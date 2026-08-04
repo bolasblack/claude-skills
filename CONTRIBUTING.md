@@ -20,8 +20,10 @@ claude-extensions/
 │   └── <agent-name>/
 │       ├── AGENT.md          # Required
 │       └── ...
-└── scripts/
-    └── install.sh            # Installation script
+├── scripts/
+│   └── install.sh            # Installation script
+└── private/                  # (gitignored) author-private extensions;
+                              # own git repo, same layout — see CLAUDE.md
 ```
 
 ---

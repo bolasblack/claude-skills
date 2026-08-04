@@ -11,3 +11,5 @@ __pycache__
 .alca.mounts
 .alca.local.toml
 .mise.local.toml
+# author-private extensions (own git repo, private remote)
+/private/

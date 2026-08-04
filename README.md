@@ -14,6 +14,12 @@ The agent will analyze your project, recommend relevant extensions, and walk you
 > [!TIP]
 > Prefer manual installation? See [Manual Installation](#manual-installation).
 
+Skills can also be installed with the [skills CLI](https://github.com/vercel-labs/skills):
+
+```bash
+npx skills add bolasblack/claude-skills --skill <skill-name>
+```
+
 ## Skills
 
 | Skill | Description |

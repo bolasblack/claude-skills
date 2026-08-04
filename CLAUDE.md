@@ -13,8 +13,20 @@ Compatible with Claude Code, Codex, OpenCode, and pi.
 ├── commands/        # Command definitions (COMMAND.md)
 ├── agents/          # Agent definitions (AGENT.md)
 ├── pi-extensions/   # Pi extension files and directories
-└── scripts/         # Installation and utility scripts
+├── scripts/         # Installation and utility scripts
+└── private/         # (gitignored) author-private extensions — its own git repo, same layout
 ```
+
+## Private Extensions
+
+`private/` is gitignored by this public repo and versioned as its own git repository (rooted at `private/`, private remote). Personal, unpublished extensions live there, mirroring the top-level layout (`private/skills/`, `private/commands/`, `private/agents/`). Never reference private extension names from public files.
+
+- **Setup order matters.** On a new machine: clone this public repo first, then clone the private repo into it as `private/` (`git clone <private-repo-url> private` from the repo root). Never clone the private repo standalone — the tooling assumes it lives at `claude-skills/private/`. If `private/` is missing, the working copy is still fully functional for public extensions.
+- Full setup and install instructions live in `private/README.md` (once cloned).
+
+- `./scripts/install.sh` resolves names from the public directories first, then `private/<type>/<name>`. `__ALL` includes private extensions; `ALL` never does. `uninstall.sh ... ALL` cleans both.
+- The private repo root contains `skills/<name>/SKILL.md`, so the skills CLI also works against it: `npx skills add <private-repo-url>` or `npx skills add ./private`.
+- To publish a private extension: `mv private/<type>/<name> <type>/<name>`, add a README row (Experimental, or the general table plus `PUBLIC_SKILLS` in `scripts/install.sh`), then commit the addition here and the removal in `private/`.
 
 ## Usage
 
