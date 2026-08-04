@@ -117,12 +117,16 @@ uninstall_all_of_type() {
     local main_file
     main_file=$(get_main_file "$type")
 
-    for dir in "$PROJECT_DIR/$type"/*/; do
-        if [[ -d "$dir" && -f "$dir/$main_file" ]]; then
-            local name
-            name=$(basename "$dir")
-            uninstall_extension "$type" "$name"
-        fi
+    # ALL uninstalls cover private extensions (private/<type>/) too.
+    local root
+    for root in "$PROJECT_DIR/$type" "$PROJECT_DIR/private/$type"; do
+        for dir in "$root"/*/; do
+            if [[ -d "$dir" && -f "$dir/$main_file" ]]; then
+                local name
+                name=$(basename "$dir")
+                uninstall_extension "$type" "$name"
+            fi
+        done
     done
 }
 

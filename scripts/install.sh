@@ -77,23 +77,23 @@ usage() {
     echo "Available extensions:"
     echo ""
     echo "Skills:"
-    for dir in "$PROJECT_DIR"/skills/*/; do
+    for dir in "$PROJECT_DIR"/skills/*/ "$PROJECT_DIR"/private/skills/*/; do
         if [[ -d "$dir" && -f "$dir/SKILL.md" ]]; then
-            echo "  $(basename "$dir")"
+            [[ "$dir" == */private/* ]] && echo "  $(basename "$dir") (private)" || echo "  $(basename "$dir")"
         fi
     done
     echo ""
     echo "Commands:"
-    for dir in "$PROJECT_DIR"/commands/*/; do
+    for dir in "$PROJECT_DIR"/commands/*/ "$PROJECT_DIR"/private/commands/*/; do
         if [[ -d "$dir" && -f "$dir/COMMAND.md" ]]; then
-            echo "  $(basename "$dir")"
+            [[ "$dir" == */private/* ]] && echo "  $(basename "$dir") (private)" || echo "  $(basename "$dir")"
         fi
     done
     echo ""
     echo "Agents:"
-    for dir in "$PROJECT_DIR"/agents/*/; do
+    for dir in "$PROJECT_DIR"/agents/*/ "$PROJECT_DIR"/private/agents/*/; do
         if [[ -d "$dir" && -f "$dir/AGENT.md" ]]; then
-            echo "  $(basename "$dir")"
+            [[ "$dir" == */private/* ]] && echo "  $(basename "$dir") (private)" || echo "  $(basename "$dir")"
         fi
     done
     echo ""
@@ -190,6 +190,9 @@ install_extension() {
     local type="$1"
     local name="$2"
     local source_path="$PROJECT_DIR/$type/$name"
+    if [[ ! -d "$source_path" && -d "$PROJECT_DIR/private/$type/$name" ]]; then
+        source_path="$PROJECT_DIR/private/$type/$name"
+    fi
     local main_file
     main_file=$(get_main_file "$type")
 
@@ -250,18 +253,27 @@ install_all_of_type() {
     local main_file
     main_file=$(get_main_file "$type")
 
-    for dir in "$PROJECT_DIR/$type"/*/; do
-        if [[ -d "$dir" && -f "$dir/$main_file" ]]; then
-            local name
-            name=$(basename "$dir")
-            # For skills, skip experimental ones unless include_experimental is true
-            if [[ "$type" == "skills" && "$include_experimental" != "true" ]]; then
-                if ! is_public_skill "$name"; then
-                    continue
+    # Private extensions (private/<type>/) join experimental ones: __ALL only.
+    local roots=("$PROJECT_DIR/$type")
+    if [[ "$include_experimental" == "true" && -d "$PROJECT_DIR/private/$type" ]]; then
+        roots+=("$PROJECT_DIR/private/$type")
+    fi
+
+    local root
+    for root in "${roots[@]}"; do
+        for dir in "$root"/*/; do
+            if [[ -d "$dir" && -f "$dir/$main_file" ]]; then
+                local name
+                name=$(basename "$dir")
+                # For skills, skip experimental ones unless include_experimental is true
+                if [[ "$type" == "skills" && "$include_experimental" != "true" ]]; then
+                    if ! is_public_skill "$name"; then
+                        continue
+                    fi
                 fi
+                install_extension "$type" "$name"
             fi
-            install_extension "$type" "$name"
-        fi
+        done
     done
 }
 
