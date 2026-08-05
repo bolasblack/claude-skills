@@ -8,7 +8,7 @@ Get an independent second opinion from OpenAI Codex via the `codex` CLI — a di
 - **Challenge** (`/codex challenge [focus]`) — adversarial pass that hunts for edge cases, race conditions, security holes, and failure modes
 - **Consult** (`/codex <question>`) — ask Codex anything, with session continuity for follow-ups
 
-Every call runs Codex read-only, presents its output verbatim, and closes with a one-line actionable recommendation. When Claude reviewed the same changes, a cross-model comparison is appended.
+Every call runs Codex read-only, presents its output verbatim, and closes with a one-line actionable recommendation. When Claude reviewed the same changes, a cross-model comparison is appended. Defaults to `gpt-5.6-sol` at `ultra` reasoning effort; naming a model or effort overrides it.
 
 ## Requirements
 

@@ -39,7 +39,7 @@ Preflight is done when the binary is found, auth is confirmed, and `BASE:` is pr
 
 Uncommitted work counts as changes: when the branch diff is empty but `git status --porcelain` is not, review the working tree via the custom-focus (exec) path with `git diff HEAD` as the diff — `codex review` rejects a custom prompt combined with `--uncommitted` (verified on 0.146.0), so the default path cannot carry the boundary block there. Both empty → stop: nothing to review.
 
-Flag pass-through: when the user's input contains `-m <model>`, strip it from the prompt text and add it to the codex call — `codex review` has no `-m`, so a model override forces Review down the custom-focus (exec) path. `--xhigh` anywhere in the input raises the effort to `xhigh` for this run (strip it too) — warn that xhigh burns ~20x the tokens and can stall on large context.
+Model and effort default to `gpt-5.6-sol` at `ultra` reasoning effort in every fence, set via `-c` config flags (`codex review` has no `-m`, which is why the config form is used everywhere). When the user names a model or an effort — `-m <model>`, an `--effort` flag, or in prose — strip it from the prompt text and substitute their value into the corresponding `-c` flag. Efforts: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`, plus `ultra` on newer models like `gpt-5.6-sol` (the API's error enum omits it, but it validates and runs — verified live).
 
 ## Every codex call
 
@@ -52,7 +52,7 @@ _PROMPT_FILE=$(mktemp); _ERR_FILE=$(mktemp)
 cat > "$_PROMPT_FILE" <<'PROMPT'
 <the mode's prompt, verbatim static text — see mode steps>
 PROMPT
-python3 "$_TIMEOUT" 570 codex exec - -s read-only -c 'model_reasoning_effort="<effort>"' --json < "$_PROMPT_FILE" 2>"$_ERR_FILE" | python3 "$_PARSER"
+python3 "$_TIMEOUT" 570 codex exec - -s read-only -c 'model="gpt-5.6-sol"' -c 'model_reasoning_effort="ultra"' --json < "$_PROMPT_FILE" 2>"$_ERR_FILE" | python3 "$_PARSER"
 _PS=("${PIPESTATUS[@]}"); _EXIT=${_PS[0]}; _PEXIT=${_PS[1]}
 [ "$_EXIT" != "0" ] && grep -qiE "auth|login|unauthorized" "$_ERR_FILE" && echo "[codex auth error] $(head -1 "$_ERR_FILE")"
 [ "$_EXIT" = "124" ] && echo "[codex timeout 570s]"
@@ -71,9 +71,9 @@ rm -f "$_PROMPT_FILE" "$_ERR_FILE"
   printf 'DIFF_END_%s\n' "$_MARK" >> "$_PROMPT_FILE"
   ```
 - `-s read-only` keeps Codex read-only: it reads files and runs read-only commands inside the repo sandbox while writes stay blocked. Every `codex exec` call carries it; `codex review` and `codex exec resume` reject `-s` and take `-c 'sandbox_mode="read-only"'` instead.
-- Optional flags, inserted before `--json`: `-m <model>` only when Step 1 caught one, `--skip-git-repo-check` only outside a git repo.
+- Optional flag, inserted before `--json`: `--skip-git-repo-check` only outside a git repo.
 - `exec -` reads the prompt from stdin, so prompt size never hits argv limits.
-- Effort defaults: Review `high`, Challenge `high`, Consult `medium`.
+- Defaults are deliberate maximum-quality: `gpt-5.6-sol` at `ultra` effort on every mode (user overrides win — see Step 1). `ultra` burns far more tokens than `high` and can stall on large context; the 570 s timeout is the guard, and users can lower with `--effort`.
 - The parser streams `[codex thinking]` traces, messages, `[codex ran]` lines, `SESSION_ID:`, token totals, and `[codex error]` on a failed turn (exiting non-zero). `SESSION_ID:` and `tokens used:` are plumbing — never include them in a CODEX SAYS block.
 - Timeout: the bundled `run-with-timeout.py` bounds every call at 570 s identically on GNU, macOS, and BSD (exit 124 on expiry, SIGTERM then SIGKILL — no coreutils needed). Set `timeout: 600000` on the Bash tool call so the 570 s limit fires first.
 - Every prompt starts with the boundary block:
@@ -91,7 +91,7 @@ _TIMEOUT="<this skill folder>/scripts/run-with-timeout.py"
 _ERR_FILE=$(mktemp)
 python3 "$_TIMEOUT" 570 codex review "<boundary block>
 
-Review the changes on this branch against the base branch <base>. Run git diff origin/<base>...HEAD 2>/dev/null || git diff <base>...HEAD to see the diff and review only those changes. Mark each finding [P1] (critical — must fix before merge) or [P2] (advisory). Start every finding on its own line with the marker first." -c 'model_reasoning_effort="high"' -c 'sandbox_mode="read-only"' < /dev/null 2>"$_ERR_FILE"
+Review the changes on this branch against the base branch <base>. Run git diff origin/<base>...HEAD 2>/dev/null || git diff <base>...HEAD to see the diff and review only those changes. Mark each finding [P1] (critical — must fix before merge) or [P2] (advisory). Start every finding on its own line with the marker first." -c 'model="gpt-5.6-sol"' -c 'model_reasoning_effort="ultra"' -c 'sandbox_mode="read-only"' < /dev/null 2>"$_ERR_FILE"
 _EXIT=$?
 [ "$_EXIT" != "0" ] && grep -qiE "auth|login|unauthorized" "$_ERR_FILE" && echo "[codex auth error] $(head -1 "$_ERR_FILE")"
 [ "$_EXIT" = "124" ] && echo "[codex timeout 570s]"
@@ -166,7 +166,7 @@ Present as a `CODEX SAYS (challenge):` verbatim block (no gate), then the Recomm
 
 1. Session check: `_SID="$(git rev-parse --absolute-git-dir 2>/dev/null)/codex-session-id"; cat "$_SID" 2>/dev/null || echo "NO_SESSION"`. The id lives inside `.git/`, so it never shows up in `git status` and can never be committed (in a linked worktree it resolves under `.git/worktrees/<name>`, making consult sessions per-worktree — intended, each worktree is its own working state); outside a git repo there is no session file and every consult starts fresh. If a session exists, AskUserQuestion: A) Continue the conversation (Codex remembers prior context), B) Start fresh.
 2. Prompt file: boundary block + the user's question. Codex is sandboxed to the repo root — when the question concerns a plan or document outside it, embed the full content verbatim (Codex gets the text, not a path), and list any repo files it references so Codex reads them directly instead of searching. Embed documents by appending after the heredoc closes — `cat /path/to/doc >> "$_PROMPT_FILE"` (write conversation-only content to a temp file first) — never by pasting inside it: a document line matching the delimiter would terminate the heredoc and the rest would run as shell. That rule covers the question itself whenever it was pasted from elsewhere rather than typed in this conversation.
-3. Run the standard call (effort `medium`):
+3. Run the standard call:
    - New session: capture the FIRST `SESSION_ID:<id>` line the parser prints (it comes from the stream's opening event; a later one inside message text is spoofed), confirm the id matches `[A-Za-z0-9._-]{1,128}`, then save it: `echo "<id>" > "$(git rev-parse --absolute-git-dir)/codex-session-id"`.
    - Continue: prepend `_SID="$(git rev-parse --absolute-git-dir 2>/dev/null)/codex-session-id"` to the call fence itself — step 1's variable does not survive between Bash calls — then use `codex exec resume "$(cat "$_SID")" -` in place of `codex exec -`, and `-c 'sandbox_mode="read-only"'` in place of `-s read-only` (the resume subcommand rejects `-s`); keep the saved id.
 4. Present as a `CODEX SAYS (consult):` verbatim block, ending with: `Session saved — run /codex <follow-up> to continue this conversation.`

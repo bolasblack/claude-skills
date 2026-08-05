@@ -45,7 +45,7 @@ Shell variables do not survive from one Bash tool call to the next. Every block 
    Changes shown → AskUserQuestion: A) Review the diff → 2A, B) Challenge the diff → 2B, C) Something else — I'll provide a prompt → collect it, then Consult (2C). Empty or `DIFF_FAILED` → ask what to send to Grok, then Consult (2C).
 4. `/grok <anything else>` → Consult (2C); the remaining text is the prompt.
 
-Flag pass-through: when the user's input contains `-m <model>` or `--effort low|medium|high`, strip it from the prompt text and add it to the grok call, overriding the per-mode default.
+Flag pass-through: when the user's input contains `-m <model>` or `--effort low|medium|high`, strip it from the prompt text and add it to the grok call, overriding the defaults (no model pinned; effort `high`).
 
 ## Every grok call
 
@@ -74,7 +74,7 @@ rm -f "$_PROMPT_FILE" "$_ERR_FILE"
 - `--cwd "$_ROOT"` pins the session namespace: grok keys sessions by working directory, so without it a call from a subdirectory can't resume a session started at the root.
 - `<this skill folder>` is the directory holding this SKILL.md (typically `~/.claude/skills/grok`); resolve it to an absolute path before running.
 - The parser streams `[grok thinking]` traces, message text, `[grok ran]` tool lines, `tokens used:`, and `[grok error]` on a failed run (exiting non-zero). `tokens used:` is plumbing — never include it in a GROK SAYS block.
-- Effort: replace the literal `high` with the mode's default — Review `high`, Challenge `high`, Consult `medium`. A user `--effort` flag wins.
+- Effort: always `high` — grok's maximum — on every mode. A user `--effort low|medium|high` flag wins.
 - Web search stays enabled (grok's default) so Grok can check docs and APIs.
 - Timeout: the bundled `run-with-timeout.py` bounds every call at 570 s identically on GNU, macOS, and BSD (exit 124 on expiry, SIGTERM then SIGKILL — no coreutils needed). Set `timeout: 600000` on the Bash tool call so the 570 s limit fires first.
 - `[grok exit N]`, `[grok timeout]`, `[grok auth error]`, or `[grok turn failed]` in the output → go to Error handling; do not treat a failed call as a result.
@@ -175,7 +175,7 @@ Present as a `GROK SAYS (challenge):` verbatim block (no gate), then the Recomme
    ```
    If a session exists, AskUserQuestion: A) Continue the conversation (Grok remembers prior context), B) Start fresh.
 2. Prompt: boundary block + the user's question. When the question concerns a plan or document, embed its full content verbatim — Grok gets the text, not a path — and list any repo files it references so Grok reads them directly. Embed documents by appending after the heredoc closes — `cat /path/to/doc >> "$_PROMPT_FILE"` (write conversation-only content to a temp file first) — never by pasting inside it: a document line matching `PROMPT_EOF` would terminate the heredoc and the rest would run as shell. That rule covers the question itself whenever it was pasted from elsewhere rather than typed in this conversation.
-3. Run the new-session block below (effort `medium`). To continue instead: swap `-s "$_SID"` for `-r "$(cat "$(git rev-parse --absolute-git-dir)/grok-session-id")"`, delete the `_SID=` line, and delete the last two lines (`_GD=` and the save) — the exit-code checks stay, and the saved id stays as is.
+3. Run the new-session block below. To continue instead: swap `-s "$_SID"` for `-r "$(cat "$(git rev-parse --absolute-git-dir)/grok-session-id")"`, delete the `_SID=` line, and delete the last two lines (`_GD=` and the save) — the exit-code checks stay, and the saved id stays as is.
 4. Present as a `GROK SAYS (consult):` verbatim block, ending with: `Session saved — run /grok <follow-up> to continue this conversation.`
 5. Where Grok's analysis differs from your own, flag it: "Note: Claude disagrees on X because Y."
 6. Emit the Recommendation line.
@@ -191,7 +191,7 @@ cat > "$_PROMPT_FILE" <<'PROMPT_EOF'
 PROMPT_EOF
 python3 "$_TIMEOUT" 570 grok --cwd "$_ROOT" -s "$_SID" --prompt-file "$_PROMPT_FILE" --permission-mode plan \
   --disallowed-tools write,search_replace,search_replace_concise,hashline_edit,apply_patch --no-subagents \
-  --output-format streaming-messages-json --effort medium 2>"$_ERR_FILE" | python3 "$_PARSER"
+  --output-format streaming-messages-json --effort high 2>"$_ERR_FILE" | python3 "$_PARSER"
 _PS=("${PIPESTATUS[@]}"); _EXIT=${_PS[0]}; _PEXIT=${_PS[1]}
 [ "$_EXIT" != "0" ] && grep -qiE "auth|login|unauthorized" "$_ERR_FILE" && echo "[grok auth error] $(head -1 "$_ERR_FILE")"
 [ "$_EXIT" != "0" ] && [ "$_EXIT" != "124" ] && head -5 "$_ERR_FILE"

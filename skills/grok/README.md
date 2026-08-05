@@ -8,7 +8,7 @@ Get an independent second opinion from xAI's Grok via the `grok` CLI — a diffe
 - **Challenge** (`/grok challenge [focus]`) — adversarial pass that hunts for edge cases, race conditions, security holes, and failure modes
 - **Consult** (`/grok <question>`) — ask Grok anything, with session continuity for follow-ups
 
-Every call runs Grok read-only — `--permission-mode plan` plus `--disallowed-tools` for the file-write tools, since plan mode alone does not block them — presents its output verbatim, and closes with a one-line actionable recommendation. When Claude reviewed the same changes, a cross-model comparison is appended.
+Every call runs Grok read-only — `--permission-mode plan` plus `--disallowed-tools` for the file-write tools, since plan mode alone does not block them — presents its output verbatim, and closes with a one-line actionable recommendation. When Claude reviewed the same changes, a cross-model comparison is appended. Runs at grok's highest effort (`high`) by default; `--effort` overrides it.
 
 ## Requirements
 
