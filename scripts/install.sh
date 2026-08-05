@@ -22,9 +22,11 @@ BASE_DIR="$HOME"
 # but included in __ALL.
 PUBLIC_SKILLS=(
     agent-centric
+    codex
     command-creator
     design-md
     frontend-design
+    grok
     guardrails
     mcp-context7
     mcp-deepwiki
