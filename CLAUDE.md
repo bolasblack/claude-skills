@@ -26,7 +26,7 @@ Compatible with Claude Code, Codex, OpenCode, and pi.
 
 - `./scripts/install.sh` resolves names from the public directories first, then `private/<type>/<name>`. `__ALL` includes private extensions; `ALL` never does. `uninstall.sh ... ALL` cleans both.
 - The private repo root contains `skills/<name>/SKILL.md`, so the skills CLI also works against it: `npx skills add <private-repo-url>` or `npx skills add ./private`.
-- To publish a private extension: `mv private/<type>/<name> <type>/<name>`, add a README row (Experimental, or the general table plus `PUBLIC_SKILLS` in `scripts/install.sh`), then commit the addition here and the removal in `private/`.
+- To publish a private extension: `mv private/<type>/<name> <type>/<name>`, add a README row, then commit the addition here and the removal in `private/`.
 
 ## Usage
 
@@ -36,10 +36,10 @@ Use `./scripts/install.sh` from the repo root for repository maintenance, local 
 
 ```bash
 ./scripts/install.sh ALL                    # Install all public extensions of all types
-./scripts/install.sh __ALL                  # Install all extensions including experimental
+./scripts/install.sh __ALL                  # Install all public and private extensions
 ./scripts/install.sh skills ALL             # Install all public skills
-./scripts/install.sh skills __ALL           # Install all skills including experimental
-./scripts/install.sh skills color-master    # Install specific skill
+./scripts/install.sh skills __ALL           # Install all skills including private
+./scripts/install.sh skills guardrails      # Install specific skill
 ./scripts/install.sh commands ALL           # Install all commands
 ./scripts/install.sh agents code-reviewer   # Install specific agent
 ./scripts/install.sh pi-extensions ALL      # Install all pi extensions
@@ -62,7 +62,7 @@ Use `./scripts/install.sh` from the repo root for repository maintenance, local 
 - Write prompts in English for consistency
 - Use the installation script to set up symlinks
 - Update README.md whenever adding or removing any command, agent, or skill
-- Experimental skills (under the "Experimental" subsection in README.md) are tied to the author's environment and not guaranteed to work elsewhere. Place environment-specific or unpublished skills there instead of the general list
+- Environment-specific or unpublished skills live in the private repo (`private/skills/`), not in the public list — see Private Extensions
 
 ## Thinking Principles
 

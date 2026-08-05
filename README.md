@@ -44,15 +44,6 @@ npx skills add bolasblack/claude-skills --skill <skill-name>
 | [mcp-grep](./skills/mcp-grep/) | Search GitHub repositories for real-world code examples using grep.app |
 | [pi-extension-dev](./skills/pi-extension-dev/) | Guide for developing, debugging, and shipping pi-coding-agent extensions and packages |
 
-### Experimental
-
-Experimental skills are tied to the author's environment and not guaranteed to work elsewhere.
-
-| Skill | Description |
-|-------|-------------|
-| [color-master](./skills/color-master/) | Convert colors between formats (HEX, RGB, HSL, CMYK, LAB, LCH, oklch, ANSI), generate color harmonies, check WCAG accessibility, and simulate color blindness |
-| [tmux-fork](./skills/tmux-fork/) | Fork the current pi session into a new tmux pane or window |
-
 ## Agents
 
 | Agent | Description |
@@ -77,10 +68,10 @@ git clone --depth 1 https://github.com/bolasblack/claude-skills.git ~/.c4-skills
 cd ~/.c4-skills
 
 ./scripts/install.sh ALL                    # Install all public extensions of all types
-./scripts/install.sh __ALL                  # Install all extensions including experimental
+./scripts/install.sh __ALL                  # Install all public and private extensions
 ./scripts/install.sh skills ALL             # Install all public skills
-./scripts/install.sh skills __ALL           # Install all skills including experimental
-./scripts/install.sh skills color-master    # Install specific skill
+./scripts/install.sh skills __ALL           # Install all skills including private
+./scripts/install.sh skills guardrails      # Install specific skill
 ./scripts/install.sh commands ALL           # Install all commands
 ./scripts/install.sh agents code-reviewer   # Install specific agent
 ./scripts/install.sh pi-extensions ALL      # Install all pi extensions
@@ -106,7 +97,7 @@ cd ~/.c4-skills
 ```
 .
 ├── skills/
-│   ├── color-master/
+│   ├── guardrails/
 │   │   ├── SKILL.md
 │   │   └── ...
 │   └── ...
