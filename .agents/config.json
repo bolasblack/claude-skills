@@ -2,7 +2,6 @@
   "tags": [
     "global",
     "skills/agent-centric",
-    "skills/color-master",
     "skills/command-creator",
     "skills/frontend-design",
     "skills/mcp-context7",
@@ -15,7 +14,6 @@
     "skills/seo-article-optimizer",
     "skills/seo-site-audit",
     "skills/skill-composer",
-    "skills/skill-reviewer",
     "agents/code-reviewer",
     "agents/js-code-simplifier",
     "agents/prompt-injection-auditor",

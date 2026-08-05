@@ -17,30 +17,6 @@ TOTAL_WARNINGS=0
 # Base directory for installation (default: $HOME, override with --project <dir>)
 BASE_DIR="$HOME"
 
-# Public skills included in "ALL" installs.
-# Experimental skills (environment-specific) are excluded from ALL
-# but included in __ALL.
-PUBLIC_SKILLS=(
-    agent-centric
-    codex
-    command-creator
-    design-md
-    frontend-design
-    grok
-    guardrails
-    mcp-context7
-    mcp-deepwiki
-    mcp-fetch
-    mcp-grep
-    mcp-skill-generator
-    parallel-agent-workflow
-    pi-extension-dev
-    playwright
-    seo-article-optimizer
-    seo-site-audit
-    skill-composer
-)
-
 get_pi_extensions_dir() {
     if [[ -d "$PROJECT_DIR/pi-extensions/extensions" ]]; then
         echo "$PROJECT_DIR/pi-extensions/extensions"
@@ -60,16 +36,16 @@ usage() {
     echo ""
     echo "Arguments:"
     echo "  TYPE    Extension type: ALL, __ALL, skills, commands, agents, or pi-extensions"
-    echo "  NAME    One or more extension names, ALL for public, or __ALL for all (incl. experimental)"
+    echo "  NAME    One or more extension names, ALL for public, or __ALL for all (incl. private)"
     echo ""
     echo "Examples:"
     echo "  $0 ALL                          # Install all public extensions to detected tools"
     echo "  $0 --tools claude,pi skills ALL # Install all public skills to Claude Code and pi"
     echo "  $0 --project /path/to/myapp --tools agents,claude skills ALL  # Install skills to a project"
-    echo "  $0 __ALL                        # Install all extensions including experimental"
+    echo "  $0 __ALL                        # Install all public and private extensions"
     echo "  $0 skills ALL                   # Install all public skills"
-    echo "  $0 skills __ALL                 # Install all skills including experimental"
-    echo "  $0 skills color-master          # Install specific skill"
+    echo "  $0 skills __ALL                 # Install all skills including private"
+    echo "  $0 skills guardrails            # Install specific skill"
     echo "  $0 skills skill-1 skill-2       # Install multiple skills"
     echo "  $0 commands ALL                 # Install all commands"
     echo "  $0 agents code-reviewer         # Install specific agent"
@@ -225,19 +201,9 @@ install_pi_extension() {
     install_from_source "pi-extensions" "$name" "$source_path"
 }
 
-is_public_skill() {
-    local name="$1"
-    for s in "${PUBLIC_SKILLS[@]}"; do
-        if [[ "$s" == "$name" ]]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
 install_all_of_type() {
     local type="$1"
-    local include_experimental="${2:-false}"
+    local include_private="${2:-false}"
 
     if [[ "$type" == "pi-extensions" ]]; then
         local pi_extensions_dir
@@ -255,9 +221,9 @@ install_all_of_type() {
     local main_file
     main_file=$(get_main_file "$type")
 
-    # Private extensions (private/<type>/) join experimental ones: __ALL only.
+    # Private extensions (private/<type>/): __ALL only.
     local roots=("$PROJECT_DIR/$type")
-    if [[ "$include_experimental" == "true" && -d "$PROJECT_DIR/private/$type" ]]; then
+    if [[ "$include_private" == "true" && -d "$PROJECT_DIR/private/$type" ]]; then
         roots+=("$PROJECT_DIR/private/$type")
     fi
 
@@ -267,12 +233,6 @@ install_all_of_type() {
             if [[ -d "$dir" && -f "$dir/$main_file" ]]; then
                 local name
                 name=$(basename "$dir")
-                # For skills, skip experimental ones unless include_experimental is true
-                if [[ "$type" == "skills" && "$include_experimental" != "true" ]]; then
-                    if ! is_public_skill "$name"; then
-                        continue
-                    fi
-                fi
                 install_extension "$type" "$name"
             fi
         done
@@ -313,11 +273,11 @@ if [[ $# -eq 0 ]]; then
     usage
 elif [[ $# -eq 1 ]]; then
     if [[ "$1" == "ALL" || "$1" == "__ALL" ]]; then
-        local_include_experimental="false"
-        [[ "$1" == "__ALL" ]] && local_include_experimental="true"
+        local_include_private="false"
+        [[ "$1" == "__ALL" ]] && local_include_private="true"
         for type in skills commands agents pi-extensions; do
             if [[ -d "$PROJECT_DIR/$type" ]]; then
-                install_all_of_type "$type" "$local_include_experimental"
+                install_all_of_type "$type" "$local_include_private"
             fi
         done
     else
@@ -331,9 +291,9 @@ elif [[ $# -ge 2 ]]; then
     fi
     for name in "$@"; do
         if [[ "$name" == "ALL" || "$name" == "__ALL" ]]; then
-            local_include_experimental="false"
-            [[ "$name" == "__ALL" ]] && local_include_experimental="true"
-            install_all_of_type "$type" "$local_include_experimental"
+            local_include_private="false"
+            [[ "$name" == "__ALL" ]] && local_include_private="true"
+            install_all_of_type "$type" "$local_include_private"
         elif [[ "$type" == "pi-extensions" ]]; then
             install_pi_extension "$name"
         else

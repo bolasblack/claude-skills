@@ -148,7 +148,7 @@ usage() {
     echo "  $0 --tools claude,pi skills ALL # Uninstall all skills from Claude Code and pi"
     echo "  $0 --project /path/to/myapp --tools agents,claude ALL # Uninstall from a project"
     echo "  $0 skills ALL                   # Uninstall all skills"
-    echo "  $0 skills color-master          # Uninstall specific skill"
+    echo "  $0 skills guardrails            # Uninstall specific skill"
     echo "  $0 skills skill-1 skill-2       # Uninstall multiple skills"
     echo "  $0 pi-extensions ALL            # Uninstall all pi extensions"
     echo "  $0 pi-extensions permission-guard.ts  # Uninstall specific pi extension"
