@@ -34,6 +34,8 @@ npx skills add bolasblack/claude-skills --skill <skill-name>
 | [seo-article-optimizer](./skills/seo-article-optimizer/) | Single article/landing page SEO optimization. Includes keyword analysis, readability scoring, heading structure, meta title/description, URL slug, internal links, featured snippet opportunities |
 | [parallel-agent-workflow](./skills/parallel-agent-workflow/) | Coordinate multiple agents working in parallel using git worktrees to avoid file conflicts. Use for multi-component refactoring or parallel feature development |
 | [dependency-safety-check](./skills/dependency-safety-check/) | Screen third-party dependencies for vulnerabilities and supply-chain risk with a bundled `check-deps.py` gate before installation |
+| [grok](./skills/grok/) | Independent second opinion from xAI's Grok via the grok CLI — diff review with a pass/fail gate, adversarial challenge, and free-form consult with session continuity |
+| [codex](./skills/codex/) | Independent second opinion from OpenAI Codex via the codex CLI — diff review with a pass/fail gate, adversarial challenge, and free-form consult with session continuity |
 | [skill-composer](./skills/skill-composer/) | Create and improve Claude Code Skills following official best practices. Includes step-by-step workflow, description patterns, and real-world examples |
 | [command-creator](./skills/command-creator/) | Guide for creating Claude Code slash commands. Helps define command structure, frontmatter, arguments, and best practices |
 | [mcp-context7](./skills/mcp-context7/) | Query up-to-date library documentation and code examples using Context7 |
