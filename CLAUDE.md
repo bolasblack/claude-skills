@@ -43,6 +43,7 @@ Use `./scripts/install.sh` from the repo root for repository maintenance, local 
 ./scripts/install.sh commands ALL           # Install all commands
 ./scripts/install.sh agents code-reviewer   # Install specific agent
 ./scripts/install.sh pi-extensions ALL      # Install all pi extensions
+./scripts/install.sh --mode symlink skills guardrails  # Install using relative symlinks
 ./scripts/install.sh --tools claude,pi skills ALL  # Install to explicit tools
 ./scripts/install.sh --project /path/to/myapp --tools agents,claude skills ALL  # Install to a project
 ```
