@@ -75,6 +75,7 @@ cd ~/.c4-skills
 ./scripts/install.sh commands ALL           # Install all commands
 ./scripts/install.sh agents code-reviewer   # Install specific agent
 ./scripts/install.sh pi-extensions ALL      # Install all pi extensions
+./scripts/install.sh --mode symlink skills guardrails  # Install using relative symlinks
 
 # Install to explicit tools (agents, claude, codex, opencode, pi):
 ./scripts/install.sh --tools claude,pi skills ALL

@@ -16,6 +16,7 @@ TOTAL_WARNINGS=0
 
 # Base directory for installation (default: $HOME, override with --project <dir>)
 BASE_DIR="$HOME"
+INSTALL_MODE="copy"
 
 get_pi_extensions_dir() {
     if [[ -d "$PROJECT_DIR/pi-extensions/extensions" ]]; then
@@ -25,12 +26,26 @@ get_pi_extensions_dir() {
     fi
 }
 
+relative_path() {
+    local path="$1"
+    local base="$2"
+    local result=""
+
+    while [[ "$path" != "$base/"* ]]; do
+        base="${base%/*}"
+        result="../$result"
+    done
+
+    printf '%s\n' "$result${path#"$base"/}"
+}
+
 usage() {
-    echo "Usage: $0 [--project <dir>] [--tools <tools>] <TYPE> <NAME...>"
+    echo "Usage: $0 [--mode <mode>] [--project <dir>] [--tools <tools>] <TYPE> <NAME...>"
     echo ""
-    echo "Install extensions by copying to Claude Code, Codex, OpenCode, agents, and pi"
+    echo "Install extensions by copying or creating relative symlinks"
     echo ""
     echo "Options:"
+    echo "  --mode <mode>     Installation mode: copy (default) or symlink"
     echo "  --project <dir>   Install to a specific project directory instead of home directory"
     echo "  --tools <tools>   Comma-separated targets: agents,claude,codex,opencode,pi"
     echo ""
@@ -40,6 +55,7 @@ usage() {
     echo ""
     echo "Examples:"
     echo "  $0 ALL                          # Install all public extensions to detected tools"
+    echo "  $0 --mode symlink skills guardrails  # Install a skill as relative symlinks"
     echo "  $0 --tools claude,pi skills ALL # Install all public skills to Claude Code and pi"
     echo "  $0 --project /path/to/myapp --tools agents,claude skills ALL  # Install skills to a project"
     echo "  $0 __ALL                        # Install all public and private extensions"
@@ -121,7 +137,15 @@ install_to_target() {
         fi
     fi
 
-    if [[ "$type" == "skills" ]] || [[ "$type" == "pi-extensions" && -d "$source_path" ]]; then
+    if [[ "$INSTALL_MODE" == "symlink" ]]; then
+        local link_source="$source_path"
+        if [[ "$type" != "skills" && "$type" != "pi-extensions" ]]; then
+            local main_file
+            main_file=$(get_main_file "$type")
+            link_source="$source_path/$main_file"
+        fi
+        ln -s "$(relative_path "$link_source" "$target_dir")" "$target_path"
+    elif [[ "$type" == "skills" ]] || [[ "$type" == "pi-extensions" && -d "$source_path" ]]; then
         cp -r "$source_path" "$target_path"
         echo "$REPO_NAME" > "$target_path/.managed-by"
     else
@@ -242,6 +266,18 @@ install_all_of_type() {
 # Parse options
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --mode)
+            case "${2:-}" in
+                copy|symlink)
+                    INSTALL_MODE="$2"
+                    shift 2
+                    ;;
+                *)
+                    echo "Error: Unsupported installation mode: ${2:-}" >&2
+                    exit 1
+                    ;;
+            esac
+            ;;
         --project)
             if [[ -z "$2" || "$2" == --* ]]; then
                 echo "Error: --project requires a directory argument" >&2

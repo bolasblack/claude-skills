@@ -220,8 +220,13 @@ is_our_symlink() {
     fi
     local link_target
     link_target=$(readlink "$target_path" 2>/dev/null || echo "")
-    # Check if symlink points to our project directory
-    if [[ "$link_target" == "$PROJECT_DIR"* ]]; then
+    if [[ "$link_target" != /* ]]; then
+        local link_dir link_parent
+        link_dir="$(dirname "$target_path")/$(dirname "$link_target")"
+        link_parent=$(cd "$link_dir" && pwd) || return 1
+        link_target="$link_parent/$(basename "$link_target")"
+    fi
+    if [[ "$link_target" == "$PROJECT_DIR" || "$link_target" == "$PROJECT_DIR/"* ]]; then
         return 0
     fi
     return 1
