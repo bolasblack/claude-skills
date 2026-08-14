@@ -5,7 +5,7 @@ Primary policy for creating, updating, reviewing, and packaging agent skills. Ba
 ## Features
 
 - Three-level progressive disclosure model (frontmatter > body > linked files)
-- Normative `SPEC.md` defining the properties Skill Composer itself must preserve
+- Exceptional `SPEC.md` convention for stable maintainer-only requirements, with Skill Composer itself as a qualifying case
 - Explicit authority over harness-injected authoring helpers such as `skill-creator`
 - Portable-core plus harness-enhancement architecture for cross-agent skills
 - Planning-first creation workflow and a separate, default-read-only full-package review workflow
@@ -22,7 +22,7 @@ Primary policy for creating, updating, reviewing, and packaging agent skills. Ba
 ## Files
 
 - `SKILL.md` - Main skill definition, creation and review workflows, and quick checklist
-- `SPEC.md` - Normative current-state contract for maintaining Skill Composer itself
+- `SPEC.md` - Skill Composer's rare maintainer-only contract; generated skills omit it unless they pass the admission test
 - `REFERENCE.md` - Technical specs, full review ledger, workflow patterns, testing, troubleshooting, and target-specific distribution
 - `CHANGELOG.md` - Portable release history for Skill Composer
 - `examples/` - 7 real-world skill patterns:
