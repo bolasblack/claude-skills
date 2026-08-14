@@ -2,6 +2,18 @@
 
 This file records Skill Composer releases so the history travels with standalone distributions that do not include the source repository's Git history.
 
+## [3.2.1] - 2026-08-14
+
+### Preserve only user-owned maintenance invariants
+
+- **Changed:** Reduced `SPEC.md` to the three requirement groups the user identified as non-negotiable: cross-harness behavior, a proportionate context footprint, and package-local maintenance context. Authoring authority, evidence policy, and the creation/review distinction remain operational Skill Composer rules rather than self-specification requirements.
+- **Why:** The user requires generated skills to remain cross-harness, avoid consuming excessive agent context through oversized discovery text or `SKILL.md` bodies, and preserve the distinct purposes and reasons for `SPEC.md` and `CHANGELOG.md`. Promoting other current policies into the self-specification would turn implementation choices into permanent product constraints and duplicate rules already enforced by the skill itself.
+
+### Keep maintenance artifacts conditional
+
+- **Changed:** Skill Composer now treats `SPEC.md` as an exceptional optional file for explicit, stable requirements that constrain future rewrites but are unnecessary during ordinary execution. Creation and review apply a four-part admission test and require a conditional maintenance pointer. `CHANGELOG.md` remains independently conditional on a skill having releases of its own or independent distribution.
+- **Why:** The user clarified that most skills, including principle-driven and workflow-routing skills, keep their enduring rules in the runtime `SKILL.md` and gain nothing from a separate specification. A routine `SPEC.md` would duplicate or hide required instructions; the rare separate file preserves maintainer-only constraints without loading them during normal runs. Release history addresses a different failure mode: its causal context can disappear when a skill leaves its repository or shares commits with other skills.
+
 ## [3.2.0] - 2026-08-14
 
 ### Make Skill Composer the authoring owner

@@ -7,7 +7,7 @@ description: "Primary authority for creating, updating, reviewing, and packaging
 
 Create well-structured, discoverable agent skills. Based on the current Agent Skills specification, target-platform documentation, and community best practices.
 
-When modifying or reviewing Skill Composer itself, read [SPEC.md](SPEC.md) first. It is the normative product contract for this skill; ordinary skill-authoring tasks do not need it.
+When modifying or reviewing Skill Composer itself, read [SPEC.md](SPEC.md) first. It holds the rare maintainer-only requirements that must constrain future rewrites; ordinary skill-authoring tasks do not need it.
 
 ## Authoring Authority
 
@@ -139,6 +139,8 @@ your-skill-name/
 - Keep runtime instructions in `SKILL.md` or linked references; do not add a README that duplicates them.
 - A human-facing `README.md` and a release-facing `CHANGELOG.md` are appropriate when the skill is independently distributed. Keep portable release artifacts inside the skill folder so they travel without the source repository.
 - Keep packaged dependencies inside the skill folder. Use external references only when the target harness supports them and the distribution does not need to be self-contained.
+
+`SPEC.md` is intentionally absent from the default structure. Add it only when an explicit, stable requirement must constrain future modifications or rewrites but is not needed during ordinary skill execution. Put runtime principles and workflows in `SKILL.md`, branch-only lookup material in references, and release history in `CHANGELOG.md`. In the rare qualifying case, keep `SPEC.md` short, state each current requirement and why it must survive, and add a conditional pointer from `SKILL.md` for modifying or reviewing that skill itself. Apply the complete [Exceptional Maintainer Specifications](REFERENCE.md#exceptional-maintainer-specifications) admission test; importance, length, or complexity alone does not qualify a skill.
 
 See [Directory Structure Patterns](REFERENCE.md#directory-structure-patterns) for the authoritative structure and script requirements.
 
@@ -290,7 +292,7 @@ Review is a distinct, default-read-only branch. Do not create files, rewrite con
 
 ### Review Step 1: Lock the Contract
 
-Record the review scope, repository rules, target harness and surface, invocation mode, distribution form, and allowed mutations. Reconstruct the intended jobs, usage branches, outputs, side effects, and completion criteria from requirements and observed usage; mark missing evidence as unknown rather than trusting the current text.
+Record the review scope, repository rules, target harness and surface, invocation mode, distribution form, and allowed mutations. If the package presents `SPEC.md` as a maintainer contract, verify the authority, requirement, and current rationale of every entry rather than treating the filename as proof. Reconstruct the intended jobs, usage branches, outputs, side effects, and completion criteria from requirements and observed usage; mark missing evidence as unknown rather than trusting the current text.
 
 **Done when:** every claimed branch and target constraint has a source or is explicitly unknown.
 
@@ -302,7 +304,7 @@ Read and classify every packaged file, resolve every local link, and inspect scr
 
 ### Review Step 3: Audit the Agent Contract
 
-Map each usage branch to its invocation control, description pointer, ordered steps, reference reads, and checkable completion criteria. Audit progressive disclosure, co-location, consistent terminology, and the portable-core/harness-enhancement boundary. Confirm every host-only enhancement has a fallback, unless the skill explicitly declares that host as a requirement. Report duplicated rules, environment caches, time-sensitive claims, stale sediment, no-op instructions, and examples that add no material understanding; remove them only in the authorized fixing step.
+Map each usage branch to its invocation control, description pointer, ordered steps, reference reads, and checkable completion criteria. Audit progressive disclosure, co-location, consistent terminology, and the portable-core/harness-enhancement boundary. Confirm every host-only enhancement has a fallback, unless the skill explicitly declares that host as a requirement. Where `SPEC.md` is a maintainer contract, apply its exceptional admission test, verify that its pointer fires only when modifying or reviewing that skill itself, and report any runtime rule or history duplicated into it. Report duplicated rules, environment caches, time-sensitive claims, stale sediment, no-op instructions, and examples that add no material understanding; remove them only in the authorized fixing step.
 
 **Done when:** every branch, step, and reference pointer has an evidence-backed pass, finding, or not-applicable disposition.
 
@@ -354,6 +356,7 @@ During development:
 - [ ] Each step has a checkable completion criterion
 - [ ] Needed error handling and examples add information; inapplicable sections are omitted
 - [ ] References have explicit read conditions and resolve one level deep
+- [ ] Any maintainer `SPEC.md` passes the exceptional admission test and has a pointer for modifying or reviewing that skill itself
 - [ ] Independently released skill has an updated, packaged `CHANGELOG.md` whose complete new entries contain evidence-backed change and rationale and whose retained examples all pass the removal test
 
 Before release or installation:

@@ -7,6 +7,7 @@ Technical specifications, review gates, workflow patterns, and target-specific n
 - [YAML Frontmatter Specification](#yaml-frontmatter-specification)
 - [Tool Pre-Approval](#tool-pre-approval)
 - [Directory Structure Patterns](#directory-structure-patterns)
+- [Exceptional Maintainer Specifications](#exceptional-maintainer-specifications)
 - [Portable Core and Harness Enhancements](#portable-core-and-harness-enhancements)
 - [Workflow Patterns](#workflow-patterns)
 - [Skill Review Checklist](#skill-review-checklist)
@@ -169,6 +170,23 @@ Maximum organization. Assets for templates, fonts, icons used in output.
 - Use portable forward-slash paths in instructions and code unless the target is explicitly platform-specific.
 - Add executable permissions and a shebang when the script is meant to run directly; neither is required for every bundled source file.
 - Test scripts on every environment the skill claims to support.
+
+## Exceptional Maintainer Specifications
+
+The [Agent Skills specification](https://agentskills.io/specification#directory-structure) permits additional package files but assigns no portable meaning to `SPEC.md`. Skill Composer therefore treats it as an exceptional convention, reached through an explicit conditional pointer rather than assumed harness behavior. The default package has no `SPEC.md`.
+
+Add `SPEC.md` only when every condition holds:
+
+1. An explicit user requirement, repository rule, or authoritative product contract supplies at least one current requirement and the reason it must survive.
+2. The requirement is stable across plausible implementation and harness changes.
+3. It constrains modification or review, while ordinary skill execution does not need it.
+4. A future rewrite could appear locally correct while silently violating it, and a separate maintenance contract materially reduces that risk.
+
+Put principles, decision rules, routing, and completion criteria needed during normal execution in `SKILL.md`. Put branch-only lookup material in a referenced file and past changes in `CHANGELOG.md`. Skill importance, size, or complexity does not satisfy the admission test, and the absence of `SPEC.md` is the expected result for most skills.
+
+A qualifying `SPEC.md` stays short and current-state. For every retained requirement, name the invariant, its enduring reason or concrete failure mode, and any validity boundary. Keep workflow steps and release narration in their runtime and history owners. In `SKILL.md`, add a pointer that loads the file before modifying or reviewing that skill itself; packaging the file alone does not make an agent read it.
+
+Skill Composer itself qualifies because its output-level portability, context-footprint, and maintenance-context requirements must constrain future rewrites while ordinary authoring runs do not need its self-maintenance contract. A skill whose principles define every run, or whose routing rules are the workflow, keeps those requirements in `SKILL.md` and does not qualify.
 
 ## Portable Core and Harness Enhancements
 
@@ -423,10 +441,11 @@ Review the complete installed or packaged skill, not only the current diff. Defa
 - Reconstruct the intended jobs, real usage branches, inputs, outputs, side effects, failure behavior, and completion criteria.
 - Distinguish confirmed requirements from inference and unknown history.
 - Identify the portable core and each harness enhancement; require a fallback unless the skill explicitly declares a single-harness contract.
+- If `SPEC.md` is presented as a maintainer contract, verify its authority, every requirement and rationale, all four [admission conditions](#exceptional-maintainer-specifications), and its pointer for modifying or reviewing that skill itself. Its absence is not a finding by itself.
 
 ### 2. Package and Trust Inventory
 
-- Classify every file as runtime instruction, reference, script, asset, metadata, or release artifact.
+- Classify every file as runtime instruction, maintainer contract, reference, script, asset, metadata, or release artifact.
 - Resolve every local link and verify referenced files are packaged. Avoid reference chains deeper than one level from `SKILL.md`.
 - Inspect scripts and dependencies before running them. Check inputs, failure paths, network access, credential handling, dynamic downloads, broad filesystem access, tool grants, and instruction-injection surfaces.
 - For enterprise or externally sourced packages, review every bundled file, sandbox-test executable content, verify provenance and package integrity, and use a reviewer independent of the author.
