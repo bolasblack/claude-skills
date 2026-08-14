@@ -1,24 +1,34 @@
 # Skill Composer Reference
 
-Technical specifications, workflow patterns, and example analysis for Claude Code Skills.
+Technical specifications, review gates, workflow patterns, and target-specific notes for Agent Skills.
+
+## Contents
+
+- [YAML Frontmatter Specification](#yaml-frontmatter-specification)
+- [Tool Pre-Approval](#tool-pre-approval)
+- [Directory Structure Patterns](#directory-structure-patterns)
+- [Portable Core and Harness Enhancements](#portable-core-and-harness-enhancements)
+- [Workflow Patterns](#workflow-patterns)
+- [Skill Review Checklist](#skill-review-checklist)
+- [Testing Methodology](#testing-methodology)
+- [Troubleshooting](#troubleshooting)
+- [Distribution](#distribution)
+- [Invocation Modes](#invocation-modes)
+- [Portable Changelog Format](#portable-changelog-format)
+- [Skill Examples](#skill-examples)
+- [Resources and Community](#resources-and-community)
 
 ## Skills and MCP Relationship
 
-Think of it like a professional kitchen. **MCP provides the kitchen** — access to tools, ingredients, and equipment (connecting Claude to services like Notion, Asana, Linear, etc.). **Skills provide the recipes** — step-by-step instructions on how to create something valuable.
-
-Together, they enable users to accomplish complex tasks without needing to figure out every step themselves.
+MCP supplies connectivity and callable tools; skills supply reusable instructions, workflow, and domain judgment. Either can stand alone, and a skill may coordinate built-in tools, MCP tools, or no tools at all.
 
 | MCP (Connectivity) | Skills (Knowledge) |
 |--------------------|--------------------|
-| Connects Claude to your service | Teaches Claude how to use your service effectively |
+| Connects an agent to a service | Teaches an agent how to use capabilities effectively |
 | Provides real-time data access and tool invocation | Captures workflows and best practices |
-| What Claude can do | How Claude should do it |
+| What an agent can do | How an agent should do it |
 
-**Without skills:** Users connect your MCP but don't know what to do next. Support tickets asking "how do I do X with your integration." Each conversation starts from scratch. Inconsistent results because users prompt differently each time.
-
-**With skills:** Pre-built workflows activate automatically when needed. Consistent, reliable tool usage. Best practices embedded in every interaction. Lower learning curve for your integration.
-
-Skills position your MCP as a complete solution — not just connectivity, but knowledge.
+Model-invoked skills may load automatically from context; user-invoked skills run only when selected. Do not describe automatic activation as a property of every skill.
 
 ## YAML Frontmatter Specification
 
@@ -33,8 +43,8 @@ description: "What it does and when to use it"
 
 | Field | Type | Constraints |
 |-------|------|-------------|
-| `name` | string | kebab-case only. Max 64 chars. No spaces, underscores, or capitals. Must match folder name. |
-| `description` | string | Max 1024 chars. MUST include what AND when. No XML tags (`<` `>`). |
+| `name` | string | 1-64 lowercase letters, digits, or hyphens; no leading, trailing, or consecutive hyphens; must match the parent directory. |
+| `description` | string | 1-1024 chars; describes what the skill does and when to use it. |
 
 ### Optional Fields
 
@@ -42,15 +52,15 @@ description: "What it does and when to use it"
 ---
 name: "skill-name"
 description: "Description here"
-allowed-tools: Read, Grep, Glob
+allowed-tools: Read Grep Glob
 license: MIT
 compatibility: "Requires Claude Code with bash access"
 metadata:
-  author: Company Name
-  version: 1.0.0
+  author: "Company Name"
+  version: "1.0.0"
   mcp-server: server-name
   category: productivity
-  tags: [project-management, automation]
+  tags: "project-management,automation"
   documentation: https://example.com/docs
   support: support@example.com
 ---
@@ -58,51 +68,36 @@ metadata:
 
 | Field | Type | Purpose |
 |-------|------|---------|
-| `allowed-tools` | string | Restricts which tools Claude can use when skill is active |
-| `license` | string | Open source license (MIT, Apache-2.0, etc.) |
+| `allowed-tools` | string | Experimental, space-separated tool pre-approval; support varies by host |
+| `license` | string | License name or bundled license file reference |
 | `compatibility` | string | Environment requirements, 1-500 chars |
-| `metadata` | object | Custom key-value pairs (author, version, mcp-server, etc.) |
+| `metadata` | object | Optional string-to-string extension map (author, version, mcp-server, etc.) |
 
-### Security Restrictions
+### Target-Specific Validation
 
-**Forbidden in frontmatter**:
-- XML angle brackets (`<` `>`) - frontmatter appears in system prompt, could inject instructions
-- Names prefixed with "claude" or "anthropic" (reserved)
-- Code execution in YAML (safe YAML parsing enforced)
+The portable specification and target harnesses may enforce different schemas. Validate both when packaging for a named surface. For Anthropic upload surfaces, `name` must not contain the reserved words `claude` or `anthropic`, and `name` and `description` must not contain XML tags. Claude Code accepts additional frontmatter fields that fail on claude.ai and API upload paths, so label those fields as Claude Code-only.
 
-## Tool Restrictions
+## Tool Pre-Approval
 
-When using `allowed-tools`, specify any combination of:
+In the portable specification, `allowed-tools` is experimental and contains a space-separated set of pre-approved tools. Support and syntax vary between agent implementations.
 
-- **Read** - Read files from filesystem
-- **Write** - Write new files
-- **Edit** - Edit existing files
-- **Bash** - Execute shell commands (supports scoping: `Bash(python:*)`)
-- **Grep** - Search file contents with patterns
-- **Glob** - Find files by pattern matching
-- **WebFetch** - Fetch content from URLs
-- **WebSearch** - Search the web
-- **Task** - Launch specialized sub-agents
-- **TodoWrite** - Manage task lists
-- **Skill** - Load other skills
-- **SlashCommand** - Execute slash commands
-- **AskUserQuestion** - Prompt user for input
+In Claude Code, the field pre-approves listed tools for the turn in which the skill is invoked. It does not restrict or remove unlisted tools. Use Claude Code permission or deny rules for actual restrictions. The field does not apply to Agent SDK skills; configure SDK tool approval in the SDK options instead.
 
-### Common Restriction Patterns
+### Claude Code Pre-Approval Examples
 
 **Read-only analysis** (code review, security audits):
 ```yaml
-allowed-tools: Read, Grep, Glob
+allowed-tools: Read Grep Glob
 ```
 
 **Research only** (information gathering, docs lookup):
 ```yaml
-allowed-tools: Read, WebFetch, WebSearch, Grep, Glob
+allowed-tools: Read WebFetch WebSearch Grep Glob
 ```
 
-**Safe file operations** (generation, no destructive edits):
+**Pre-approved file operations**:
 ```yaml
-allowed-tools: Read, Write, Bash
+allowed-tools: Read Write
 ```
 
 **Scoped bash with web** (specific interpreters only):
@@ -110,10 +105,7 @@ allowed-tools: Read, Write, Bash
 allowed-tools: "Bash(python:*) Bash(npm:*) WebFetch"
 ```
 
-**Full access** (default - omit `allowed-tools` field):
-```yaml
-# No allowed-tools field = all tools available
-```
+Omitting `allowed-tools` does not define a portable permission policy; the host's normal permissions still apply.
 
 ## Directory Structure Patterns
 
@@ -150,7 +142,7 @@ skill-name/
     └── validate.sh
 ```
 
-Scripts for programmatic validation and utilities. Remember `chmod +x` and shebang lines.
+Scripts for programmatic validation and utilities. Add `chmod +x` and a shebang only when a script is intended to run directly.
 
 ### Full-Featured
 
@@ -172,10 +164,29 @@ Maximum organization. Assets for templates, fonts, icons used in output.
 
 ### Script Requirements
 
-- Execute permissions: `chmod +x scripts/*.sh`
-- Shebang lines: `#!/usr/bin/env python3` or `#!/usr/bin/env bash`
-- Forward slashes only (Unix-style paths)
-- Document dependencies in skill description
+- Keep scripts self-contained or document every dependency and supported environment.
+- Include helpful error messages, validate inputs, and handle expected edge cases.
+- Use portable forward-slash paths in instructions and code unless the target is explicitly platform-specific.
+- Add executable permissions and a shebang when the script is meant to run directly; neither is required for every bundled source file.
+- Test scripts on every environment the skill claims to support.
+
+## Portable Core and Harness Enhancements
+
+Cross-agent skills have two layers:
+
+1. **Portable core:** goal, inputs, outputs, decisions, ordered steps, failure behavior, and completion criteria that compatible agents can execute without host-only features.
+2. **Harness enhancements:** optional integrations such as Claude Code hooks, dynamic context, subagent configuration, extra frontmatter, UI metadata, or permission pre-approval.
+
+For every enhancement:
+
+- name the harness and surface that support it;
+- state what it improves;
+- provide a portable fallback that preserves the core result; and
+- test that the fallback works without the enhancement.
+
+The fallback may be less convenient or less automated, but it must preserve the core contract. Do not store essential state only in a hook, rely on dynamic injection as the sole source of required input, or make a host-only subagent the only executor of a portable workflow.
+
+An intentionally host-specific skill is the exception. State the host requirement in its description and compatibility documentation, then review it against that host rather than claiming cross-agent support.
 
 ## Workflow Patterns
 
@@ -320,7 +331,7 @@ Think of it like Home Depot. You might walk in with a problem — "I need to fix
 Skills work the same way:
 
 - **Problem-first**: "I need to set up a project workspace" — Your skill orchestrates the right MCP calls in the right sequence. Users describe outcomes; the skill handles the tools.
-- **Tool-first**: "I have Notion MCP connected" — Your skill teaches Claude the optimal workflows and best practices. Users have access; the skill provides expertise.
+- **Tool-first**: "I have Notion MCP connected" — Your skill teaches the agent the optimal workflows and best practices. Users have access; the skill provides expertise.
 
 Most skills lean one direction. Knowing which framing fits your use case helps you choose the right pattern below.
 
@@ -329,7 +340,9 @@ Most skills lean one direction. Knowing which framing fits your use case helps y
 | Problem-first | A goal or outcome | Tool orchestration, sequencing | Sequential Orchestration, Multi-MCP Coordination |
 | Tool-first | An MCP or tool | Best practices, domain knowledge | Domain-Specific Intelligence, Context-Aware Selection |
 
-## Pattern Selection Guide
+## Historical Pattern Snapshot Guide
+
+The observations below describe the bundled historical snapshots. They are non-authoritative pattern prompts, not current platform policy. Re-check any selected technique against the current task, the portable core, and target documentation; omit it when it does not add behavior.
 
 ### From Real-World Examples
 
@@ -343,7 +356,7 @@ Most skills lean one direction. Knowing which framing fits your use case helps y
 
 #### Helper Scripts (like Web App Testing)
 **Use when**: Complex setup better handled by code.
-**Techniques**: Black box philosophy (don't pollute context), `--help` first (self-documenting), decision trees, extreme conciseness (~96 lines).
+**Techniques**: Black box philosophy (don't pollute context), `--help` first (self-documenting), decision trees, compact helper-led instructions.
 
 #### Comprehensive Framework (like MCP Builder)
 **Use when**: Building complex systems with multiple phases.
@@ -361,13 +374,13 @@ Most skills lean one direction. Knowing which framing fits your use case helps y
 **Use when**: Automation with safety requirements.
 **Techniques**: Priority order (existing > config > ask), safety verification (.gitignore), auto-detection, baseline verification.
 
-### Common Patterns Across All Examples
+### Patterns Observed Across the Snapshots
 
 1. **Clear structure**: Well-defined sections
 2. **Explicit principles**: Core principles stated upfront
-3. **Concrete examples**: Code snippets, commands, workflows
-4. **Tables for reference**: Quick reference, comparisons, checklists
-5. **Red flags/warnings**: What NOT to do
+3. **Examples where needed**: Code, commands, or workflows only when they clarify output or a decision
+4. **Tables for mappings**: Comparisons or checklists when relationships are otherwise hard to scan
+5. **Safety boundaries**: Positive target behavior plus prohibitions only for unavoidable guardrails
 6. **Integration guidance**: How skills relate to each other
 
 ### Key Insights
@@ -380,7 +393,7 @@ Most skills lean one direction. Knowing which framing fits your use case helps y
 - Human partner signals
 
 **From Official (anthropics/skills)**:
-- Extreme conciseness (Web App Testing: 96 lines)
+- Compact helper-led design (Web App Testing)
 - Black box philosophy (helper scripts)
 - WebFetch integration (MCP Builder)
 - Zero-tolerance policies (XLSX)
@@ -389,37 +402,87 @@ Most skills lean one direction. Knowing which framing fits your use case helps y
 
 ### Anti-Patterns
 
-What good skills DON'T do:
+Common failure modes:
 - Vague descriptions
 - Multiple unrelated capabilities
 - Ambiguous instructions
 - Skip verification steps
-- Missing version history
+- Missing a skill-local changelog for an independently released skill
 - Assume context without checking
 - Skip safety verification
 - Pollute context with large files
 
-**Tip: Code > language for validation.** For critical validations, consider bundling a script that performs checks programmatically rather than relying on language instructions alone. Code is deterministic; language interpretation isn't. See the Office skills (XLSX, DOCX) for examples of this pattern.
+## Skill Review Checklist
+
+Review the complete installed or packaged skill, not only the current diff. Default to read-only unless the user authorizes changes. Use a coverage ledger with `Rule or branch | Evidence | Result | Follow-up`; valid results are `pass`, `finding`, `not applicable`, and `unknown`. Never turn an unknown or unrun check into a pass.
+
+### 1. Contract and Scope
+
+- Record the user request, repository rules, allowed mutations, and sources of truth.
+- Name every target agent or harness, surface, invocation mode, and distribution form.
+- Reconstruct the intended jobs, real usage branches, inputs, outputs, side effects, failure behavior, and completion criteria.
+- Distinguish confirmed requirements from inference and unknown history.
+- Identify the portable core and each harness enhancement; require a fallback unless the skill explicitly declares a single-harness contract.
+
+### 2. Package and Trust Inventory
+
+- Classify every file as runtime instruction, reference, script, asset, metadata, or release artifact.
+- Resolve every local link and verify referenced files are packaged. Avoid reference chains deeper than one level from `SKILL.md`.
+- Inspect scripts and dependencies before running them. Check inputs, failure paths, network access, credential handling, dynamic downloads, broad filesystem access, tool grants, and instruction-injection surfaces.
+- For enterprise or externally sourced packages, review every bundled file, sandbox-test executable content, verify provenance and package integrity, and use a reviewer independent of the author.
+- Record binary, generated, external, or otherwise uninspected content as unknown.
+
+### 3. Agent Contract
+
+- For model invocation, map one discriminating description pointer to every real branch and test realistic near-neighbor boundaries.
+- For user-only invocation, verify discoverability and explicit control without demanding automatic-trigger phrasing.
+- Map every branch to ordered steps, reference reads, and checkable, exhaustive completion criteria.
+- Verify progressive disclosure and co-location: process steps stay together; lookup material has explicit read conditions.
+- Prune duplicated rules, unsupported environment assumptions, time-sensitive claims, stale sediment, no-op instructions, needless options, and examples whose removal does not reduce understanding.
+- Check terminology, error handling where operations can fail, and target-specific claims against current primary documentation.
+
+### 4. Validation and Behavior
+
+- Run `skills-ref validate ./path/to/skill` for portable frontmatter and naming when available, plus the named target's validator. Record each validator's scope; neither schema validation nor naming checks are a behavior review.
+- Run each supported branch in a fresh context with its expected behavior and observable completion criteria.
+- For model-invoked skills, cover intended triggers, paraphrases, realistic near-misses, and ambiguous cases.
+- Test the portable fallback without host enhancements. Test each declared enhancement on its named host.
+- Test in isolation and alongside likely overlapping skills; include every model and surface claimed by the release.
+- Run bundled scripts safely and verify successful output, invalid input, dependency failure, and side-effect boundaries.
+
+### 5. Findings and Release
+
+- Report each finding with severity, file and line evidence, impact, the smallest adequate fix, and an objective completion criterion.
+- Separate facts, inferences, and unknowns. Report tests not run and why.
+- If changes are authorized, rerun every affected gate and check the whole package again for semantic residue.
+- Apply the [Evidence gate](#evidence-gate) to a skill-local changelog when Skill Composer or repository release policy requires one. Do not fail an otherwise valid unpublished skill merely for lacking release artifacts that do not apply.
 
 ## Testing Methodology
 
-### 1. Triggering Tests
+There is no portable built-in evaluation runner. Run scenarios manually in the target host or build a repeatable harness. Start output-quality iteration with 2-3 cases tied to observed baseline gaps. For focused description tuning, aim for about 20 balanced trigger/non-trigger queries, run each multiple times (three is a reasonable start), and reserve fresh validation queries to detect overfitting. For enterprise release, require 3-5 representative queries covering trigger, non-trigger, and ambiguous cases. Expand every suite for real branches and risks, and test every deployed model.
 
-Goal: Skill loads at the right times.
+### 1. Baseline and Expected Behavior
+
+Run representative tasks without the skill first. Record the exact failure or missing context, then define observable expected behavior for the same tasks with the skill. Use fresh sessions so earlier skill content or conversation state does not contaminate results.
+
+### 2. Triggering Tests
+
+For model-invoked skills, test whether the host loads the skill at the right boundary. Negative cases must be realistic near-misses, not unrelated topics that test nothing.
 
 ```
 Should trigger:
-- "Help me set up a new ProjectHub workspace"
-- "I need to create a project in ProjectHub"
-- "Initialize a ProjectHub project for Q4 planning"
+- "Initialize a ProjectHub workspace for Q4 planning"
 
-Should NOT trigger:
-- "What's the weather in San Francisco?"
-- "Help me write Python code"
-- "Create a spreadsheet" (unless skill handles that)
+Realistic near-miss:
+- "Summarize the existing ProjectHub workspace" (when the skill only creates workspaces)
+
+Ambiguous boundary:
+- "Help me organize Q4 in ProjectHub"
 ```
 
-### 2. Functional Tests
+State the expected activation or clarification behavior before running each case. Include paraphrases for every real branch.
+
+### 3. Functional Tests
 
 Goal: Correct outputs produced.
 
@@ -434,7 +497,11 @@ Then:
 - No API errors
 ```
 
-### 3. Performance Comparison
+### 4. Isolation and Coexistence
+
+Run the skill alone, then alongside the skills most likely to overlap. Verify the new skill does not steal unrelated triggers, suppress another skill, or depend on another installed skill unless that dependency is explicit. For a cross-agent skill, disable host enhancements and verify the portable fallback preserves the core result.
+
+### 5. Performance Comparison
 
 Goal: Skill improves over baseline.
 
@@ -444,19 +511,19 @@ Goal: Skill improves over baseline.
 | Failed API calls | 3 requiring retry | 0 |
 | Tokens consumed | 12,000 | 6,000 |
 
-Use your success criteria measurements to populate this table. Three testing approaches based on audience size: **Manual testing in Claude.ai** for fast iteration with no setup, **Scripted testing in Claude Code** for repeatable validation across changes, and **Programmatic testing via Skills API** for systematic evaluation at scale. Choose the approach that matches your quality requirements and deployment scope.
+Use your success criteria measurements to populate this table only after correctness passes. Manual and scripted approaches are both valid, but the Skills API does not supply a built-in evaluation runner; automation must come from a target-specific authoring helper or a user-built harness.
 
 ### Iteration Signals
 
 **Undertriggering** (skill doesn't load when it should):
 - Users manually enabling it
 - Support questions about when to use it
-- Fix: Add more detail, keywords, and technical terms to description
+- Fix: Identify the missing usage branch and add or sharpen one discriminating pointer using observed user language
 
 **Overtriggering** (skill loads for unrelated queries):
 - Users disabling it
 - Confusion about purpose
-- Fix: Add negative triggers, be more specific, clarify scope
+- Fix: Narrow the positive context pointer and test the nearest competing branch; use an explicit prohibition only when a positive boundary cannot express the rule
 
 #### Execution Issues
 
@@ -490,53 +557,41 @@ Quick checks:
 - Does it include trigger phrases users would actually say?
 - Does it mention relevant file types?
 
-Debug: Ask Claude "When would you use the [skill name] skill?" - adjust based on what's missing.
+Run an actual activation case in a fresh session. A model repeating the description only proves that it can read the text.
 
 ### Skill Triggers Too Often
 
-1. Add negative triggers: `"Do NOT use for simple data exploration"`
-2. Be more specific: `"PDF legal documents for contract review"` not `"documents"`
-3. Clarify scope: `"Use specifically for online payment workflows, not for general financial queries"`
+1. Be more specific: `"PDF legal documents for contract review"` not `"documents"`
+2. Give each real branch one discriminating context pointer and remove synonym lists that add no distinction
+3. Test the nearest competing skill or same-domain near-miss, then refine the positive boundary
 
 ### Instructions Not Followed
 
-1. **Too verbose** - Use bullet points, numbered lists, move details to references/
-2. **Instructions buried** - Put critical instructions at the top, use `## Critical` headers
-3. **Ambiguous language** - Replace "validate things properly" with explicit checklists
-4. **Model laziness** - When Claude rushes through tasks or skips validation steps, add explicit encouragement:
-
-   ```
-   ## Performance Notes
-   - Take your time to do this thoroughly
-   - Quality is more important than speed
-   - Do not skip validation steps
-   ```
-
-   Note: Adding this to user prompts is more effective than placing it in SKILL.md. Consider instructing users to include performance notes in their initial prompt for best results.
+1. Reproduce the failure in a fresh session and identify the first skipped or misread branch.
+2. Replace ambiguity such as "validate things properly" with an ordered action and observable completion criterion.
+3. Co-locate the rule with the step it governs; move only lookup material into a reference with an explicit read condition.
+4. Remove competing options, duplicate rules, and no-op encouragement that cannot change the decision path.
 
 ### Large Context Issues
 
 Symptoms: Slow responses, degraded quality.
 
 Solutions:
-1. Keep SKILL.md under **5,000 words** - move details to references/
-2. Evaluate if more than 20-50 skills are enabled simultaneously
-3. Ensure progressive disclosure is working (not loading everything upfront)
+1. Keep `SKILL.md` under **500 lines** and below the recommended **5,000 tokens**; move needed lookup material to focused references.
+2. Measure recall on the actual target as skills are added; use the surface's documented cap instead of a generic count.
+3. Ensure progressive disclosure is working and reference reads have explicit conditions.
 
 ### Skill Packs
 
-If you have many related capabilities, consider grouping them into a **skill pack** — a single skill that bundles related functions together. This reduces the number of simultaneously enabled skills and helps Claude select the right capability without scanning dozens of descriptions.
+If you have many related capabilities, consider grouping them into a **skill pack** — a single skill that bundles related functions together. This can reduce the number of simultaneously enabled skills and help the host select the right capability.
 
-Use skill packs when:
-- You have 3+ skills that share the same MCP server or domain
-- Users typically need several related capabilities in one session
-- Description overlap causes triggering conflicts between related skills
+Consolidate only when coexistence evaluations show trigger conflicts or recall degradation and the combined skill preserves equal behavior. Shared domain or an arbitrary skill count alone is not enough.
 
 ### MCP Connection Issues
 
-1. Verify MCP server is connected (Settings > Extensions)
+1. Use the named host's connector or status diagnostic. For Claude Code, run `/mcp`; for Claude.ai, open **Customize > Connectors**
 2. Check authentication (API keys valid, proper scopes)
-3. Test MCP independently (ask Claude to call MCP directly without skill)
+3. Test MCP independently by asking the agent to call it without the skill
 4. Verify tool names match MCP server documentation (case-sensitive)
 
 ### Debug Mode (Claude Code)
@@ -545,29 +600,27 @@ Use skill packs when:
 claude --debug
 ```
 
-Look for YAML parsing errors, file loading messages, and skill activation logs.
+Use debug output for YAML parse errors and skill-listing diagnostics. For trigger tests, record whether the host actually loaded or invoked the skill; debug output alone is not behavior evidence.
 
 ## Distribution
 
-### Claude.ai Upload Path
+Treat each target as a separate compatibility surface. Do not assume that a skill propagates between surfaces: some Claude surfaces provide automatic or opt-in sync, while independently authored local installs and Skills API versions remain separately managed. Verify current sync behavior, then package, validate, release, and test every claimed target independently.
 
-How individual users get skills:
+### Claude.ai
 
-1. Download the skill folder
-2. Zip the folder (if needed)
-3. Upload to Claude.ai via Settings > Capabilities > Skills
-4. Or place in Claude Code skills directory
+1. Package the skill folder as a ZIP file.
+2. Open **Customize > Skills**.
+3. Select **+**, then **Create skill > Upload a skill**.
+4. Upload the ZIP and run the claude.ai evaluation cases.
 
-### When to Use API vs Claude.ai
+Organization owners manage skill availability and provisioning in **Organization settings > Skills** when their plan supports it. Recipients of a shared claude.ai skill receive later owner updates automatically; do not generalize that behavior to local installs, provisioned archives, or API versions.
 
-| Use Case | Best Surface |
-|----------|-------------|
-| End users interacting with skills directly | Claude.ai / Claude Code |
-| Manual testing and iteration during development | Claude.ai / Claude Code |
-| Individual, ad-hoc workflows | Claude.ai / Claude Code |
-| Applications using skills programmatically | API |
-| Production deployments at scale | API |
-| Automated pipelines and agent systems | API |
+### Claude Code Filesystem Skills
+
+- Project skills: `.claude/skills/<skill-name>/SKILL.md`
+- Personal skills: `~/.claude/skills/<skill-name>/SKILL.md`
+
+Claude Code also accepts additional frontmatter and runtime features. Keep those enhancements outside the portable core or declare the skill Claude Code-only.
 
 ### Claude Code Plugin Structure
 
@@ -582,14 +635,15 @@ my-plugin/
         └── SKILL.md
 ```
 
-Skills in `skills/` are discovered automatically - no plugin.json entries needed.
+Skills in `skills/` are discovered automatically; no per-skill `plugin.json` entry is needed. Plugin skills are invoked with a namespaced form such as `/plugin-name:skill-name`.
 
-### GitHub
+### Repository and Standalone Distribution
 
-1. Host skill in public repo with clear README (at repo level, not inside skill folder)
-2. Add installation instructions and example usage with screenshots
-3. Link from MCP documentation if applicable
-4. Compress as `.zip` for users who want to upload directly to Claude.ai
+1. Use a repository-level README for a collection and a skill-local README when an independently distributed skill needs human-facing installation or compatibility notes.
+2. Do not duplicate runtime instructions from `SKILL.md` in either README.
+3. Keep independently distributed release artifacts, dependencies, and the Skill Composer changelog inside the skill folder.
+4. Provide a ZIP only for a target that consumes one, such as claude.ai upload.
+5. Link from MCP documentation when the skill enhances that MCP.
 
 The `anthropics/skills` repository on GitHub contains Anthropic-created skills you can browse and customize. See also the MCP documentation cross-reference guidance in [Document in Your MCP Repo](#document-in-your-mcp-repo) below.
 
@@ -604,17 +658,17 @@ Include a guide like this in your repo README:
    - Clone repo: `git clone https://github.com/yourcompany/skills`
    - Or download ZIP from Releases
 
-2. Install in Claude:
-   - Open Claude.ai > Settings > skills
-   - Click "Upload skill"
-   - Select the skill folder (zipped)
+2. Install on the supported target:
+   - Claude.ai: open Customize > Skills and upload the ZIP
+   - Claude Code project: copy the folder into `.claude/skills/`
+   - Other agents: follow the verified target-specific path
 
 3. Enable the skill:
    - Toggle on the [Your Service] skill
    - Ensure your MCP server is connected
 
 4. Test:
-   - Ask Claude: "Set up a new project in [Your Service]"
+   - Ask the target agent: "Set up a new project in [Your Service]"
 ```
 
 ### Positioning Your Skill
@@ -629,7 +683,7 @@ Bad: *"The ProjectHub skill is a folder containing YAML frontmatter and Markdown
 
 **Highlight the MCP + skills story:**
 
-*"Our MCP server gives Claude access to your Linear projects. Our skills teach Claude your team's sprint planning workflow. Together, they enable AI-powered project management."*
+*"Our MCP server gives the agent access to your project system. Our skills teach the agent your team's planning workflow. Together, they provide consistent tool-assisted project management."*
 
 ### Document in Your MCP Repo
 
@@ -639,118 +693,135 @@ If you maintain an MCP server, link to your skills from the MCP documentation:
 - Explain the value of using both together
 - Provide a quick-start guide that covers MCP setup and skill installation
 
-### Organization Deployment
+### Skills API
 
-Shipped December 18, 2025. Admins can deploy skills workspace-wide through the Claude Console:
+The Skills API manages workspace-scoped skill uploads and generated versions. Add an uploaded skill to a Messages API request through `container.skills`. Messages API use of skills requires the code execution tool beta. Do not substitute an optional `metadata.version` value for the API's version identifier or for the skill-local release record.
 
-- **Workspace-wide deploy**: Push skills to all users in the organization at once
-- **Automatic updates**: Changes propagate without users needing to re-download
-- **Centralized management**: Control which skills are active across your organization
+For implementation details, use the current Skills API guide and API reference rather than copying endpoint behavior into a long-lived skill.
 
-#### Version Control through Claude Console
+### Agent SDK
 
-Version control and management through the Claude Console lets admins track skill versions, roll back changes, and manage deployment across teams.
+Agent SDK skills are filesystem artifacts discovered from configured setting sources; the SDK does not register them through the Skills API. Configure the available skills and tool approval in SDK options. The `allowed-tools` frontmatter field does not control SDK permissions.
 
-#### Open Standard Philosophy
+## Invocation Modes
 
-Skills are designed as an open, portable standard. A skill built for Claude.ai works identically in Claude Code and the API. This cross-platform portability means you're not locked into a single surface — build once, deploy anywhere. The `compatibility` field in frontmatter captures environment requirements, enabling ecosystem collaboration where skills can declare what they need and run wherever those requirements are met.
+Invocation and content structure are independent choices:
 
-### API Usage
+- **Model-invoked:** the host selects the skill from its description.
+- **User-invoked:** the user selects the skill explicitly to control timing or side effects.
+- **Both:** the default on hosts that safely support both paths.
 
-For programmatic use cases — such as building applications, agents, or automated workflows that leverage skills — the API provides direct control over skill management and execution.
+Claude Code has merged custom commands into skills. Use `disable-model-invocation: true` for a user-only Claude Code skill and `user-invocable: false` for a model-only one. Existing `.claude/commands/*.md` files remain a compatibility form, not a separate authoring model. Other agents may expose different controls; keep invocation policy in a target adapter rather than the portable core.
 
-Key capabilities:
+## Portable Changelog Format
 
-- `/v1/skills` endpoint for listing and managing skills
-- Add skills to Messages API requests via the `container.skills` parameter
-- Version control and management through the Claude Console
-- Works with the Claude Agent SDK for building custom agents
+Use a skill-local `CHANGELOG.md` when a skill has releases of its own or may be distributed without its source repository. Git history is not a sufficient release record: one commit may modify several skills, and an installed or copied skill may have no Git metadata.
 
-Skills in the API require the Code Execution Tool beta, which provides the secure sandbox environment skills need to run.
+Keep the changelog outside `SKILL.md` so historical narration does not consume runtime context. Package it with the skill, update it in the same change as released behavior, and record only changes that matter to a user, integrator, or downstream maintainer. Omit it for unpublished, single-use skills until there is a real release history to preserve.
 
-For implementation details, see:
+### Evidence gate
 
-- Skills API Quickstart
-- Create Custom Skills
-- Skills in the Agent SDK
+Evidence outranks the desire to fill every field. Write a changelog claim only when it is directly supported by at least one traceable source:
 
-## Skills vs Slash Commands
+- the user's explicit explanation in the current conversation or a retrievable earlier conversation;
+- a requirement or specification;
+- observed diff or code;
+- test or log output; or
+- an existing release record, limited to what that record actually says.
 
-| Aspect | Skills | Slash Commands |
-|--------|--------|----------------|
-| **Invocation** | Automatic (model-invoked) | Manual (user types /command) |
-| **Complexity** | Complex capabilities with structure | Simple prompts |
-| **Files** | Directory with SKILL.md + supporting files | Single markdown file |
-| **Discovery** | Based on description matching | Explicit user command |
-| **Use case** | Claude should discover automatically | User wants explicit control |
+A historical conversation can establish why the user chose a separate file, boundary, or workflow even when the current request only says to implement it. Preserve that explicit reason. Do not promote an agent's plausible interpretation of the conversation into the user's rationale, and do not use the changelog entry being written as evidence for itself.
 
-**Choose Skills when**: Context-based activation needed, complex workflows, multiple files/scripts, team standardization.
+De-identification is transformation, not invention. Rename sensitive details while preserving the evidenced actors, states, sequence, and consequence. Use a minimal code, config, payload, or diff excerpt when one was observed. A reconstruction may express an explicitly described code pattern, but it must not introduce behavior or causality that the source did not establish. When only the reason is known, use concrete prose instead of manufacturing code.
 
-**Choose Slash Commands when**: Explicit invocation control, simple single-file prompt, repeated identical instructions.
+If the evidence does not establish a `Why`, preserve the supported facts, report what evidence is missing, and do not claim the new entry is complete. An `Example` is optional: omit it when it would not materially improve understanding or when the evidence cannot support it. When importing legacy entries that lack enough evidence, keep their recorded facts and identify them as legacy history rather than backfilling a plausible story.
 
-## Version History Format
+Once the evidence gate passes, include for every complete new logical change inside a release:
 
-```markdown
-## Version History
-- v2.0.0 (2025-11-15): Breaking change - new API format
-- v1.1.0 (2025-11-10): Added feature X
-- v1.0.1 (2025-11-05): Fixed bug Y
-- v1.0.0 (2025-11-03): Initial version
-```
+- **Changed** (required): the behavior, rule, contract, or compatibility surface that changed.
+- **Why** (required): the failure mode, missing invariant, or distribution constraint that made the change necessary.
+- **Example** (optional): include the causal pre-change pattern and its consequence only when it makes the decision materially easier to understand than `Changed` and `Why` alone. Prefer the smallest reconstructed code, config, payload, or diff snippet that makes the missing relationship obvious; use concrete prose when code would add no clarity. Show before and after only when the contrast helps explain the decision.
+- **Migration** (optional): include only when a user or downstream integrator must act.
+
+Use this inclusion test: remove the proposed `Example` and reread `Changed` plus `Why`. If the causal pattern, consequence, and reason for the decision remain equally clear, omit the example.
+
+During review, run this test against every retained `Example`, including examples outside the current diff. Existing text is not grandfathered: remove any example that no longer adds material understanding.
+
+When included, write the heading as `Example` and de-identify its contents. Replace project, customer, ticket, repository, path, symbol, route, event, and real payload names with neutral ones. Preserve structural roles such as caller, owner, gate, optimizer, or compatibility boundary because they carry the rationale. Reconstruct the smallest faithful example instead of copying proprietary code verbatim. If a changelog contains examples, state in its preamble that they are de-identified, evidence-backed reconstructions.
+
+An example documents what caused the change; it is not a usage demo or a mandatory restatement of the new behavior.
+
+````markdown
+# Changelog
+
+Examples, when included, are de-identified, evidence-backed reconstructions of the patterns that motivated each change.
+
+## [2.0.0] - 2025-11-15
+
+### Preserve decision-relevant facts
+
+- **Changed:** Callers now pass every distinction the owning surface may need.
+- **Why:** Selecting one value early made valid states indistinguishable and prevented the owner from deciding correctly.
+- **Example:**
+
+  ```ts
+  declare const candidates: Candidate[] | undefined;
+  const choice = candidates?.[0] ?? null;
+  owner.decide(choice);
+  ```
+
+  This reduces one or many candidates to one value and collapses both an empty result and an unavailable result to `null`.
+- **Migration:** Pass the complete candidate result to the owner.
+````
 
 Semantic versioning: Major (breaking), Minor (features, backward compatible), Patch (bug fixes).
 
 ## Skill Examples
 
-Seven real-world examples in [examples/](examples/):
+Seven annotated historical pattern snapshots live in [examples/](examples/). Use them for structural ideas only; current specifications and target documentation override any embedded platform detail.
 
-| Example | Lines | Pattern | Source | Key Feature |
-|---------|-------|---------|--------|-------------|
-| [TDD](examples/tdd.md) | ~365 | Discipline enforcement | obra/superpowers | Rationalization tables |
-| [Systematic Debugging](examples/systematic-debugging.md) | ~296 | Four-phase methodology | obra/superpowers | Three-fix rule |
-| [Web App Testing](examples/webapp-testing.md) | ~96 | Helper scripts | anthropics/skills | Black box philosophy |
-| [MCP Builder](examples/mcp-builder.md) | ~329 | Comprehensive framework | anthropics/skills | WebFetch integration |
-| [XLSX](examples/xlsx.md) | ~289 | Production standards | anthropics/skills | Zero formula errors |
-| [DOCX](examples/docx.md) | ~197 | Decision tree + externals | anthropics/skills | MANDATORY file reads |
-| [Git Worktrees](examples/git-worktrees.md) | ~214 | Safety workflow | obra/superpowers | .gitignore verification |
+| Example | Pattern | Source | Key Feature |
+|---------|---------|--------|-------------|
+| [TDD](examples/tdd.md) | Discipline enforcement | obra/superpowers | Rationalization tables |
+| [Systematic Debugging](examples/systematic-debugging.md) | Four-phase methodology | obra/superpowers | Three-fix rule |
+| [Web App Testing](examples/webapp-testing.md) | Helper scripts | anthropics/skills | Black box philosophy |
+| [MCP Builder](examples/mcp-builder.md) | Comprehensive framework | anthropics/skills | WebFetch integration |
+| [XLSX](examples/xlsx.md) | Production standards | anthropics/skills | Zero formula errors |
+| [DOCX](examples/docx.md) | Decision tree + externals | anthropics/skills | MANDATORY file reads |
+| [Git Worktrees](examples/git-worktrees.md) | Safety workflow | obra/superpowers | `.gitignore` verification |
 
 **By use case category:**
 - **Document & Asset Creation**: XLSX, DOCX — producing formatted documents and assets with domain-specific quality standards
 - **Workflow Automation**: TDD, Systematic Debugging, MCP Builder — enforcing step-by-step processes and consistent methodology
 - **MCP Enhancement**: Web App Testing, Git Worktrees — enhancing tool access with best practices and safety workflows
 
-## Resources & Community
+## Resources and Community
 
 If you're building your first skill, start with the Best Practices Guide, then reference the API docs as needed.
 
 ### Official Documentation
 
-- [Best Practices Guide](https://docs.anthropic.com/en/docs/build-with-claude/agent-skills/best-practices) — comprehensive guide to building effective skills
-- [Skills Documentation](https://docs.anthropic.com/en/docs/build-with-claude/agent-skills) — core concepts and configuration
-- [API Reference](https://docs.anthropic.com/en/api) — endpoints and parameters for programmatic usage
+- [Agent Skills Specification](https://agentskills.io/specification) — portable structure, fields, references, and validation
+- [Skill Authoring Best Practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) — current authoring and evaluation guidance
+- [Enterprise Skill Review](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/enterprise) — security, coexistence, lifecycle, and production review
+- [Claude Code Skills](https://code.claude.com/docs/en/slash-commands) — Claude Code-specific invocation and enhancement fields
+- [Use Skills in Claude](https://support.claude.com/en/articles/12512180-use-skills-in-claude) — current claude.ai installation and sharing paths
+- [Skills API Guide](https://platform.claude.com/docs/en/build-with-claude/skills-guide) — API upload, versions, and Messages API use
+- [Agent SDK Skills](https://code.claude.com/docs/en/agent-sdk/skills) — filesystem discovery and SDK-specific tool controls
 - [MCP Documentation](https://modelcontextprotocol.io) — Model Context Protocol specification and guides
 
-### Blog Posts
+### Background
 
-- [Introducing Agent Skills](https://www.anthropic.com/news/agent-skills) — launch announcement and overview
-- [Engineering Blog: Equipping Agents for the Real World](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world) — technical deep-dive on agent architecture
-- [Skills Explained](https://www.anthropic.com/news/skills-explained) — conceptual overview of what skills are and why they matter
-- [How to Create Skills for Claude](https://www.anthropic.com/news/how-to-create-skills-for-claude) — step-by-step creation tutorial
-- [Building Skills for Claude Code](https://www.anthropic.com/news/building-skills-for-claude-code) — Claude Code-specific skill development
-- [Improving Frontend Design through Skills](https://www.anthropic.com/news/improving-frontend-design-through-skills) — case study on design-focused skills
+- [Equipping agents for the real world with Agent Skills](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills) — the original architecture discussion and later open-standard update
 
 ### Public Skills Repository
 
 GitHub: [anthropics/skills](https://github.com/anthropics/skills) — Contains Anthropic-created skills you can browse and customize. Use these as reference implementations when building your own.
 
-### skill-creator Tool
+### Auxiliary Skill-Authoring Helpers
 
-Built into Claude.ai and available for Claude Code:
+A harness may inject `skill-creator` or an analogous helper. Use a helper for capabilities tied to that harness, such as scaffolding, schema validation, or isolated evaluation. Treat its general authoring advice as advisory and apply the [Authoring Authority](SKILL.md#authoring-authority) rule before accepting it.
 
-- Generate skills from descriptions: "Help me build a skill using skill-creator"
-- Review existing skills: "Review this skill and suggest improvements"
-- Validates structure, frontmatter, and best practices
-- Use it to generate your first draft, then iterate manually
+In particular, do not let a helper's generic packaging preference erase an explicit portable-release requirement. Verify which statements are real target-platform constraints; keep the rest subordinate to Skill Composer's design policy.
 
 ### Getting Support
 
@@ -760,8 +831,3 @@ Built into Claude.ai and available for Claude Code:
 **For bug reports:**
 - GitHub Issues: [anthropics/skills/issues](https://github.com/anthropics/skills/issues)
 - Include: skill name, error message, steps to reproduce
-
-## Version History
-
-- v3.1.0 (2026-03-03): Aligned with Anthropic's Complete Guide to Building Skills PDF
-- v3.0.0 (2026-03-03): Initial reference document
