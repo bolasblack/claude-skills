@@ -1,6 +1,11 @@
 # Skill Composer Reference
 
-Technical specifications, review gates, workflow patterns, and target-specific notes for Agent Skills.
+Portable specifications, review gates, workflow patterns, and durable decision maps for Agent Skills.
+
+Research target-specific facts on demand through
+[HARNESS-RESEARCH.md](HARNESS-RESEARCH.md). This file owns portable rules and durable
+decision guidance; it does not cache current paths, commands, UI flows, schema
+extensions, or host behavior.
 
 ## Contents
 
@@ -14,9 +19,7 @@ Technical specifications, review gates, workflow patterns, and target-specific n
 - [Testing Methodology](#testing-methodology)
 - [Troubleshooting](#troubleshooting)
 - [Distribution](#distribution)
-- [Invocation Modes](#invocation-modes)
 - [Portable Changelog Format](#portable-changelog-format)
-- [Skill Examples](#skill-examples)
 - [Resources and Community](#resources-and-community)
 
 ## Skills and MCP Relationship
@@ -55,7 +58,7 @@ name: "skill-name"
 description: "Description here"
 allowed-tools: Read Grep Glob
 license: MIT
-compatibility: "Requires Claude Code with bash access"
+compatibility: "Requires Git and a POSIX shell"
 metadata:
   author: "Company Name"
   version: "1.0.0"
@@ -76,39 +79,30 @@ metadata:
 
 ### Target-Specific Validation
 
-The portable specification and target harnesses may enforce different schemas. Validate both when packaging for a named surface. For Anthropic upload surfaces, `name` must not contain the reserved words `claude` or `anthropic`, and `name` and `description` must not contain XML tags. Claude Code accepts additional frontmatter fields that fail on claude.ai and API upload paths, so label those fields as Claude Code-only.
+The portable specification and target harnesses may enforce different schemas. For a
+named surface, use [Harness Research](HARNESS-RESEARCH.md) to establish its current
+required and optional fields, restrictions, validation path, and treatment of portable
+packages. Run both the portable validator and the named target's validator, and keep
+verified target-only fields in an explicit harness enhancement.
 
 ## Tool Pre-Approval
 
 In the portable specification, `allowed-tools` is experimental and contains a space-separated set of pre-approved tools. Support and syntax vary between agent implementations.
 
-In Claude Code, the field pre-approves listed tools for the turn in which the skill is invoked. It does not restrict or remove unlisted tools. Use Claude Code permission or deny rules for actual restrictions. The field does not apply to Agent SDK skills; configure SDK tool approval in the SDK options instead.
-
-### Claude Code Pre-Approval Examples
-
-**Read-only analysis** (code review, security audits):
-```yaml
-allowed-tools: Read Grep Glob
-```
-
-**Research only** (information gathering, docs lookup):
-```yaml
-allowed-tools: Read WebFetch WebSearch Grep Glob
-```
-
-**Pre-approved file operations**:
-```yaml
-allowed-tools: Read Write
-```
-
-**Scoped bash with web** (specific interpreters only):
-```yaml
-allowed-tools: "Bash(python:*) Bash(npm:*) WebFetch"
-```
-
-Omitting `allowed-tools` does not define a portable permission policy; the host's normal permissions still apply.
+Before using it, research the named surface's current support, syntax, invocation scope,
+and distinction between pre-approval and restriction. Omitting `allowed-tools` does not
+define a portable permission policy; use the verified host permission mechanism when
+actual restriction is required.
 
 ## Directory Structure Patterns
+
+Every portable package root contains a file named exactly `SKILL.md`. Its parent
+directory matches the portable `name` field and therefore follows the same lowercase
+letter, digit, and hyphen constraints. Keep runtime instructions in `SKILL.md`, lookup
+material in directly linked references, executable resources in `scripts/`, and output
+templates or media in `assets/`. Add human-facing, maintainer, license, and release
+files only when their admission or distribution condition applies; keep all required
+dependencies and notices inside a standalone artifact.
 
 ### Minimal (Single File)
 
@@ -165,11 +159,14 @@ Maximum organization. Assets for templates, fonts, icons used in output.
 
 ### Script Requirements
 
+Apply [Environment-Native Automation](SKILL.md#environment-native-automation) before these low-level packaging checks.
+
 - Keep scripts self-contained or document every dependency and supported environment.
 - Include helpful error messages, validate inputs, and handle expected edge cases.
 - Use portable forward-slash paths in instructions and code unless the target is explicitly platform-specific.
 - Add executable permissions and a shebang when the script is meant to run directly; neither is required for every bundled source file.
-- Test scripts on every environment the skill claims to support.
+- Retain public-seam tests with the script and run them on every environment the skill claims to support.
+- When a script is a harness enhancement rather than a declared requirement, provide and test a portable manual fallback for the core behavior.
 
 ## Exceptional Maintainer Specifications
 
@@ -186,161 +183,39 @@ Put principles, decision rules, routing, and completion criteria needed during n
 
 A qualifying `SPEC.md` stays short and current-state. For every retained requirement, name the invariant, its enduring reason or concrete failure mode, and any validity boundary. Keep workflow steps and release narration in their runtime and history owners. In `SKILL.md`, add a pointer that loads the file before modifying or reviewing that skill itself; packaging the file alone does not make an agent read it.
 
-Skill Composer itself qualifies because its output-level portability, context-footprint, and maintenance-context requirements must constrain future rewrites while ordinary authoring runs do not need its self-maintenance contract. A skill whose principles define every run, or whose routing rules are the workflow, keeps those requirements in `SKILL.md` and does not qualify.
+A skill whose principles define every run, or whose routing rules are the workflow,
+keeps those requirements in `SKILL.md` and does not qualify.
 
 ## Portable Core and Harness Enhancements
 
-Cross-agent skills have two layers:
-
-1. **Portable core:** goal, inputs, outputs, decisions, ordered steps, failure behavior, and completion criteria that compatible agents can execute without host-only features.
-2. **Harness enhancements:** optional integrations such as Claude Code hooks, dynamic context, subagent configuration, extra frontmatter, UI metadata, or permission pre-approval.
-
-For every enhancement:
+The portable-core decision is owned by [Portability](SKILL.md#portability). When Step 1
+identifies a host hook, dynamic context source, subagent configuration, extra
+frontmatter field, UI metadata, permission convenience, or another harness enhancement,
+use this branch-only checklist. For every enhancement:
 
 - name the harness and surface that support it;
 - state what it improves;
 - provide a portable fallback that preserves the core result; and
 - test that the fallback works without the enhancement.
 
-The fallback may be less convenient or less automated, but it must preserve the core contract. Do not store essential state only in a hook, rely on dynamic injection as the sole source of required input, or make a host-only subagent the only executor of a portable workflow.
-
-An intentionally host-specific skill is the exception. State the host requirement in its description and compatibility documentation, then review it against that host rather than claiming cross-agent support.
+The fallback may be less convenient or less automated, but it must preserve the core
+result. Do not store essential state only in a hook, rely on dynamic injection as the
+sole source of required input, or make a host-only subagent the only executor unless
+Step 1 explicitly records the package as host-specific.
 
 ## Workflow Patterns
 
-### Pattern 1: Sequential Orchestration
+Select a pattern only when it clarifies a real branch. Keep the resulting ordered
+process and its local completion criteria in `SKILL.md`; this table is lookup material,
+not a second workflow owner.
 
-**Use when**: Multi-step processes in a specific order.
-
-```markdown
-## Workflow: Onboard New Customer
-
-### Step 1: Create Account
-Call tool: `create_customer`
-Parameters: name, email, company
-
-### Step 2: Setup Payment
-Call tool: `setup_payment_method`
-Wait for: payment method verification
-
-### Step 3: Create Subscription
-Call tool: `create_subscription`
-Parameters: plan_id, customer_id (from Step 1)
-
-### Step 4: Send Welcome Email
-Call tool: `send_email`
-Template: welcome_email_template
-```
-
-**Key techniques**: Explicit step ordering, dependencies between steps, validation at each stage, rollback instructions for failures.
-
-### Pattern 2: Multi-MCP Coordination
-
-**Use when**: Workflows spanning multiple services.
-
-```markdown
-### Phase 1: Design Export (Figma MCP)
-1. Export design assets
-2. Generate specifications
-3. Create asset manifest
-
-### Phase 2: Asset Storage (Drive MCP)
-1. Create project folder
-2. Upload all assets
-3. Generate shareable links
-
-### Phase 3: Task Creation (Linear MCP)
-1. Create development tasks
-2. Attach asset links
-3. Assign to team
-
-### Phase 4: Notification (Slack MCP)
-1. Post handoff summary to #engineering
-2. Include asset links and task references
-```
-
-**Key techniques**: Clear phase separation, data passing between MCPs, validation before next phase, centralized error handling.
-
-### Pattern 3: Iterative Refinement
-
-**Use when**: Output quality improves with iteration.
-
-```markdown
-### Initial Draft
-1. Fetch data via MCP
-2. Generate first draft
-3. Save to temporary file
-
-### Quality Check
-1. Run validation: `scripts/check_report.py`
-2. Identify issues (missing sections, formatting, data errors)
-
-### Refinement Loop
-1. Address each issue
-2. Regenerate affected sections
-3. Re-validate
-4. Repeat until quality threshold met
-
-### Finalization
-1. Apply final formatting
-2. Generate summary
-3. Save final version
-```
-
-**Key techniques**: Explicit quality criteria, iterative improvement, validation scripts, know when to stop iterating.
-
-### Pattern 4: Context-Aware Selection
-
-**Use when**: Same outcome, different tools depending on context.
-
-```markdown
-### Decision Tree
-1. Check file type and size
-2. Determine best approach:
-   - Large files (>10MB): Use cloud storage
-   - Collaborative docs: Use Notion/Docs
-   - Code files: Use GitHub
-   - Temporary files: Use local storage
-
-### Execute Based on Decision
-- Call appropriate tool
-- Apply service-specific metadata
-- Generate access link
-
-### Provide Context to User
-Explain why that approach was chosen
-```
-
-**Key techniques**: Clear decision criteria, fallback options, transparency about choices.
-
-### Pattern 5: Domain-Specific Intelligence
-
-**Use when**: Skill adds specialized knowledge beyond tool access.
-
-```markdown
-### Before Processing (Compliance Check)
-1. Fetch transaction details
-2. Apply compliance rules:
-   - Check sanctions lists
-   - Verify jurisdiction
-   - Assess risk level
-3. Document compliance decision
-
-### Processing
-IF compliance passed:
-- Process transaction
-- Apply fraud checks
-ELSE:
-- Flag for review
-- Create compliance case
-
-### Audit Trail
-- Log all checks
-- Record decisions
-- Generate audit report
-```
-
-**Key techniques**: Domain expertise embedded in logic, compliance before action, comprehensive documentation.
+| Pattern | Select when the use case requires | Preserve explicitly |
+|---|---|---|
+| Sequential orchestration | Strict ordered dependencies | Inputs passed forward, per-step validation, and failure recovery |
+| Multi-service coordination | One result spans several tools or MCP services | Service boundaries, data handoff, and the owner of partial failure |
+| Iterative refinement | A measurable quality gate may require repeated work | Quality criterion, bounded loop, and stopping condition |
+| Context-aware selection | The same outcome needs different tools by observable context | Decision inputs, one selected path, and fallback |
+| Domain-specific intelligence | Domain rules decide whether or how an action may proceed | Rule source, decision boundary, audit output, and escalation path |
 
 ### Problem-First vs Tool-First
 
@@ -358,123 +233,25 @@ Most skills lean one direction. Knowing which framing fits your use case helps y
 | Problem-first | A goal or outcome | Tool orchestration, sequencing | Sequential Orchestration, Multi-MCP Coordination |
 | Tool-first | An MCP or tool | Best practices, domain knowledge | Domain-Specific Intelligence, Context-Aware Selection |
 
-## Historical Pattern Snapshot Guide
-
-The observations below describe the bundled historical snapshots. They are non-authoritative pattern prompts, not current platform policy. Re-check any selected technique against the current task, the portable core, and target documentation; omit it when it does not add behavior.
-
-### From Real-World Examples
-
-#### Discipline Enforcement (like TDD example)
-**Use when**: Need to enforce strict methodology.
-**Techniques**: Iron Laws (unbreakable rules), rationalization tables (pre-empt excuses), verification checklists, red flags for self-monitoring.
-
-#### Four-Phase Methodology (like Systematic Debugging)
-**Use when**: Complex process with clear stages.
-**Techniques**: Phase gates, stopping rules (three-fix rule), sub-skill integration, meta-cognitive monitoring.
-
-#### Helper Scripts (like Web App Testing)
-**Use when**: Complex setup better handled by code.
-**Techniques**: Black box philosophy (don't pollute context), `--help` first (self-documenting), decision trees, compact helper-led instructions.
-
-#### Comprehensive Framework (like MCP Builder)
-**Use when**: Building complex systems with multiple phases.
-**Techniques**: Quoted design principles, WebFetch for external docs, progressive reference loading, evaluation framework.
-
-#### Production Standards (like XLSX)
-**Use when**: Domain-specific quality requirements.
-**Techniques**: Zero-tolerance policies, industry conventions (color coding), automated validation scripts, verification checklists.
-
-#### Decision Tree + Externals (like DOCX)
-**Use when**: Multiple workflows based on use case.
-**Techniques**: Decision tree upfront, external documentation (MANDATORY reads), batching strategy (3-10 items), minimal edits principle.
-
-#### Safety Workflow (like Git Worktrees)
-**Use when**: Automation with safety requirements.
-**Techniques**: Priority order (existing > config > ask), safety verification (.gitignore), auto-detection, baseline verification.
-
-### Patterns Observed Across the Snapshots
-
-1. **Clear structure**: Well-defined sections
-2. **Explicit principles**: Core principles stated upfront
-3. **Examples where needed**: Code, commands, or workflows only when they clarify output or a decision
-4. **Tables for mappings**: Comparisons or checklists when relationships are otherwise hard to scan
-5. **Safety boundaries**: Positive target behavior plus prohibitions only for unavoidable guardrails
-6. **Integration guidance**: How skills relate to each other
-
-### Key Insights
-
-**From Community (obra/superpowers)**:
-- Rationalization pre-emption (TDD)
-- Stopping rules (Systematic Debugging)
-- Safety verification (Git Worktrees)
-- Sub-skill integration
-- Human partner signals
-
-**From Official (anthropics/skills)**:
-- Compact helper-led design (Web App Testing)
-- Black box philosophy (helper scripts)
-- WebFetch integration (MCP Builder)
-- Zero-tolerance policies (XLSX)
-- MANDATORY reads (DOCX)
-- Progressive reference loading
-
-### Anti-Patterns
-
-Common failure modes:
-- Vague descriptions
-- Multiple unrelated capabilities
-- Ambiguous instructions
-- Skip verification steps
-- Missing a skill-local changelog for an independently released skill
-- Assume context without checking
-- Skip safety verification
-- Pollute context with large files
-
 ## Skill Review Checklist
 
-Review the complete installed or packaged skill, not only the current diff. Default to read-only unless the user authorizes changes. Use a coverage ledger with `Rule or branch | Evidence | Result | Follow-up`; valid results are `pass`, `finding`, `not applicable`, and `unknown`. Never turn an unknown or unrun check into a pass.
+The ordered procedure and mutation boundary live in [Reviewing an Existing
+Skill](SKILL.md#reviewing-an-existing-skill). During Review Step 5, use this branch-only
+ledger to prove coverage without replaying the procedure. Record `Rule or branch |
+Evidence | Result | Follow-up`; valid results are `pass`, `finding`, `not applicable`,
+and `unknown`.
 
-### 1. Contract and Scope
+| Coverage area | Account for |
+|---|---|
+| Contract and scope | Request, repository rules, sources of truth, allowed mutations, targets and surfaces, invocation and distribution, real branches, portable core, host enhancements and fallbacks, and any qualifying `SPEC.md` authority and rationale |
+| Package and trust | Every packaged file and local link; scripts, dependencies, binaries, generated or external content; network, credentials, dynamic downloads, broad access, provenance, integrity, and instruction-injection boundaries |
+| Agent contract | Each branch's description pointer or explicit invocation path, ordered steps, reference reads, local completion criteria, terminology, failure behavior, progressive disclosure, duplicated or stale content, and current primary evidence for target claims |
+| Validation and behavior | Portable and target validators, fresh activation and functional cases, realistic trigger boundaries, safe side-effect handling, portable fallback, each host enhancement, isolation, coexistence, and every claimed model and surface |
+| Findings and release | Severity and file evidence, impact, smallest fix, objective completion criterion, facts versus inference and unknowns, affected reruns, semantic residue, and the applicable changelog evidence gate |
 
-- Record the user request, repository rules, allowed mutations, and sources of truth.
-- Name every target agent or harness, surface, invocation mode, and distribution form.
-- Reconstruct the intended jobs, real usage branches, inputs, outputs, side effects, failure behavior, and completion criteria.
-- Distinguish confirmed requirements from inference and unknown history.
-- Identify the portable core and each harness enhancement; require a fallback unless the skill explicitly declares a single-harness contract.
-- If `SPEC.md` is presented as a maintainer contract, verify its authority, every requirement and rationale, all four [admission conditions](#exceptional-maintainer-specifications), and its pointer for modifying or reviewing that skill itself. Its absence is not a finding by itself.
-
-### 2. Package and Trust Inventory
-
-- Classify every file as runtime instruction, maintainer contract, reference, script, asset, metadata, or release artifact.
-- Resolve every local link and verify referenced files are packaged. Avoid reference chains deeper than one level from `SKILL.md`.
-- Inspect scripts and dependencies before running them. Check inputs, failure paths, network access, credential handling, dynamic downloads, broad filesystem access, tool grants, and instruction-injection surfaces.
-- For enterprise or externally sourced packages, review every bundled file, sandbox-test executable content, verify provenance and package integrity, and use a reviewer independent of the author.
-- Record binary, generated, external, or otherwise uninspected content as unknown.
-
-### 3. Agent Contract
-
-- For model invocation, map one discriminating description pointer to every real branch and test realistic near-neighbor boundaries.
-- For user-only invocation, verify discoverability and explicit control without demanding automatic-trigger phrasing.
-- Map every branch to ordered steps, reference reads, and checkable, exhaustive completion criteria.
-- Verify progressive disclosure and co-location: process steps stay together; lookup material has explicit read conditions.
-- Prune duplicated rules, unsupported environment assumptions, time-sensitive claims, stale sediment, no-op instructions, needless options, and examples whose removal does not reduce understanding.
-- Check terminology, error handling where operations can fail, and target-specific claims against current primary documentation.
-
-### 4. Validation and Behavior
-
-- Run `skills-ref validate ./path/to/skill` for portable frontmatter and naming when available, plus the named target's validator. Record each validator's scope; neither schema validation nor naming checks are a behavior review.
-- Run each supported branch in a fresh context with its expected behavior and observable completion criteria.
-- For model-invoked skills, cover intended triggers, paraphrases, realistic near-misses, and ambiguous cases.
-- Test the portable fallback without host enhancements. Test each declared enhancement on its named host.
-- Test in isolation and alongside likely overlapping skills; include every model and surface claimed by the release.
-- Run bundled scripts safely and verify successful output, invalid input, dependency failure, and side-effect boundaries.
-
-### 5. Findings and Release
-
-- Report each finding with severity, file and line evidence, impact, the smallest adequate fix, and an objective completion criterion.
-- Separate facts, inferences, and unknowns. Report tests not run and why.
-- If changes are authorized, rerun every affected gate and check the whole package again for semantic residue.
-- Apply the [Evidence gate](#evidence-gate) to a skill-local changelog when Skill Composer or repository release policy requires one. Do not fail an otherwise valid unpublished skill merely for lacking release artifacts that do not apply.
+Never turn an uninspected file, unavailable validator, unsafe live side effect, or unrun
+behavior case into a pass. Absence of `SPEC.md` or release artifacts is not a finding
+when their admission conditions do not apply.
 
 ## Testing Methodology
 
@@ -530,7 +307,9 @@ Goal: Skill improves over baseline.
 | Failed API calls | 3 requiring retry | 0 |
 | Tokens consumed | 12,000 | 6,000 |
 
-Use your success criteria measurements to populate this table only after correctness passes. Manual and scripted approaches are both valid, but the Skills API does not supply a built-in evaluation runner; automation must come from a target-specific authoring helper or a user-built harness.
+Use your success criteria measurements to populate this table only after correctness
+passes. Manual and scripted approaches are both valid; verify any target-specific
+authoring or evaluation helper before relying on it.
 
 ### Iteration Signals
 
@@ -555,19 +334,12 @@ Fix: Improve instructions with more explicit steps, add error handling for commo
 
 ## Troubleshooting
 
-### Skill Won't Upload
+### Package or Validation Failure
 
-Error: "Could not find SKILL.md in uploaded folder"
-- Rename to exactly `SKILL.md` (case-sensitive)
-- Verify: `ls -la` should show `SKILL.md`
-
-Error: "Invalid frontmatter"
-- Check `---` delimiters (opening on line 1, closing before content)
-- Use spaces not tabs for indentation
-- Quote strings with special characters
-
-Error: "Invalid skill name"
-- Use kebab-case: `my-cool-skill` not `My Cool Skill`
+1. Confirm the package contains `SKILL.md` at its expected root with exact casing.
+2. Check YAML delimiters, indentation, value types, and the portable name constraints.
+3. Use [Harness Research](HARNESS-RESEARCH.md) to interpret the named surface's current
+   diagnostic and validator behavior.
 
 ### Skill Doesn't Trigger
 
@@ -596,8 +368,8 @@ Run an actual activation case in a fresh session. A model repeating the descript
 Symptoms: Slow responses, degraded quality.
 
 Solutions:
-1. Keep `SKILL.md` under **500 lines** and below the recommended **5,000 tokens**; move needed lookup material to focused references.
-2. Measure recall on the actual target as skills are added; use the surface's documented cap instead of a generic count.
+1. Use **500 lines** or **5,000 tokens** as investigation heuristics, not universal acceptance limits. Move branch-only lookup material to focused references only when behavior and information ownership remain intact.
+2. Measure recall on the actual target as skills are added; use the surface's currently documented cap instead of a generic count.
 3. Ensure progressive disclosure is working and reference reads have explicit conditions.
 
 ### Skill Packs
@@ -608,87 +380,39 @@ Consolidate only when coexistence evaluations show trigger conflicts or recall d
 
 ### MCP Connection Issues
 
-1. Use the named host's connector or status diagnostic. For Claude Code, run `/mcp`; for Claude.ai, open **Customize > Connectors**
+1. Use [Harness Research](HARNESS-RESEARCH.md) to identify the named host's current connector or status diagnostic.
 2. Check authentication (API keys valid, proper scopes)
 3. Test MCP independently by asking the agent to call it without the skill
 4. Verify tool names match MCP server documentation (case-sensitive)
 
-### Debug Mode (Claude Code)
-
-```bash
-claude --debug
-```
-
-Use debug output for YAML parse errors and skill-listing diagnostics. For trigger tests, record whether the host actually loaded or invoked the skill; debug output alone is not behavior evidence.
-
 ## Distribution
 
-Treat each target as a separate compatibility surface. Do not assume that a skill propagates between surfaces: some Claude surfaces provide automatic or opt-in sync, while independently authored local installs and Skills API versions remain separately managed. Verify current sync behavior, then package, validate, release, and test every claimed target independently.
+Treat each harness and product surface as a separate compatibility surface. Before
+choosing a package layout or writing installation guidance, resolve these decisions
+through [Harness Research](HARNESS-RESEARCH.md):
 
-### Claude.ai
+| Decision | Establish |
+|---|---|
+| Scope | Repository or project, personal, workspace or organization, and the owner of each installation |
+| Delivery | Folder, archive, plugin or marketplace, API or SDK, and the exact artifact each surface consumes |
+| Discovery and invocation | Current location or enablement path, selection mode, and any session reload requirement |
+| Update lifecycle | Who publishes updates, whether recipients receive them, and which version identifier is authoritative |
+| Validation | Portable and target validators, clean-install procedure, and representative behavior cases |
 
-1. Package the skill folder as a ZIP file.
-2. Open **Customize > Skills**.
-3. Select **+**, then **Create skill > Upload a skill**.
-4. Upload the ZIP and run the claude.ai evaluation cases.
-
-Organization owners manage skill availability and provisioning in **Organization settings > Skills** when their plan supports it. Recipients of a shared claude.ai skill receive later owner updates automatically; do not generalize that behavior to local installs, provisioned archives, or API versions.
-
-### Claude Code Filesystem Skills
-
-- Project skills: `.claude/skills/<skill-name>/SKILL.md`
-- Personal skills: `~/.claude/skills/<skill-name>/SKILL.md`
-
-Claude Code also accepts additional frontmatter and runtime features. Keep those enhancements outside the portable core or declare the skill Claude Code-only.
-
-### Claude Code Plugin Structure
-
-```
-my-plugin/
-├── .claude-plugin/
-│   └── plugin.json
-├── commands/
-├── agents/
-└── skills/
-    └── my-skill/
-        └── SKILL.md
-```
-
-Skills in `skills/` are discovered automatically; no per-skill `plugin.json` entry is needed. Plugin skills are invoked with a namespaced form such as `/plugin-name:skill-name`.
+Record exact current paths, commands, UI steps, and host behavior in the task evidence
+and in a target-specific release artifact only when its users need them. A folder on
+disk or a validator pass does not prove that an active session discovered the skill;
+test the exact built artifact independently on every claimed surface.
 
 ### Repository and Standalone Distribution
 
-1. Use a repository-level README for a collection and a skill-local README when an independently distributed skill needs human-facing installation or compatibility notes.
-2. Do not duplicate runtime instructions from `SKILL.md` in either README.
-3. Keep independently distributed release artifacts, dependencies, and the Skill Composer changelog inside the skill folder.
-4. Provide a ZIP only for a target that consumes one, such as claude.ai upload.
-5. Link from MCP documentation when the skill enhances that MCP.
-
-The `anthropics/skills` repository on GitHub contains Anthropic-created skills you can browse and customize. See also the MCP documentation cross-reference guidance in [Document in Your MCP Repo](#document-in-your-mcp-repo) below.
-
-### Installation Guide Template
-
-Include a guide like this in your repo README:
-
-```markdown
-## Installing the [Your Service] skill
-
-1. Download the skill:
-   - Clone repo: `git clone https://github.com/yourcompany/skills`
-   - Or download ZIP from Releases
-
-2. Install on the supported target:
-   - Claude.ai: open Customize > Skills and upload the ZIP
-   - Claude Code project: copy the folder into `.claude/skills/`
-   - Other agents: follow the verified target-specific path
-
-3. Enable the skill:
-   - Toggle on the [Your Service] skill
-   - Ensure your MCP server is connected
-
-4. Test:
-   - Ask the target agent: "Set up a new project in [Your Service]"
-```
+- Use a repository-level README for a collection and a skill-local README for an
+  independently distributed skill's human-facing installation or compatibility notes.
+- Keep runtime instructions in `SKILL.md`; do not duplicate them in a README.
+- Keep independently distributed release artifacts, dependencies, and the Skill
+  Composer changelog inside the skill folder.
+- Produce only the delivery artifacts the verified target consumes.
+- Link from MCP documentation when the skill enhances that MCP.
 
 ### Positioning Your Skill
 
@@ -711,26 +435,6 @@ If you maintain an MCP server, link to your skills from the MCP documentation:
 - Link to skills from MCP documentation
 - Explain the value of using both together
 - Provide a quick-start guide that covers MCP setup and skill installation
-
-### Skills API
-
-The Skills API manages workspace-scoped skill uploads and generated versions. Add an uploaded skill to a Messages API request through `container.skills`. Messages API use of skills requires the code execution tool beta. Do not substitute an optional `metadata.version` value for the API's version identifier or for the skill-local release record.
-
-For implementation details, use the current Skills API guide and API reference rather than copying endpoint behavior into a long-lived skill.
-
-### Agent SDK
-
-Agent SDK skills are filesystem artifacts discovered from configured setting sources; the SDK does not register them through the Skills API. Configure the available skills and tool approval in SDK options. The `allowed-tools` frontmatter field does not control SDK permissions.
-
-## Invocation Modes
-
-Invocation and content structure are independent choices:
-
-- **Model-invoked:** the host selects the skill from its description.
-- **User-invoked:** the user selects the skill explicitly to control timing or side effects.
-- **Both:** the default on hosts that safely support both paths.
-
-Claude Code has merged custom commands into skills. Use `disable-model-invocation: true` for a user-only Claude Code skill and `user-invocable: false` for a model-only one. Existing `.claude/commands/*.md` files remain a compatibility form, not a separate authoring model. Other agents may expose different controls; keep invocation policy in a target adapter rather than the portable core.
 
 ## Portable Changelog Format
 
@@ -794,39 +498,15 @@ Examples, when included, are de-identified, evidence-backed reconstructions of t
 
 Semantic versioning: Major (breaking), Minor (features, backward compatible), Patch (bug fixes).
 
-## Skill Examples
-
-Seven annotated historical pattern snapshots live in [examples/](examples/). Use them for structural ideas only; current specifications and target documentation override any embedded platform detail.
-
-| Example | Pattern | Source | Key Feature |
-|---------|---------|--------|-------------|
-| [TDD](examples/tdd.md) | Discipline enforcement | obra/superpowers | Rationalization tables |
-| [Systematic Debugging](examples/systematic-debugging.md) | Four-phase methodology | obra/superpowers | Three-fix rule |
-| [Web App Testing](examples/webapp-testing.md) | Helper scripts | anthropics/skills | Black box philosophy |
-| [MCP Builder](examples/mcp-builder.md) | Comprehensive framework | anthropics/skills | WebFetch integration |
-| [XLSX](examples/xlsx.md) | Production standards | anthropics/skills | Zero formula errors |
-| [DOCX](examples/docx.md) | Decision tree + externals | anthropics/skills | MANDATORY file reads |
-| [Git Worktrees](examples/git-worktrees.md) | Safety workflow | obra/superpowers | `.gitignore` verification |
-
-**By use case category:**
-- **Document & Asset Creation**: XLSX, DOCX — producing formatted documents and assets with domain-specific quality standards
-- **Workflow Automation**: TDD, Systematic Debugging, MCP Builder — enforcing step-by-step processes and consistent methodology
-- **MCP Enhancement**: Web App Testing, Git Worktrees — enhancing tool access with best practices and safety workflows
-
 ## Resources and Community
 
-If you're building your first skill, start with the Best Practices Guide, then reference the API docs as needed.
+If you're building your first skill, start with the portable rules in this package. Use [Harness Research](HARNESS-RESEARCH.md) to locate fresh target guidance only when a target-specific branch requires it.
 
-### Official Documentation
+### Current Documentation
 
-- [Agent Skills Specification](https://agentskills.io/specification) — portable structure, fields, references, and validation
-- [Skill Authoring Best Practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) — current authoring and evaluation guidance
-- [Enterprise Skill Review](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/enterprise) — security, coexistence, lifecycle, and production review
-- [Claude Code Skills](https://code.claude.com/docs/en/slash-commands) — Claude Code-specific invocation and enhancement fields
-- [Use Skills in Claude](https://support.claude.com/en/articles/12512180-use-skills-in-claude) — current claude.ai installation and sharing paths
-- [Skills API Guide](https://platform.claude.com/docs/en/build-with-claude/skills-guide) — API upload, versions, and Messages API use
-- [Agent SDK Skills](https://code.claude.com/docs/en/agent-sdk/skills) — filesystem discovery and SDK-specific tool controls
-- [MCP Documentation](https://modelcontextprotocol.io) — Model Context Protocol specification and guides
+Use the trust anchors and source-selection procedure in [Harness
+Research](HARNESS-RESEARCH.md). This reference deliberately does not cache current
+target instructions or remembered vendor URLs.
 
 ### Background
 

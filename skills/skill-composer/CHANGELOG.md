@@ -2,6 +2,48 @@
 
 This file records Skill Composer releases so the history travels with standalone distributions that do not include the source repository's Git history.
 
+## [Unreleased]
+
+### Research harness facts on demand
+
+- **Changed:** Added a conditional primary-source research SOP for target-specific authoring claims and a tested optional fetcher that captures one current Agent Skills, Codex, Claude Code, or Grok document as a temporary payload plus provenance. The fetcher permits only reviewed built-in HTTPS destinations without redirects; ignores ambient proxy and CA overrides; accepts an explicitly selected credential-free HTTP CONNECT proxy and CA bundle; classifies certificate verification as a trust failure; and requires a bounded, complete HTTP 200 UTF-8 Markdown response whose reviewed identity preamble and heading match line-for-line within a 30-second retrieval-phase deadline. It never overwrites caller-owned output, attempts to remove partial publication, and reports the exact residual path if cleanup also fails. The SOP remains executable with isolated read-only host retrieval when the script is unavailable, and unverifiable claims remain unknown.
+- **Why:** The user wanted a repeatable way to consult the agent manuals without maintaining a static documentation cache. A persistent cache would become stale, while making the Python helper mandatory would exclude supported environments without Python. Review also found that ambient transport state was absent from provenance, a marker anywhere in the body could authenticate an unrelated login document, a per-socket timeout did not bound total retrieval time, TLS trust failures were reported as connectivity, and deletion itself could fail. The final contract keeps source authority and transport choices explicit, rejects incomplete responses and wrong-heading substitutions, preserves a portable fallback, and reports partial state without presenting cleanup as certain.
+
+### Make mechanical work environment-native and tested
+
+- **Changed:** Added a stable environment-native automation requirement and matching authoring guidance. Repeated deterministic mechanics should become scripts when that reduces variance or repeated work; executable behavior uses public-seam red-green TDD, while language and dependency choices minimize total installation, implementation, maintenance, and supply-chain cost in the supported environment.
+- **Why:** The user first requested Python, TDD, and few external dependencies, then clarified that these are defaults rather than absolute constraints: a Ruby-project skill may be better served by Ruby, a Windows-only skill by PowerShell, and a runtime such as Bun may be proper when its built-in capabilities eliminate substantial custom machinery. A blanket language or zero-dependency rule would therefore increase complexity in the environments Skill Composer is supposed to support.
+
+### Keep branch processes intact
+
+- **Changed:** Clarified the proportionate-context requirement: discovery gives each invocation branch one discriminating trigger, `SKILL.md` keeps shared instructions and branch-critical process state in place, and only branch-only lookup material moves behind an explicit read condition when the context reduction justifies the added navigation.
+- **Why:** The former wording could be read as requiring every branch-specific detail to move behind a pointer. During review, the user questioned whether that interpretation reinstated a previously rejected requirement and authorized clarifying the specification. Mandatory splitting would add navigation and hide process state without evidence that it reduces context cost.
+
+### Route every declared authoring operation
+
+- **Changed:** Added an explicit create, update, review, and package/release router. Updates lock the existing package contract and regression baseline before using the shared authoring steps; every authoring and release step now has a local observable completion criterion. Invocation now chooses automatic versus explicit entry by context load, cognitive load, and side-effect safety instead of treating dual host support as a third strategy. Evaluations use disposable fixtures by default and require explicit user authorization plus cleanup for real external effects.
+- **Why:** The discovery description promised all four operations, but the runtime body explicitly routed only creation and review, and its own create/update and release steps violated its requirement that every step say how to finish. The former invocation labels did not decide when automatic loading was worth its context cost or safe, while live evaluation guidance could cause writes, messages, charges, or publication without an authorization boundary.
+
+### Give each document one information owner
+
+- **Changed:** Kept branch-critical runtime process in `SKILL.md`; made `REFERENCE.md` the sole owner of frontmatter, directory, workflow-pattern, changelog-format, and review-ledger lookup; and made each `SPEC.md` invariant own its enduring reason. Removed the duplicate admission ledger, frontmatter and directory copies, full pattern examples, and end-of-file quick checklist.
+- **Why:** Review found several synchronized copies of the same rules in invoked and branch-only context. They increased every invocation's context cost and could drift, while a separate admission ledger left the normative specification unable to explain its own requirements.
+
+### Carry standalone terms without inventing provenance
+
+- **Changed:** Added the repository's existing `Personal use` notice as a package-local license file and frontmatter reference. The README now distinguishes recorded historical attribution from verified exact upstream provenance and does not claim an unestablished upstream license.
+- **Why:** Skill Composer's changelog is designed to travel with standalone distributions, but the applicable repository notice previously stayed outside the artifact and the acknowledgment linked only to a profile. Copying the existing notice preserves the known distribution term; labeling the precise upstream artifact and rights as unknown avoids manufacturing legal provenance.
+
+### Make cross-harness release claims testable
+
+- **Changed:** Replaced cached target paths, UI flows, plugin layouts, and API or SDK behavior with a durable distribution decision map whose current facts come from the harness-research branch. Package tests now validate that ownership boundary, portable frontmatter, local anchors, workflow routes, removed-content residue, and the release ledger for activation, function, fallback, coexistence, and clean-install evidence.
+- **Why:** The previous automated gate checked keywords and named platform sections, while the same fast-changing target facts also belonged to harness research. The user questioned why exact Codex skill paths were kept in `REFERENCE.md` when that research branch already supplies them. One research owner avoids stale duplicate guidance without weakening the decisions or behavior evidence required for a release.
+
+### Remove stale pattern snapshots
+
+- **Changed:** Removed all seven bundled historical example files, their indexes, and the derived snapshot guide.
+- **Why:** Full-package review found dead source links, citations pinned to mutable branches, and no established redistribution-license evidence for the copied snapshots. The user chose deletion instead of carrying and continuously revalidating non-authoritative copies.
+
 ## [3.2.1] - 2026-08-14
 
 ### Preserve only user-owned maintenance invariants

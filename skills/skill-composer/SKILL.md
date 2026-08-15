@@ -1,6 +1,7 @@
 ---
 name: skill-composer
 description: "Primary authority for creating, updating, reviewing, and packaging agent skills. Use for any skill-authoring task, including cross-agent portability, host-only enhancement boundaries, activation or description fixes, portable changelogs, and conflicts with harness-injected helpers such as skill-creator; compose those helpers under this skill rather than letting them replace its rules."
+license: LICENSE.md
 ---
 
 # Skill Composer
@@ -48,7 +49,24 @@ Default to two layers:
 
 Name each enhancement's host and provide a portable fallback. A skill may depend on a host-only feature only when its description and compatibility contract explicitly make the skill host-specific; do not claim cross-agent portability for that package.
 
-## Planning Before Building
+**Harness research:** Before creating, changing, or reviewing a target-specific claim about discovery, schema, invocation, permissions, hooks, installation, packaging, validation, or host enhancements, read [HARNESS-RESEARCH.md](HARNESS-RESEARCH.md) and build fresh evidence for the named harness and surface. Skip this branch for portable-only work.
+
+### Environment-Native Automation
+
+Script repeated, deterministic mechanics with stable inputs and outputs when that materially reduces agent reinterpretation; keep judgment and one-off adaptation in instructions. Before coding, name the public seam and invoke the `tdd` skill when available, or apply the same one-behavior public-seam red-green loop directly.
+
+Choose a runtime the supported environment already guarantees and minimize total installed and owned complexity. When every claimed environment provides Python and no native runtime is already selected, Python's standard library is a reasonable default for a standalone portable helper; target-specific skills prefer their environment's runtime. If the claimed environments have no common runtime, keep a portable manual path or provide tested environment adapters. Add a dependency when it removes substantially more code and maintenance than its installation and supply-chain surface add. A host-enhancement script retains a portable manual fallback. See [Script Requirements](REFERENCE.md#script-requirements) for packaging checks.
+
+## Choose the Workflow
+
+- **Create:** define use cases and baseline evaluations in [Planning Before Creating or Updating](#planning-before-creating-or-updating), then follow [Creating or Updating a Skill](#creating-or-updating-a-skill) in order.
+- **Update:** inventory the current package and lock its existing contract first, then follow [Planning Before Creating or Updating](#planning-before-creating-or-updating) and [Creating or Updating a Skill](#creating-or-updating-a-skill) for affected branches only. Add regression cases for behavior that must remain unchanged.
+- **Review:** follow [Reviewing an Existing Skill](#reviewing-an-existing-skill). Stay read-only unless the user authorizes fixes; if authorized, enter the update branch only after reporting the review findings.
+- **Package or release:** follow [Packaging and Releasing a Skill](#packaging-and-releasing-a-skill) after the authored package is complete. Packaging is not proof that activation or runtime behavior works.
+
+**Done when:** the requested operation has one selected workflow, every combined operation has an explicit transition between workflows, and no review request silently becomes an edit.
+
+## Planning Before Creating or Updating
 
 ### Start with Use Cases
 
@@ -88,6 +106,8 @@ Result: Fully planned sprint with tasks created
 
 Classify whether users start from a desired outcome or from a named tool; this affects the workflow pattern, not the portable contract. See [Problem-First vs Tool-First](REFERENCE.md#problem-first-vs-tool-first) when the choice is unclear.
 
+**Done when:** every real usage branch has one concrete use case with a trigger, ordered actions, required tools or domain rules, and an observable result; no case exists only to satisfy a quota.
+
 ### Define Success Criteria and Evaluations
 
 Build evaluations before extensive instructions:
@@ -100,84 +120,69 @@ Build evaluations before extensive instructions:
 
 For a model-invoked skill, cover intended triggers, realistic near-misses, and ambiguous boundary cases. For every skill, measure task correctness, instruction following, tool or API failures, user correction, and any output contract that matters. Compare efficiency only after correctness; fewer tokens or tool calls are not improvements when behavior regresses.
 
-## Creating a Skill
+Run evaluations against a disposable fixture or sandbox by default. A real API write,
+outbound message, charge, publication, or non-recoverable external side effect requires
+explicit user authorization for that exact effect and a cleanup plan. When that
+authorization or a safe test surface is unavailable, use a faithful fixture and keep
+live behavior `unknown`.
+
+**Done when:** each recorded baseline gap maps to a scenario with expected behavior and a checkable result, the same scenario is ready to rerun after the minimum instruction change, and every external side effect is safely isolated, explicitly authorized, or marked `unknown`.
+
+## Creating or Updating a Skill
+
+For an update, capture the current package inventory, behavior contract, and passing
+baseline before Step 1. Map the requested change to affected usage branches, preserve
+unrelated behavior and user-owned files, and remove obsolete files or terminology when
+the change retires a concept. A new skill begins without that compatibility baseline.
 
 ### Step 1: Choose Target and Scope
 
 Name the target harness, surface, invocation mode, and distribution form before choosing a path or frontmatter. Define the portable core first, then add verified target-only enhancements with fallbacks. If the skill is intentionally single-harness, state that contract explicitly instead.
 
-For Claude Code filesystem skills:
+Use [Distribution](REFERENCE.md#distribution) to decide scope, delivery, discovery,
+update lifecycle, and validation. Resolve the named target's current path, commands,
+UI flow, and host extensions through [Harness Research](HARNESS-RESEARCH.md) before
+encoding target-specific guidance.
 
-- **Project**: `.claude/skills/` for repository-scoped skills; commit the folder to share it with the team.
-- **Personal**: `~/.claude/skills/` for cross-project skills owned by one user.
-
-```bash
-mkdir -p .claude/skills/skill-name
-```
-
-See [Distribution](REFERENCE.md#distribution) for authoritative target-specific installation and packaging detail.
+**Done when:** the target, surface, invocation policy, distribution form, portable core, and every host enhancement or explicit host requirement are named without an unsupported compatibility claim.
 
 ### Step 2: Create File Structure
 
-```
-your-skill-name/
-├── SKILL.md          # Required - main instructions
-├── CHANGELOG.md      # For independently versioned or distributed skills
-├── scripts/          # Optional - executable code
-│   ├── process.py
-│   └── validate.sh
-├── references/       # Optional - documentation loaded as needed
-│   ├── api-guide.md
-│   └── examples.md
-└── assets/           # Optional - templates, fonts, icons
-    └── template.md
-```
+For an update, keep the existing structure unless the requested behavior or packaging
+contract requires a file to be added, moved, or removed.
 
-**Critical rules**:
-- File MUST be exactly `SKILL.md` (case-sensitive, no variations)
-- Folder name: kebab-case only (`my-skill`, not `My_Skill`)
-- Keep runtime instructions in `SKILL.md` or linked references; do not add a README that duplicates them.
-- A human-facing `README.md` and a release-facing `CHANGELOG.md` are appropriate when the skill is independently distributed. Keep portable release artifacts inside the skill folder so they travel without the source repository.
-- Keep packaged dependencies inside the skill folder. Use external references only when the target harness supports them and the distribution does not need to be self-contained.
+Before changing the package layout, read [Directory Structure
+Patterns](REFERENCE.md#directory-structure-patterns) and choose the smallest pattern
+that contains the runtime instructions, required executable resources, and applicable
+maintenance or release artifacts. Keep independently distributed dependencies and
+artifacts inside the skill folder, and do not add a human-facing document that repeats
+runtime instructions.
 
 `SPEC.md` is intentionally absent from the default structure. Add it only when an explicit, stable requirement must constrain future modifications or rewrites but is not needed during ordinary skill execution. Put runtime principles and workflows in `SKILL.md`, branch-only lookup material in references, and release history in `CHANGELOG.md`. In the rare qualifying case, keep `SPEC.md` short, state each current requirement and why it must survive, and add a conditional pointer from `SKILL.md` for modifying or reviewing that skill itself. Apply the complete [Exceptional Maintainer Specifications](REFERENCE.md#exceptional-maintainer-specifications) admission test; importance, length, or complexity alone does not qualify a skill.
 
-See [Directory Structure Patterns](REFERENCE.md#directory-structure-patterns) for the authoritative structure and script requirements.
+**Done when:** the selected layout satisfies the authoritative package rules, every file has one purpose and owner, updates preserve unrelated user-owned files, and all packaged links resolve inside the distribution boundary.
 
 ### Step 3: Write YAML Frontmatter
 
-Use the portable Agent Skills fields unless the named target requires or supports an extension. For a model-invoked skill, the description is also its discovery pointer.
+Before writing frontmatter, read the authoritative [YAML Frontmatter
+Specification](REFERENCE.md#yaml-frontmatter-specification). Write the portable fields
+first. Add a target-only field only when fresh [Harness
+Research](HARNESS-RESEARCH.md) verifies that the named surface supports it, and keep
+that extension out of the universal contract. For model invocation, write the
+description in Step 4. Run both the portable validator and the target validator.
 
-```yaml
----
-name: "skill-name"
-description: "What it does. Use when [trigger conditions]."
----
-```
-
-**Portable required fields**:
-
-| Field | Constraints |
-|-------|-------------|
-| `name` | 1-64 lowercase letters, digits, or hyphens; no leading, trailing, or consecutive hyphens; must match folder name |
-| `description` | 1-1024 chars; describe what the skill does and when it applies |
-
-**Optional fields**:
-
-| Field | Purpose | Example |
-|-------|---------|---------|
-| `allowed-tools` | Experimental, target-dependent tool pre-approval | `Read Grep Glob` |
-| `license` | License name or bundled license file reference | `MIT`, `Apache-2.0`, `LICENSE.txt` |
-| `compatibility` | Environment requirements (1-500 chars) | `"Requires Claude Code with bash access"` |
-| `metadata` | Optional string-to-string extension map | `author`, `version`, `mcp-server` |
-
-Run both the portable validator and the target-platform validator. On Anthropic upload surfaces, `name` must not contain the reserved words `claude` or `anthropic`, and `name` and `description` must not contain XML tags; do not promote those surface rules into universal constraints for every harness.
-
-See [YAML Frontmatter Specification](REFERENCE.md#yaml-frontmatter-specification) for the authoritative portable schema and target qualifications.
+**Done when:** the folder and frontmatter satisfy the portable schema, every extension traces to current target evidence, and both applicable validators pass or remain explicitly `unknown`.
 
 ### Step 4: Write the Description
 
-First choose whether the skill is model-invoked, user-invoked, or both. For model invocation, the description is the primary activation pointer. For a user-only skill, it is a concise human-facing summary and need not pretend to be an automatic trigger list. See [Invocation Modes](REFERENCE.md#invocation-modes) for target-specific controls.
+First decide whether automatic model invocation is safe and useful. Model invocation
+reduces user cognitive load but spends discovery context load and requires a
+discriminating description pointer. Prefer explicit user invocation when timing or
+side effects need deliberate control, or when automatic discovery cost is not
+justified. A host that exposes both paths adds a capability, not a third information
+architecture strategy: still make the automatic-invocation decision explicitly. See
+the current target controls only after this portable decision by using [Harness
+Research](HARNESS-RESEARCH.md).
 
 **Pattern**: `[What it does] + [When to use it] + [Key capabilities]`
 
@@ -200,6 +205,8 @@ description: "Implements the Project entity model with hierarchical relationship
 
 For each real model-invoked branch, include one discriminating context pointer using terms users actually supply: file types, actions, domain terms, or states. Prefer positive scope. Add a negative boundary only for a realistic near-neighbor that positive wording cannot distinguish, then test that boundary directly.
 
+**Done when:** the invocation policy states whether automatic selection is enabled and safe, each model-invoked branch has one realistic discriminating pointer and tested near-neighbor boundary, every explicit-only branch remains discoverable without false trigger prose, and current target controls have evidence or remain `unknown`.
+
 ### Step 5: Write Instructions
 
 Clear, explicit, step-by-step. Put critical instructions at the top.
@@ -209,6 +216,8 @@ Clear, explicit, step-by-step. Put critical instructions at the top.
 
 ### Step 1: Gather Context
 Run `git diff --staged` to see changes.
+
+**Done when:** the staged change and repository constraints are captured.
 
 ### Step 2: Generate Output
 Create commit message with:
@@ -234,10 +243,12 @@ description: [...]
 ### Step 1: [First Major Step]
 Clear explanation of what happens.
 
+**Done when:** [observable completion criterion for Step 1]
+
 ### Step 2: [Second Major Step]
 [...]
 
-**Done when:** [observable completion criterion]
+**Done when:** [observable completion criterion for Step 2]
 ```
 
 **Best practices**:
@@ -245,33 +256,34 @@ Clear explanation of what happens.
 - Give every step a checkable, exhaustive completion criterion
 - Put a rule next to the step it governs; use references for lookup material, not split process state
 - Reference bundled resources with explicit read conditions: `Before writing queries, consult references/api-patterns.md`
-- Keep `SKILL.md` below **5,000 tokens** and under **500 lines**; see [Large Context Issues](REFERENCE.md#large-context-issues) and move needed detail to one-level-deep references
+- Treat **5,000 tokens** or **500 lines** as prompts to investigate context cost, not universal pass/fail limits; size by observed behavior and verified surface caps, and move branch-only lookup material to one-level-deep references. See [Large Context Issues](REFERENCE.md#large-context-issues)
 - Include troubleshooting and examples only when an evidenced branch needs them
+- Apply [Environment-Native Automation](#environment-native-automation) when a step has stable repeated mechanics
 
-**Advanced technique**: For critical validations, bundle a script that performs checks programmatically rather than relying on language instructions. Code is deterministic; language interpretation isn't.
+**Done when:** every real branch has an ordered path, every step ends in a local observable completion criterion, every reference has a read condition, and failure behavior is defined wherever an operation can fail.
 
 ### Step 6: Consider Tool Pre-Approval
 
-```yaml
-allowed-tools: Read Grep Glob
-allowed-tools: "Bash(git:*) Read"
-```
+`allowed-tools` is experimental in the portable spec and varies by host. Before adding
+it, use [Harness Research](HARNESS-RESEARCH.md) to establish the named surface's current
+support, syntax, scope, and restriction mechanism. See [Tool
+Pre-Approval](REFERENCE.md#tool-pre-approval).
 
-`allowed-tools` is experimental in the portable spec and varies by host. In Claude Code it pre-approves listed tools for the invocation turn; it does not remove unlisted tools. Use the host's permission or deny mechanism when actual restriction is required. See [Tool Pre-Approval](REFERENCE.md#tool-pre-approval).
+**Done when:** pre-approval is omitted or every added declaration has current surface-specific evidence and is not misrepresented as a portable restriction policy.
 
 ### Step 7: Record Portable Release History
 
-Under Skill Composer's release policy, a skill that is independently versioned or distributed keeps its release history in a skill-local `CHANGELOG.md`, not in `SKILL.md` and not only in Git history. A commit can contain changes to several skills, while a standalone distribution may contain no `.git` directory.
+When a skill has releases of its own or independent distribution, update its local
+`CHANGELOG.md` in the same change as released behavior. Before writing, read the
+mandatory [Evidence gate](REFERENCE.md#evidence-gate) and [Portable Changelog
+Format](REFERENCE.md#portable-changelog-format). Record each net logical change once
+with evidence-backed `Changed` and `Why`; add `Example` only when its removal would
+lose material causal understanding, and `Migration` only when a real downstream user
+must act. Re-test every retained example during review. Do not reconstruct missing
+legacy rationale or narrate revisions made inside one unreleased change as migrations.
+An unpublished, single-use skill does not need an empty changelog.
 
-Update the changelog in the same change that alters released behavior. Use semantic versioning, keep one entry per skill release, and avoid duplicating the history in runtime instructions.
-
-Before writing any changelog claim, apply the mandatory [Evidence gate](REFERENCE.md#evidence-gate). It governs explicit reasons from current or retrievable earlier user conversations, other accepted sources, de-identification, and missing-evidence handling. Do not treat a new entry as complete until its change and rationale pass that gate; any optional example must pass it too.
-
-For every complete new logical change, record what changed and why the change became necessary. Add an `Example` only when it materially clarifies the causal pre-change pattern or consequence beyond `Changed` and `Why`; omit it when removing it leaves understanding unchanged. When useful, prefer a minimal de-identified code, config, payload, or diff excerpt; translate an explicitly described code pattern into a faithful reconstruction only when that adds clarity. When an example is useful but code is not, use concrete prose. Never invent missing rationale for legacy history.
-
-When reviewing an existing changelog, re-run the inclusion test for every retained `Example`, not only examples added by the current diff, and remove it when `Changed` plus `Why` remain equally clear without it. The changelog review passes only when every complete new entry has evidence-backed change and rationale and every retained example adds material understanding. Preserve legacy claims under the Evidence gate's legacy rule; do not invent missing history to make them fit the new format.
-
-See [Portable Changelog Format](REFERENCE.md#portable-changelog-format) for the full format and inclusion test. An unpublished, single-use skill does not need an empty changelog.
+**Done when:** every applicable net change has one evidence-backed entry, every retained example adds material understanding, every migration names real downstream action, and runtime instructions contain no duplicate release history.
 
 ### Step 8: Run Evaluations
 
@@ -284,7 +296,14 @@ Run the scenarios defined before authoring and add cases for every branch introd
 
 Do not treat an obviously unrelated negative query, a schema validator, or asking the model to recite the description as evidence of correct activation. There is no portable built-in evaluation runner; use the target harness manually or build repeatable automation. Keep suite sizes purpose-specific: start output-quality iteration with 2-3 cases; for focused description tuning, aim for about 20 balanced trigger/non-trigger queries and repeat each multiple times; for enterprise release, require 3-5 representative queries covering trigger, non-trigger, and ambiguity. Expand by real branches and risk, and test every model and surface you intend to support.
 
-For Claude Code, `claude --debug` can provide diagnostic logs; it is not a substitute for behavior evidence. See [Testing Methodology](REFERENCE.md#testing-methodology).
+Use the side-effect boundary locked during planning: prefer a disposable fixture or
+sandbox, require explicit user authorization and cleanup for real external effects, and
+keep an unrun live case `unknown`.
+
+Host diagnostics may explain discovery or invocation failures, but they are not a
+substitute for behavior evidence. See [Testing Methodology](REFERENCE.md#testing-methodology).
+
+**Done when:** every supported branch has an observable scenario result, activation claims have realistic boundary evidence where applicable, isolation and coexistence are exercised where claimed, and every unsafe or unavailable live check remains visible as `unknown`.
 
 ## Reviewing an Existing Skill
 
@@ -294,7 +313,7 @@ Review is a distinct, default-read-only branch. Do not create files, rewrite con
 
 Record the review scope, repository rules, target harness and surface, invocation mode, distribution form, and allowed mutations. If the package presents `SPEC.md` as a maintainer contract, verify the authority, requirement, and current rationale of every entry rather than treating the filename as proof. Reconstruct the intended jobs, usage branches, outputs, side effects, and completion criteria from requirements and observed usage; mark missing evidence as unknown rather than trusting the current text.
 
-**Done when:** every claimed branch and target constraint has a source or is explicitly unknown.
+**Done when:** the review scope, repository rules, allowed mutations, target harness and surface, invocation policy, and distribution form are recorded; every reconstructed job, branch, output, side effect, and completion criterion and every claimed target or `SPEC.md` constraint has a source or is explicitly unknown.
 
 ### Review Step 2: Inventory the Whole Package
 
@@ -304,72 +323,79 @@ Read and classify every packaged file, resolve every local link, and inspect scr
 
 ### Review Step 3: Audit the Agent Contract
 
-Map each usage branch to its invocation control, description pointer, ordered steps, reference reads, and checkable completion criteria. Audit progressive disclosure, co-location, consistent terminology, and the portable-core/harness-enhancement boundary. Confirm every host-only enhancement has a fallback, unless the skill explicitly declares that host as a requirement. Where `SPEC.md` is a maintainer contract, apply its exceptional admission test, verify that its pointer fires only when modifying or reviewing that skill itself, and report any runtime rule or history duplicated into it. Report duplicated rules, environment caches, time-sensitive claims, stale sediment, no-op instructions, and examples that add no material understanding; remove them only in the authorized fixing step.
+Map each usage branch to its invocation control, description pointer, ordered steps, reference reads, and checkable completion criteria. Audit progressive disclosure, co-location, consistent terminology, and the portable-core/harness-enhancement boundary. Confirm every host-only enhancement has a fallback, unless the skill explicitly declares that host as a requirement. Audit whether repeated deterministic mechanics with stable inputs and outputs have a tested script owner or an evidenced reason to remain in instructions. Where `SPEC.md` is a maintainer contract, apply its exceptional admission test, verify that its pointer fires only when modifying or reviewing that skill itself, and report any runtime rule or history duplicated into it. Report duplicated rules, environment caches, time-sensitive claims, stale sediment, no-op instructions, and examples that add no material understanding; remove them only in the authorized fixing step.
 
-**Done when:** every branch, step, and reference pointer has an evidence-backed pass, finding, or not-applicable disposition.
+**Done when:** every branch, step, reference pointer, automation decision, portability fallback, terminology rule, and suspected duplicate or residue has an evidence-backed pass, finding, not-applicable, or unknown disposition.
 
 ### Review Step 4: Validate Real Behavior
 
 Run the portable schema validator plus the named target's validator; neither replaces behavior testing. Execute representative activation and functional scenarios, then test isolation and coexistence where the harness supports them. Run bundled scripts in a safe environment and verify their outputs and failure paths. Record every test not run and why.
 
-**Done when:** each supported branch has behavior evidence and every validation gap remains visible.
+**Done when:** each supported branch has behavior evidence, applicable portable and target validators and script failure paths have results, and every unrun validation, activation, fallback, isolation, or coexistence gate remains visible.
 
 ### Review Step 5: Report, Then Fix if Authorized
 
 For each finding, provide severity, file and line evidence, impact, the smallest adequate fix, and an objective completion criterion. Separate confirmed facts, inferences, and unknowns. If changes are authorized, apply them, rerun affected gates, and update the skill-local changelog under its Evidence gate when the release policy applies.
 
-**Done when:** every review rule is accounted for and no unknown or unrun check is presented as a pass. Use the full [Skill Review Checklist](REFERENCE.md#skill-review-checklist) as the coverage ledger.
+**Done when:** every review rule and finding is accounted for with evidence, impact, smallest fix, and completion criterion; authorized fixes have affected gates and semantic residue rechecked; changelog evidence is updated where applicable; and no unknown or unrun check is presented as a pass. Use the full [Skill Review Checklist](REFERENCE.md#skill-review-checklist) as the coverage ledger.
+
+## Packaging and Releasing a Skill
+
+### Release Step 1: Lock the Release Contract
+
+Record the exact skill, proposed version, target harnesses and surfaces, invocation
+policies, distribution forms, and files that belong in the artifact.
+
+**Done when:** one release ledger names the exact skill, proposed version, target harnesses and surfaces, invocation policies, distribution forms, artifact files, and every claimed gate before the artifact is built.
+
+### Release Step 2: Build the Exact Artifact
+
+Build from the skill directory only. Include every linked script, reference, asset,
+dependency, license or attribution notice, and required release record; exclude
+temporary research bundles, caches, secrets, and unrelated repository files.
+
+**Done when:** an explicit artifact inventory contains every required file and no source-tree-only or temporary residue.
+
+### Release Step 3: Validate Schema and Behavior
+
+Run the portable schema validator, every claimed target validator, bundled tests, and
+local link checks. Then use the evaluation side-effect boundary from Step 8 and run
+fresh-context activation and functional scenarios on every claimed target, including
+portable fallback, isolation, and coexistence where those claims apply. Record an
+unavailable gate as `unknown`; do not convert it to a pass or silently narrow the
+artifact after testing.
+
+**Done when:** every locked gate has evidence or an explicit `unknown`, and no validator result is presented as behavior proof.
+
+### Release Step 4: Prepare Release Records
+
+Apply the [Evidence gate](REFERENCE.md#evidence-gate), update the skill-local changelog
+under `Unreleased`, prepare target-owned version metadata, and state any compatibility
+or migration effect without inventing rationale. Build and validate a release candidate
+without presenting it as the completed release.
+
+**Done when:** the candidate records each net change once, every migration corresponds to real downstream action, all metadata is ready for one proposed version while the changelog remains `Unreleased`, and candidate validation has a result for every locked pre-install gate.
+
+### Release Step 5: Verify and Promote the Exact Artifact
+
+Install the candidate artifact in a clean instance of each claimed surface and rerun at
+least one representative scenario per real workflow branch. Compare the installed
+inventory with the artifact so repository-only files cannot mask a broken package. If
+the candidate passes, assign the version and date, build the final artifact, and repeat
+the clean-install inventory and representative branch checks on that exact final
+artifact. If promotion or the final checks fail, return the changelog to `Unreleased`
+and do not publish.
+
+**Done when:** the versioned final artifact itself matches the clean-install inventory on every claimed surface and exercises every supported branch without source-tree residue; otherwise the changelog is `Unreleased` and no versioned release state remains.
+
+**Done when:** the exact artifact is self-contained, every claimed target has schema and
+behavior evidence, every unavailable gate is visible, and a clean installation exercises
+all supported branches without relying on source-tree residue.
 
 ## Workflow Patterns
 
-Five proven patterns for structuring skill instructions. See [REFERENCE.md](REFERENCE.md#workflow-patterns) for full examples.
-
-| Pattern | Use When |
-|---------|----------|
-| **Sequential Orchestration** | Multi-step processes in specific order |
-| **Multi-MCP Coordination** | Workflows spanning multiple services |
-| **Iterative Refinement** | Output quality improves with iteration |
-| **Context-Aware Selection** | Same outcome, different tools by context |
-| **Domain-Specific Intelligence** | Specialized knowledge beyond tool access |
-
-## Real-World Examples
-
-Use the annotated [Skill Examples](REFERENCE.md#skill-examples) only when a concrete pattern helps the current branch. They are historical pattern snapshots, not current platform contracts, and examples are not mandatory content for a new skill.
-
-## Quick Checklist
-
-Before building:
-- [ ] Identified every real usage branch and its concrete use case
-- [ ] Named target harness, surface, invocation mode, and distribution form
-- [ ] Defined a portable core and fallbacks for host-only enhancements, or explicitly declared a single-harness contract
-- [ ] Planned folder structure
-- [ ] Tools identified (built-in or MCP)
-- [ ] Classified any harness-injected authoring helpers as subordinate adapters
-- [ ] Defined baseline evaluations and completion criteria
-
-During development:
-- [ ] `SKILL.md` exists (exact spelling)
-- [ ] YAML frontmatter has `---` delimiters
-- [ ] Portable and target-specific validators pass, or unavailable gates are reported
-- [ ] Model-invoked description covers each real branch
-- [ ] Instructions are clear and actionable
-- [ ] Each step has a checkable completion criterion
-- [ ] Needed error handling and examples add information; inapplicable sections are omitted
-- [ ] References have explicit read conditions and resolve one level deep
-- [ ] Any maintainer `SPEC.md` passes the exceptional admission test and has a pointer for modifying or reviewing that skill itself
-- [ ] Independently released skill has an updated, packaged `CHANGELOG.md` whose complete new entries contain evidence-backed change and rationale and whose retained examples all pass the removal test
-
-Before release or installation:
-- [ ] Tested intended triggers, paraphrases, realistic near-misses, and ambiguity when model invocation applies
-- [ ] Functional tests pass
-- [ ] Isolation and coexistence tests pass where supported
-- [ ] Portable fallback preserves core behavior without host-only enhancements, when portability is claimed
-- [ ] Tool integration works (if applicable)
-- [ ] Security and trust review matches the distribution risk
-- [ ] Target-specific package, metadata, and version requirements pass
-
-After release:
-- [ ] Monitor for under/over-triggering
-- [ ] Collect user feedback
-- [ ] Iterate on description and instructions based on results
-- [ ] Update the target's release mechanism and skill-local changelog when behavior changes
+When the instruction shape is not already implied by the use cases, read [Workflow
+Patterns](REFERENCE.md#workflow-patterns) before writing Step 5. Select the smallest
+pattern that preserves the real ordering, decisions, data flow, and stopping condition;
+do not move branch-critical process state into a lookup file merely to shorten
+`SKILL.md`.
