@@ -13,3 +13,4 @@ __pycache__
 .mise.local.toml
 # author-private extensions (own git repo, private remote)
 /private/
+.gstack/
