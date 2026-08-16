@@ -1,0 +1,212 @@
+#!/bin/sh
+set -eu
+
+fail() {
+  printf 'lefthook runner: %s\n' "$1" >&2
+  exit 1
+}
+
+project_uses_mise() {
+  git ls-files -- \
+    mise.toml \
+    .mise.toml \
+    'mise.*.toml' \
+    '.mise.*.toml' \
+    mise/config.toml \
+    .mise/config.toml \
+    .config/mise.toml \
+    .config/mise/config.toml \
+    '.config/mise/conf.d/*.toml' |
+    grep -q .
+}
+
+verify_binary_version() {
+  actual_version=$("$1" version 2>/dev/null) || return 1
+  [ "$actual_version" = "$2" ]
+}
+
+sha256_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  else
+    return 1
+  fi
+}
+
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null) ||
+  fail "run this command inside a Git worktree"
+cd "$repo_root"
+
+config=
+for candidate in \
+  lefthook.yml \
+  lefthook.yaml \
+  .lefthook.yml \
+  .lefthook.yaml \
+  .config/lefthook.yml \
+  .config/lefthook.yaml
+do
+  if [ -f "$repo_root/$candidate" ]; then
+    [ -z "$config" ] || fail "multiple Lefthook config files found"
+    config="$repo_root/$candidate"
+  fi
+done
+[ -n "$config" ] || fail "a YAML Lefthook config is missing"
+LEFTHOOK_CONFIG="$config"
+export LEFTHOOK_CONFIG
+
+version=$(
+  awk '
+    /^min_version:/ {
+      count++
+      value = $0
+      if ($0 ~ /^min_version: "[0-9]+\.[0-9]+\.[0-9]+"[[:space:]]*$/) {
+        sub(/^min_version: "/, "", value)
+        sub(/"[[:space:]]*$/, "", value)
+      } else if ($0 ~ /^min_version: [0-9]+\.[0-9]+\.[0-9]+[[:space:]]*$/) {
+        sub(/^min_version: /, "", value)
+        sub(/[[:space:]]*$/, "", value)
+      } else {
+        invalid = 1
+      }
+    }
+    END {
+      if (count != 1 || invalid) exit 1
+      print value
+    }
+  ' "$config"
+) || fail 'min_version must be one top-level exact x.y.z value'
+
+trusted_release_version=2.1.10
+[ "$version" = "$trusted_release_version" ] ||
+  fail "no trusted release manifest for Lefthook $version"
+
+common_dir=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) ||
+  fail "cannot resolve Git's common directory"
+common_dir=$(cd "$common_dir" && pwd -P) ||
+  fail "cannot enter Git's common directory"
+
+system=$(uname -s) || fail "cannot detect the operating system"
+machine=$(uname -m) || fail "cannot detect the machine architecture"
+binary_name=lefthook
+case "$system:$machine" in
+  Linux:x86_64 | Linux:amd64) platform=linux-x86_64 ;;
+  Linux:aarch64 | Linux:arm64) platform=linux-arm64 ;;
+  Darwin:x86_64 | Darwin:amd64) platform=darwin-x86_64 ;;
+  Darwin:aarch64 | Darwin:arm64) platform=darwin-arm64 ;;
+  MINGW*:x86_64 | MSYS*:x86_64 | CYGWIN*:x86_64)
+    platform=windows-x86_64
+    binary_name=lefthook.exe
+    ;;
+  MINGW*:aarch64 | MINGW*:arm64 | \
+    MSYS*:aarch64 | MSYS*:arm64 | \
+    CYGWIN*:aarch64 | CYGWIN*:arm64)
+    platform=windows-arm64
+    binary_name=lefthook.exe
+    ;;
+  *) fail "unsupported platform: $system $machine" ;;
+esac
+
+binary="$common_dir/lefthook/$version/$platform/$binary_name"
+
+if [ "${1-}" = install ]; then
+  configured_hooks_path=$(
+    git config --show-origin --show-scope --get-all core.hooksPath 2>/dev/null || true
+  )
+  [ -z "$configured_hooks_path" ] ||
+    fail "core.hooksPath is already configured: $configured_hooks_path"
+
+  if [ ! -x "$binary" ] || ! verify_binary_version "$binary" "$version"; then
+    temporary_directory=$(mktemp -d) || fail "cannot create a temporary directory"
+    staged_binary=
+    cleanup() {
+      [ -z "${temporary_directory-}" ] || rm -rf "$temporary_directory"
+      [ -z "${staged_binary-}" ] || rm -f "$staged_binary"
+    }
+    trap cleanup 0
+    trap 'cleanup; exit 1' 1 2 15
+
+    candidate="$temporary_directory/bin/$binary_name"
+    if project_uses_mise && \
+      command -v mise >/dev/null 2>&1 && \
+      mise -C "$temporary_directory" help install-into >/dev/null 2>&1
+    then
+      if ! MISE_AUTO_INSTALL=0 MISE_EXEC_AUTO_INSTALL=0 \
+        mise -C "$temporary_directory" install-into \
+          "lefthook@$version" "$temporary_directory"
+      then
+        fail "mise could not install lefthook@$version"
+      fi
+      candidate="$temporary_directory/$binary_name"
+      [ -x "$candidate" ] || fail "mise did not produce $binary_name"
+    else
+      # The bundled hashes are the trust anchor for the official release assets.
+      case "$platform" in
+        linux-x86_64)
+          asset="lefthook_${version}_Linux_x86_64.gz"
+          checksum=0b14162a0bb2f0c64ae0759f6102f6e19c4d00981666a8ac73d4f5a6878ada4f
+          ;;
+        linux-arm64)
+          asset="lefthook_${version}_Linux_aarch64.gz"
+          checksum=6380a6ad6dd484466fd69bd83f24491d6ec27dc0b84e837be025620f7c4e11e3
+          ;;
+        darwin-x86_64)
+          asset="lefthook_${version}_MacOS_x86_64.gz"
+          checksum=49d905f28ca46442cb236060058b252da650b5f7b864bd275b61aa46945e8c4a
+          ;;
+        darwin-arm64)
+          asset="lefthook_${version}_MacOS_arm64.gz"
+          checksum=1dd4dc7b4c50efb1f9d9122cd6535c793738d6e59751c228d49f768ec9dbb604
+          ;;
+        windows-x86_64)
+          asset="lefthook_${version}_Windows_x86_64.gz"
+          checksum=beabbce824641ae71229ed11dd8634f47148921cb649d25c90441b737481494a
+          ;;
+        windows-arm64)
+          asset="lefthook_${version}_Windows_arm64.gz"
+          checksum=933b3c2aaa016d84cd2b3926ea9b99c3febdc6bb778bfd854640223a3a4c5e50
+          ;;
+        *) fail "no trusted release manifest for $version on $platform" ;;
+      esac
+      command -v curl >/dev/null 2>&1 || fail "curl is required to install Lefthook"
+      command -v gzip >/dev/null 2>&1 || fail "gzip is required to install Lefthook"
+
+      release_asset="$temporary_directory/$asset"
+      release_url="https://github.com/evilmartians/lefthook/releases/download/v$version/$asset"
+      curl -fL --proto '=https' --tlsv1.2 -o "$release_asset" "$release_url" ||
+        fail "could not download $asset"
+      actual_checksum=$(sha256_file "$release_asset") ||
+        fail "sha256sum or shasum is required to verify $asset"
+      [ "$actual_checksum" = "$checksum" ] || fail "checksum mismatch for $asset"
+      mkdir -p "${candidate%/*}" || fail "cannot prepare downloaded Lefthook"
+      gzip -dc "$release_asset" > "$candidate" || fail "cannot decompress $asset"
+      chmod +x "$candidate" || fail "cannot make downloaded Lefthook executable"
+    fi
+    verify_binary_version "$candidate" "$version" ||
+      fail "installed Lefthook does not match $version"
+
+    install_directory=${binary%/*}
+    mkdir -p "$install_directory" || fail "cannot create $install_directory"
+    staged_binary="$install_directory/.lefthook.$$"
+    cp "$candidate" "$staged_binary" || fail "cannot stage Lefthook binary"
+    chmod +x "$staged_binary" || fail "cannot make Lefthook executable"
+    mv -f "$staged_binary" "$binary" || fail "cannot install Lefthook binary"
+    staged_binary=
+    cleanup
+    temporary_directory=
+  fi
+
+  verify_binary_version "$binary" "$version" ||
+    fail "cached Lefthook does not match $version"
+  "$binary" validate
+  "$binary" install
+  exec "$binary" check-install
+fi
+
+[ -x "$binary" ] || fail "binary $version is missing; run: sh $0 install"
+verify_binary_version "$binary" "$version" ||
+  fail "cached Lefthook does not match $version; run: sh $0 install"
+
+exec "$binary" "$@"
