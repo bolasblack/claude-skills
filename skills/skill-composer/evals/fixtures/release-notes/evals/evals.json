@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "skill_name": "release-notes",
+  "evals": [
+    {
+      "id": "normalizes-release-notes",
+      "category": "functional",
+      "prompt": "Create release.json at version 2.1.0 from fixtures/changes.json.",
+      "side_effects": "fixture",
+      "files": [
+        "changes.json"
+      ],
+      "assertions": [
+        {
+          "id": "writes-normalized-json",
+          "description": "release.json preserves the required key order and sorted non-blank entries."
+        }
+      ]
+    }
+  ]
+}

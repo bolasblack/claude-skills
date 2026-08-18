@@ -16,6 +16,7 @@ extensions, or host behavior.
 - [Portable Core and Harness Enhancements](#portable-core-and-harness-enhancements)
 - [Workflow Patterns](#workflow-patterns)
 - [Skill Review Checklist](#skill-review-checklist)
+- [Repeatable Evaluation Contract](#repeatable-evaluation-contract)
 - [Testing Methodology](#testing-methodology)
 - [Troubleshooting](#troubleshooting)
 - [Distribution](#distribution)
@@ -165,6 +166,7 @@ Apply [Environment-Native Automation](SKILL.md#environment-native-automation) be
 - Include helpful error messages, validate inputs, and handle expected edge cases.
 - Use portable forward-slash paths in instructions and code unless the target is explicitly platform-specific.
 - Add executable permissions and a shebang when the script is meant to run directly; neither is required for every bundled source file.
+- Run the public-seam test and preserve its observed failure before writing the implementation; then make the minimum implementation change and rerun the same test to green.
 - Retain public-seam tests with the script and run them on every environment the skill claims to support.
 - When a script is a harness enhancement rather than a declared requirement, provide and test a portable manual fallback for the core behavior.
 
@@ -253,15 +255,221 @@ Never turn an uninspected file, unavailable validator, unsafe live side effect, 
 behavior case into a pass. Absence of `SPEC.md` or release artifacts is not a finding
 when their admission conditions do not apply.
 
+## Repeatable Evaluation Contract
+
+The admission decision lives in [Step 8](SKILL.md#step-8-validate-behavior-and-maintain-admitted-evals).
+Use the bundled standard-library helper as a package-local evaluation seam when the
+target owns an admitted suite. A package without evals is valid when neither admission
+condition applies:
+
+```bash
+python3 /path/to/skill-composer/scripts/eval-skill.py check /path/to/skill
+python3 /path/to/skill-composer/scripts/eval-skill.py run /path/to/skill \
+  [--case CASE_ID] [--repeat 3] [--model MODEL] --target claude|codex|grok
+python3 /path/to/skill-composer/scripts/eval-skill.py run /path/to/skill \
+  --additional-skill NAME=/path/to/skill --target TARGET
+python3 /path/to/skill-composer/scripts/eval-skill.py run /path/to/skill \
+  [--case CASE_ID] [--repeat 3] -- ADAPTER [ARG ...]
+```
+
+Give the runner one repository owner and let each evaluated skill own only its manifests
+and fixtures. Do not copy the helper into every sibling package. A standalone
+self-validating distribution may vendor a pinned copy only when it cannot call a shared
+repository owner; include the matching black-box test and record the Skill Composer
+release or artifact hash that identifies the copy.
+
+`check` validates the skill's package identity, rejects symlinks before staging, and
+checks eval manifests, identifiers, safe side-effect declarations, assertions, and
+fixture paths. It is not the portable Agent Skills schema validator or a target
+validator, and it supplies no activation or functional evidence.
+
+Keep domain truth with the evaluated skill:
+
+- `evals/evals.json` owns functional, baseline, isolation, and coexistence cases. Each
+  case declares a hyphen-case `id`, `category`, realistic `prompt`, `side_effects` as
+  `none` or `fixture`, and one or more independently checkable `assertions`. Optional
+  `files` resolve beneath `evals/fixtures`; `skill_mode` is `enabled` or `disabled`;
+  `additional_skills` contains unique skill names. Baseline cases disable the evaluated
+  skill, other categories keep it enabled, coexistence names at least one additional
+  skill, and isolation names none.
+- `evals/trigger-eval.json` owns model-invocation boundaries. Each query declares an
+  `id`, realistic `query`, and boolean `should_trigger`; optional `files` stage trigger
+  context from `evals/fixtures`, and optional `additional_skills` stage realistic
+  competitors. A package-local competitor can live at
+  `evals/fixtures/skills/<name>`; an explicitly supplied `--additional-skill` mapping
+  takes precedence. A present trigger suite must contain both positive and negative
+  cases.
+- Both documents use `schema_version: 1` and a `skill_name` matching `SKILL.md` and the
+  package directory. Unknown fields fail closed so misspellings cannot silently weaken
+  a gate. At least one case must exist across the two manifests; an empty package is
+  not a valid eval contract.
+
+`run` validates first, then creates a new temporary workspace for every case and
+iteration. It copies the skill without `evals/` and stages only declared fixture inputs.
+Repeat `--case` to run affected IDs after a focused change; omitted `--case` runs the
+whole suite, while an unknown or duplicate ID is a command-contract error. `--model`
+overrides the selected target's model. A case that declares `additional_skills` needs
+one package-local fixture or `--additional-skill NAME=PATH` mapping per named package in
+built-in mode; a missing mapping becomes `unknown`, while a malformed or mismatched
+package is a command-contract error. With `--repeat`, functional iterations retain
+their individual verdicts. Trigger iterations are aggregated by strict-majority at the
+fixed 0.5 threshold and emit a `TRIGGER_RATE` record; an undecidable result containing
+too many `unknown` observations remains `unknown`.
+
+Built-in mode supports Claude, Codex, and Grok behind the same interface. It stages only
+the selected project-local skill copies and never passes assertions or expected trigger
+answers to the candidate session. For a functional case, it then starts a separate
+grader session with no candidate skill loaded, a read-only copy of the resulting
+workspace, before-and-after hashes, the target event stream, the final response, and the
+assertions. The grader must return schema-conforming results for every assertion; Claude
+and Codex use their structured-output controls, while Grok completes a no-plan streaming
+tool session. A Grok response is complete only when its result reports `end_turn`; the
+runner reads a non-blank terminal result or, when that field is empty, the unique textual
+`end_turn` assistant message, then validates that final text as JSON. It accepts either a
+bare JSON object or one whole-response `json` code fence; it never extracts an object from
+surrounding prose. Tool-use and thinking blocks are never verdicts. A missing, malformed,
+partial, or reused grader session becomes `unknown`. The candidate and grader never
+share conversation state and each receive the full `--timeout` bound; the default is
+900 seconds per built-in phase. An external adapter receives that bound once for the
+whole case. The assertion count and ID order are stated explicitly; a progress update
+or stated intent is not completion evidence.
+
+Built-in runs emit `OBSERVE` records to standard error for candidate and grader starts,
+periodic progress, completed process timings and byte counts, process failures, and
+protocol failures. Progress and timeout records report only structural output
+diagnostics—byte counts, JSON-event counts, event types, tool-call names and counts,
+tool-result success/error counts, and the last stop reason—so a run is debuggable without
+printing tool arguments, prompts, rubrics, model text, session IDs, or credentials. Tool
+targets are reported only as sanitized workspace-relative paths and counts; any external
+target is collapsed to `<outside-workspace>`. On POSIX, timeout cleanup signals the target
+process group, bounds the final pipe-drain interval, and closes this run's capture pipes
+rather than waiting indefinitely on a detached process that inherited them.
+
+Use `--artifacts-dir NEW_DIR` when a slow or failed run needs filesystem-level debugging.
+The option is explicit because fixture state can be sensitive: it refuses to overwrite an
+existing path or write inside the evaluated skill package, then stores one sanitized
+workspace and `eval-result.json` under `CASE_ID/iteration-N/`. Its `observation/`
+directory stores `candidate-events.jsonl`, `candidate-stderr.txt`, and
+`candidate-timing.json`, plus the matching grader files when grading starts. Timing
+records include wall duration, structural output summary, and provider-reported tokens,
+cost, turns, and provider duration when the terminal event supplies them. Raw event and
+stderr artifacts can contain model text, tool arguments, fixture contents, or target
+identifiers, so treat the whole explicit artifact directory as sensitive evidence. The
+saved workspace omits `.agents`, `.claude`, `.git`, and `.grok`, so staged target context
+and additional skill copies are not persisted. Without this option, every case workspace
+remains temporary.
+
+Built-in target support deliberately stops where the current structured evidence stops:
+
+- **Claude:** a matching structured `Skill` call proves activation. A negative result
+  additionally requires the initialization catalog to prove the skill was offered.
+  Fixture-writing functional runs require Claude's native sandbox to start in strict
+  fail-closed mode; an unavailable sandbox is `unknown`.
+- **Codex:** ephemeral structured runs support functional candidate and grader sessions.
+  Its current event stream has no attributable automatic skill activation event, so
+  trigger results remain `unknown` without spending a target call.
+- **Grok:** fresh no-memory streaming tool sessions support functional candidates and
+  graders under a fail-closed custom sandbox profile that extends strict mode, denies
+  known ambient user-skill roots and the original source packages, disables network
+  access, and stages only the selected project-local copies. The profile collapses
+  redundant descendant denials so nested package-local competitor fixtures remain
+  mountable. A `system/init` catalog advertising the evaluated skill plus a matching
+  `read_file` call for its staged `SKILL.md` proves positive activation. For a negative
+  case, the same catalog plus a decisive assistant event without that matching read
+  proves non-activation; the runner may stop at that point to reduce cost. Completed
+  `end_turn` responses provide functional text. This controlled workspace also supports
+  Grok baseline and isolation cases; if the profile is unavailable or does not start
+  fail closed, the result is `unknown`.
+
+The built-in Codex command cannot prove that ambient user skills were absent, so Codex
+baseline and isolation categories remain `unknown`. Use an external adapter in a clean
+host when those claims matter. A built-in target executable that is missing, times out,
+fails, emits malformed or oversized output, mixes session IDs, or cannot supply required
+evidence also produces `unknown`, never pass.
+
+External-adapter mode starts the adapter as an argument vector without a shell. The
+adapter receives one JSON request on standard input containing protocol version 1, the
+staged skill path, the case and rubric, the staged input paths, and the iteration number.
+It runs with the temporary workspace as its current directory, so use a command available
+on `PATH` and absolute paths for adapter files.
+
+Treat the adapter as a target-specific trust boundary. It must start a fresh target
+session, keep assertions and expected activation away from the evaluated agent, run the
+task, grade only afterward, and return exactly one JSON object. Every response includes
+`protocol_version`, matching `case_id`, non-empty `session_id`, and
+`fresh_session: true`. Functional responses return every assertion as `id`, `status`
+(`pass`, `fail`, or `unknown`), and non-empty `evidence`; trigger responses return
+boolean `activated` and non-empty activation `evidence`. Missing assertions, malformed
+output, adapter failure, timeout, or a reused or unattested session becomes `unknown`,
+never pass.
+
+The helper exits 0 only when every repeated case passes, 1 when any case fails or is
+unknown, and 2 when the package, manifest, or command contract is invalid. Its temporary
+working directory is contamination control, not authority to use credentials, quota,
+paid tokens, networks, or real external side effects. Built-in mode adds the target's
+native filesystem and tool restrictions where supported, but the target process still
+needs its own authentication. Keep live target calls and effects on the authorization
+path from Step 8; when a verified mode is unavailable, run the same cases manually or
+through an external adapter and leave the gate `unknown` until evidence exists.
+
 ## Testing Methodology
 
-There is no portable built-in evaluation runner. Run scenarios manually in the target host or build a repeatable harness. Start output-quality iteration with 2-3 cases tied to observed baseline gaps. For focused description tuning, aim for about 20 balanced trigger/non-trigger queries, run each multiple times (three is a reasonable start), and reserve fresh validation queries to detect overfitting. For enterprise release, require 3-5 representative queries covering trigger, non-trigger, and ambiguous cases. Expand every suite for real branches and risks, and test every deployed model.
+The portable specification supplies no built-in evaluation runner. The official Agent
+Skills guide on [evaluating output
+quality](https://agentskills.io/skill-creation/evaluating-skills) supplies the iteration
+method; the package-local contract above makes the parts Skill Composer currently owns
+repeatable. Keep evals opt-in under Step 8, keep a manual target-host path for every
+skill, and test every deployed model and surface that the release claims.
 
-### 1. Baseline and Expected Behavior
+### 1. Design Cases and Lock a Baseline
 
-Run representative tasks without the skill first. Record the exact failure or missing context, then define observable expected behavior for the same tasks with the skill. Use fresh sessions so earlier skill content or conversation state does not contaminate results.
+Start with 2-3 realistic cases tied to observed gaps. Vary phrasing and detail, include
+an edge or ambiguous case, and name the expected output in human-readable terms before
+writing narrow pass/fail checks. Run each representative task once without the skill;
+when improving an existing skill, snapshot and run the previous skill version instead.
+Use the same prompt, files, output boundary, target, and model for both configurations.
+The bundled runner represents these comparisons as explicit baseline cases; it does not
+automatically create the paired run or old-skill snapshot.
 
-### 2. Triggering Tests
+After a pilot run reveals what is objectively checkable, write assertions that are
+specific and observable without requiring exact incidental wording. Once admitted to
+this runner, every functional case must carry at least one assertion.
+
+### 2. Run Fresh, Isolated Iterations
+
+Give every run a clean workspace and session. Keep candidate assertions and expected
+trigger labels hidden until grading, and save each new round under a new iteration
+rather than overwriting earlier evidence. Run the same cases after each instruction
+change so the comparison measures the skill rather than leftover conversation or files.
+
+### 3. Grade with Concrete Evidence
+
+Use deterministic scripts for mechanical facts such as JSON validity, file existence,
+counts, hashes, or dimensions. Use an independent model grader for semantic assertions,
+and require every pass, fail, or unknown verdict to cite concrete output or execution
+evidence. Review assertion quality too: an assertion that always passes both baseline
+and skill, always fails both, or cannot be decided from the supplied evidence needs to
+be removed or repaired.
+
+For holistic qualities that resist binary assertions, add a blind comparison: show the
+two outputs without revealing which came from the skill and score both on the same
+rubric. Blind comparison complements assertion grading; it does not replace mechanical
+checks.
+
+### 4. Capture Cost, Aggregate, and Inspect Outliers
+
+Record duration, tokens, and cost where the target supplies them, but compare efficiency
+only after correctness. With repeated runs, aggregate pass rate, time, and tokens for
+each configuration and their delta in `benchmark.json`; standard deviation is meaningful
+only with multiple observations. Inspect the full execution transcript for slow, costly,
+flaky, or surprising cases instead of diagnosing from the final answer alone.
+
+The bundled runner currently records per-phase transcript and timing artifacts and
+aggregates trigger rates. It does not yet generate `benchmark.json`, blind comparisons,
+or human feedback artifacts; perform those steps manually or with a separately verified
+orchestrator and keep them out of automated claims until evidence exists.
+
+### 5. Test Trigger Boundaries without Overfitting
 
 For model-invoked skills, test whether the host loads the skill at the right boundary. Negative cases must be realistic near-misses, not unrelated topics that test nothing.
 
@@ -278,40 +486,32 @@ Ambiguous boundary:
 
 State the expected activation or clarification behavior before running each case. Include paraphrases for every real branch.
 
-### 3. Functional Tests
+For focused description tuning, aim for about 20 balanced trigger/non-trigger queries and
+run each multiple times; three runs and a 0.5 threshold are reasonable starting points.
+Use a fixed train/validation split with proportional positive and negative cases. Change
+the description only from train failures, select the best iteration by validation
+performance, then sanity-check it with fresh queries that influenced neither set. Avoid
+copying failed-query keywords into the description; repair the general intent boundary.
 
-Goal: Correct outputs produced.
-
-```
-Test: Create project with 5 tasks
-Given: Project name "Q4 Planning", 5 task descriptions
-When: Skill executes workflow
-Then:
-- Project created
-- 5 tasks with correct properties
-- All tasks linked to project
-- No API errors
-```
-
-### 4. Isolation and Coexistence
+### 6. Test Isolation, Coexistence, and Functional Branches
 
 Run the skill alone, then alongside the skills most likely to overlap. Verify the new skill does not steal unrelated triggers, suppress another skill, or depend on another installed skill unless that dependency is explicit. For a cross-agent skill, disable host enhancements and verify the portable fallback preserves the core result.
 
-### 5. Performance Comparison
+Exercise every admitted normal, edge, stop, failure, and unknown-handling branch. Test
+tool and API errors, side-effect boundaries, output contracts, user corrections, and the
+portable fallback. For enterprise release, include 3-5 representative trigger,
+non-trigger, and ambiguous queries in addition to the functional branch coverage.
 
-Goal: Skill improves over baseline.
+### 7. Review with a Human and Iterate
 
-| Metric | Without Skill | With Skill |
-|--------|--------------|------------|
-| Back-and-forth messages | 15 | 2 clarifying questions |
-| Failed API calls | 3 requiring retry | 0 |
-| Tokens consumed | 12,000 | 6,000 |
+Review actual outputs alongside assertion grades. Record specific human feedback per
+case; an empty feedback value means no issue was found, while comments such as “the
+months are sorted alphabetically instead of chronologically” are actionable. Combine
+failed assertions, human feedback, and transcript evidence to make the smallest general
+instruction or script change. Rerun all cases into the next iteration, grade, aggregate,
+and repeat until feedback is consistently empty or improvement is no longer meaningful.
 
-Use your success criteria measurements to populate this table only after correctness
-passes. Manual and scripted approaches are both valid; verify any target-specific
-authoring or evaluation helper before relying on it.
-
-### Iteration Signals
+Useful iteration signals include:
 
 **Undertriggering** (skill doesn't load when it should):
 - Users manually enabling it
@@ -330,7 +530,9 @@ Symptoms: inconsistent results, API call failures, user corrections needed.
 - MCP tool calls fail intermittently
 - Users need to manually correct or retry
 
-Fix: Improve instructions with more explicit steps, add error handling for common failure modes, and include retry logic or fallback approaches for unreliable operations.
+Fix the underlying missing decision, ambiguous instruction, or unstable mechanic. Bundle
+repeated deterministic work into a tested script when transcripts show every run
+recreating it; remove instructions that add cost without improving outcomes.
 
 ## Troubleshooting
 
@@ -463,7 +665,12 @@ Once the evidence gate passes, include for every complete new logical change ins
 - **Changed** (required): the behavior, rule, contract, or compatibility surface that changed.
 - **Why** (required): the failure mode, missing invariant, or distribution constraint that made the change necessary.
 - **Example** (optional): include the causal pre-change pattern and its consequence only when it makes the decision materially easier to understand than `Changed` and `Why` alone. Prefer the smallest reconstructed code, config, payload, or diff snippet that makes the missing relationship obvious; use concrete prose when code would add no clarity. Show before and after only when the contrast helps explain the decision.
-- **Migration** (optional): include only when a user or downstream integrator must act.
+- **Migration** (optional): include only when a user or downstream integrator must act
+  because a supported public invocation, input, output, installation, or configuration
+  contract changed. An internal implementation replacement with unchanged public
+  invocation, inputs, and outputs has no Migration entry. A caller's private wrapper
+  around a removed implementation detail is not migration evidence unless the existing
+  contract or direct evidence identifies that wrapper as public.
 
 Use this inclusion test: remove the proposed `Example` and reread `Changed` plus `Why`. If the causal pattern, consequence, and reason for the decision remain equally clear, omit the example.
 

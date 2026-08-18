@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "skill_name": "skill-composer",
+  "evals": [
+    {
+      "id": "updates-repeatable-mechanics",
+      "category": "coexistence",
+      "prompt": "Use Skill Composer together with writing-for-agents to update the existing skill at inputs/release-notes. Its repeated JSON normalization is inconsistent, so make that mechanic deterministic while preserving its existing output contract and unrelated instructions. Do not commit or publish anything.",
+      "side_effects": "fixture",
+      "files": [
+        "release-notes/SKILL.md",
+        "release-notes/evals/evals.json",
+        "release-notes/evals/fixtures/changes.json"
+      ],
+      "additional_skills": [
+        "writing-for-agents"
+      ],
+      "assertions": [
+        {
+          "id": "preserves-existing-contract",
+          "description": "The resulting skill preserves the release.json filename, version field, ordered entries contract, and unrelated summary instruction."
+        },
+        {
+          "id": "owns-the-mechanic-in-a-helper",
+          "description": "The stable normalization mechanic has one tested executable owner with a named public seam; judgment remains in SKILL.md."
+        },
+        {
+          "id": "shows-red-green-evidence",
+          "description": "The execution trace shows a public-seam test failing before implementation and passing after the minimum implementation."
+        },
+        {
+          "id": "maintains-existing-evals",
+          "description": "Because this package already owns an eval suite, the agent preserves it, updates affected cases when needed, runs its deterministic contract check and relevant bundled tests, and records unavailable fresh-session behavior as unknown rather than passed."
+        }
+      ]
+    },
+    {
+      "id": "reviews-a-whole-skill-read-only",
+      "category": "isolation",
+      "prompt": "Review the complete skill package at inputs/safe-audit. I only want findings and evidence; do not modify any file.",
+      "side_effects": "fixture",
+      "files": [
+        "safe-audit/SKILL.md",
+        "safe-audit/references/policy.md",
+        "safe-audit/scripts/audit.py"
+      ],
+      "assertions": [
+        {
+          "id": "keeps-the-target-unchanged",
+          "description": "Hashes or equivalent before-and-after evidence show that every target file remains unchanged."
+        },
+        {
+          "id": "inventories-the-whole-package",
+          "description": "The review accounts for SKILL.md, the policy reference, the bundled script, and the script's filesystem side-effect boundary."
+        },
+        {
+          "id": "finds-the-contract-violation",
+          "description": "The findings identify that the advertised read-only workflow invokes a script that writes audit.json, with file evidence, impact, smallest adequate fix, and completion criterion."
+        },
+        {
+          "id": "keeps-unrun-behavior-unknown",
+          "description": "Static validation is not presented as runtime behavior proof; every unrun activation or functional check remains explicit."
+        }
+      ]
+    },
+    {
+      "id": "creates-a-portable-skill",
+      "category": "functional",
+      "prompt": "Create a new agent skill at outputs/incident-brief. It should activate when a user asks to turn an incident timeline into a concise brief, inspect supplied timeline material read-only, and report impact, ordered events, evidence gaps, and next actions. Keep the core usable in both Codex and Claude Code. Build only the warranted package, and do not commit or publish anything.",
+      "side_effects": "fixture",
+      "assertions": [
+        {
+          "id": "creates-the-portable-package",
+          "description": "outputs/incident-brief exists, its portable frontmatter name matches the directory, and it contains no unwarranted host-only or maintenance artifacts."
+        },
+        {
+          "id": "encodes-a-decision-complete-workflow",
+          "description": "The skill preserves the requested read-only boundary and gives ordered instructions plus observable completion criteria for impact, events, evidence gaps, and next actions."
+        },
+        {
+          "id": "keeps-evals-opt-in",
+          "description": "Because the user did not request evals and the new package had none, the agent does not create eval manifests, fixtures, or runner copies; if it identifies a material need for repeatability, it asks before adding them."
+        },
+        {
+          "id": "validates-without-proxy-claims",
+          "description": "Applicable package and behavior gates have evidence or an explicit unknown; absence of an unrequested eval suite is not treated as a failure, and no schema or static check is presented as target behavior proof."
+        }
+      ]
+    },
+    {
+      "id": "updates-then-packages-cross-harness",
+      "category": "functional",
+      "prompt": "Make the skill at inputs/concise-summary genuinely usable in both Codex and Claude Code, then prepare a release candidate. Preserve its user-facing result, verify current harness-specific claims before encoding them, and do not publish the release.",
+      "side_effects": "fixture",
+      "files": [
+        "concise-summary/SKILL.md",
+        "concise-summary/CHANGELOG.md",
+        "concise-summary/scripts/run.sh"
+      ],
+      "assertions": [
+        {
+          "id": "routes-update-before-package",
+          "description": "The trace locks and completes the affected update branch before entering the package/release workflow."
+        },
+        {
+          "id": "restores-a-portable-core",
+          "description": "Required behavior no longer depends solely on the Claude-only command; each retained host enhancement names its host and has a working portable fallback."
+        },
+        {
+          "id": "treats-dynamic-facts-as-evidence",
+          "description": "Current harness paths, commands, validators, or capabilities trace to fresh primary evidence or remain unknown instead of being guessed or cached as portable rules."
+        },
+        {
+          "id": "keeps-evals-opt-in",
+          "description": "Because the existing package has no eval suite and the user did not request one, the agent does not add eval manifests, fixtures, or runner copies; it asks first if a material risk makes a repeatable suite worth adding."
+        },
+        {
+          "id": "validates-the-exact-candidate",
+          "description": "The candidate inventory, bundled tests, fresh-session behavior gates, portable fallback, and clean-install checks each have evidence or an explicit unknown; the absent, unrequested eval contract is not called passed or treated as a failure."
+        },
+        {
+          "id": "records-evidence-backed-history",
+          "description": "The Unreleased changelog records the net change and its supported reason without assigning a release version or inventing migration work."
+        }
+      ]
+    }
+  ]
+}
