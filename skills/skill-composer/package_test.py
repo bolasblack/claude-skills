@@ -4,6 +4,8 @@
 import json
 from pathlib import Path
 import re
+import subprocess
+import sys
 import unittest
 from urllib.parse import unquote
 
@@ -211,6 +213,57 @@ class SkillComposerPackageTest(unittest.TestCase):
             self.assertIn(phrase, skill.lower())
         self.assertNotIn("## Invocation Modes", reference)
 
+    def test_authoring_another_skill_does_not_open_maintainer_evidence(self):
+        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        contract = " ".join(skill.split())
+
+        self.assertIn(
+            "Do not inspect them while using Skill Composer to author another skill",
+            contract,
+        )
+        self.assertIn(
+            "Do not seek or load it merely because it is installed", contract
+        )
+        self.assertIn(
+            "Never scan home or user-level skill directories for examples, "
+            "validators, or target evidence",
+            contract,
+        )
+
+    def test_packaged_evals_are_opt_in_and_existing_suites_follow_changed_behavior(self):
+        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        evaluation_step = skill.split("### Step 8:", 1)[1].split("\n## ", 1)[0]
+        contract = " ".join(evaluation_step.lower().split())
+
+        for phrase in (
+            "user explicitly asks",
+            "already contains an eval suite",
+            "do not create eval manifests, fixtures, or runner copies",
+            "recommend the smallest useful suite",
+            "ask the user before adding it",
+            "affected existing cases",
+        ):
+            self.assertIn(phrase, contract)
+
+        manifest = json.loads(
+            PACKAGE.joinpath("evals", "evals.json").read_text(encoding="utf-8")
+        )
+        cases = {case["id"]: case for case in manifest["evals"]}
+        assertions = {
+            case_id: {item["id"]: item["description"] for item in case["assertions"]}
+            for case_id, case in cases.items()
+        }
+        self.assertIn(
+            "keeps-evals-opt-in", assertions["creates-a-portable-skill"]
+        )
+        self.assertIn(
+            "maintains-existing-evals", assertions["updates-repeatable-mechanics"]
+        )
+        self.assertIn(
+            "keeps-evals-opt-in",
+            assertions["updates-then-packages-cross-harness"],
+        )
+
     def test_unreleased_history_records_net_changes_only(self):
         changelog = PACKAGE.joinpath("CHANGELOG.md").read_text(encoding="utf-8")
 
@@ -272,8 +325,13 @@ class SkillComposerPackageTest(unittest.TestCase):
             "Review": "#reviewing-an-existing-skill",
             "Package or release": "#packaging-and-releasing-a-skill",
         }
-        for operation in ("creating", "updating", "reviewing", "packaging"):
-            self.assertIn(operation, frontmatter)
+        for intent in (
+            "create a new agent skill",
+            "revise an existing skill",
+            "audit a complete skill package",
+            "prepare and validate its release",
+        ):
+            self.assertIn(intent, frontmatter)
         for label, anchor in expected_routes.items():
             route = re.search(
                 rf"^- \*\*{re.escape(label)}:\*\* (.+)$",
@@ -290,6 +348,7 @@ class SkillComposerPackageTest(unittest.TestCase):
 
     def test_dynamic_harness_facts_have_one_research_owner(self):
         skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        skill_contract = " ".join(skill.split())
         reference = PACKAGE.joinpath("REFERENCE.md").read_text(encoding="utf-8")
         research = PACKAGE.joinpath("HARNESS-RESEARCH.md").read_text(encoding="utf-8")
         distribution = reference.split("## Distribution\n", 1)[1].split(
@@ -307,6 +366,16 @@ class SkillComposerPackageTest(unittest.TestCase):
         ):
             self.assertIn(decision, distribution)
         self.assertIn("Exact current paths, commands, UI steps", research)
+        self.assertIn(
+            "A portable core that names multiple compatible harnesses remains "
+            "portable-only",
+            skill_contract,
+        )
+        self.assertIn(
+            "Do not enumerate `PATH`, installation directories, or language "
+            "package registries to hunt for validators",
+            skill_contract,
+        )
 
         current_guidance = skill + reference
         for cached_fact in (
@@ -360,6 +429,166 @@ class SkillComposerPackageTest(unittest.TestCase):
             skill,
         )
         self.assertIn("versioned final artifact itself", skill)
+
+    def test_validation_ledger_accounts_for_every_applicable_gate(self):
+        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        evaluation_step = re.search(
+            r"^### Step 8:[^\n]+\n(.*?)(?=^## |\Z)",
+            skill,
+            flags=re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(evaluation_step)
+        contract = evaluation_step.group(1).lower()
+
+        for phrase in (
+            "validation ledger",
+            "every applicable gate",
+            "pass`, `fail`, or `unknown",
+            "bundled tests",
+            "fresh-session behavior",
+            "portable fallback",
+            "clean installation",
+            "final response",
+            "overall result is green only",
+        ):
+            self.assertIn(phrase, contract)
+
+    def test_every_affected_branch_in_an_admitted_suite_has_a_regression_owner(self):
+        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        evaluation_step = re.search(
+            r"^### Step 8:[^\n]+\n(.*?)(?=^## |\Z)",
+            skill,
+            flags=re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(evaluation_step)
+        contract = " ".join(evaluation_step.group(1).lower().split())
+
+        for phrase in (
+            "branch-to-case coverage table",
+            "normal, edge, stop, failure, and unknown-handling",
+            "at least one functional case",
+            "before the suite is complete",
+        ):
+            self.assertIn(phrase, contract)
+
+    def test_validation_ledger_is_derived_from_the_package_inventory(self):
+        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        evaluation_step = re.search(
+            r"^### Step 8:[^\n]+\n(.*?)(?=^## |\Z)",
+            skill,
+            flags=re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(evaluation_step)
+        contract = " ".join(evaluation_step.group(1).lower().split())
+
+        for phrase in (
+            "derive its rows from the locked package inventory",
+            "every discovered test entry point and executable script",
+            "baseline result before editing",
+            "retained, replaced, or removed",
+            "unrun baseline behavior as `unknown`",
+        ):
+            self.assertIn(phrase, contract)
+
+    def test_changelog_migrations_require_a_changed_public_contract(self):
+        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        reference = PACKAGE.joinpath("REFERENCE.md").read_text(encoding="utf-8")
+
+        for document in (skill, reference):
+            contract = " ".join(document.lower().split())
+            self.assertIn(
+                "an internal implementation replacement with unchanged public "
+                "invocation, inputs, and outputs has no migration entry",
+                contract,
+            )
+
+    def test_script_changes_require_observed_public_seam_red_green_evidence(self):
+        skill = " ".join(
+            PACKAGE.joinpath("SKILL.md")
+            .read_text(encoding="utf-8")
+            .lower()
+            .split()
+        )
+        reference = " ".join(
+            PACKAGE.joinpath("REFERENCE.md")
+            .read_text(encoding="utf-8")
+            .lower()
+            .split()
+        )
+
+        expected = (
+            "run the public-seam test and preserve its observed failure before "
+            "writing the implementation"
+        )
+        self.assertIn(expected, skill)
+        self.assertIn(expected, reference)
+
+    def test_repeatable_eval_infrastructure_is_package_local_and_reachable(self):
+        script = PACKAGE / "scripts" / "eval-skill.py"
+        script_test = PACKAGE / "scripts" / "eval-skill_test.py"
+        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        reference = PACKAGE.joinpath("REFERENCE.md").read_text(encoding="utf-8")
+        readme = PACKAGE.joinpath("README.md").read_text(encoding="utf-8")
+
+        self.assertTrue(script.is_file())
+        self.assertTrue(script_test.is_file())
+        self.assertTrue(PACKAGE.joinpath("evals", "evals.json").is_file())
+        self.assertTrue(
+            PACKAGE.joinpath("evals", "trigger-eval.json").is_file()
+        )
+        result = subprocess.run(
+            [sys.executable, "-B", str(script), "check", str(PACKAGE)],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("functional=4 trigger=20", result.stdout)
+        self.assertIn(
+            "[Repeatable Evaluation Contract]"
+            "(REFERENCE.md#repeatable-evaluation-contract)",
+            skill,
+        )
+        self.assertIn("## Repeatable Evaluation Contract", reference)
+        self.assertIn("one repository owner", skill.lower())
+        self.assertRegex(
+            skill.lower(), r"standalone\s+self-validating\s+distribution"
+        )
+        self.assertIn("--target claude|codex|grok", skill)
+        for target in ("Claude", "Codex", "Grok"):
+            self.assertIn(target, reference)
+        self.assertIn("candidate session", reference)
+        self.assertIn("grader session", reference)
+        self.assertIn("no attributable automatic skill activation event", reference)
+        for packaged_path in (
+            "scripts/eval-skill.py",
+            "scripts/eval-skill_test.py",
+            "evals/evals.json",
+            "evals/trigger-eval.json",
+        ):
+            self.assertIn(packaged_path, readme)
+
+    def test_eval_docs_match_the_observable_runner_and_iteration_method(self):
+        reference = PACKAGE.joinpath("REFERENCE.md").read_text(encoding="utf-8")
+        readme = PACKAGE.joinpath("README.md").read_text(encoding="utf-8")
+        contract = " ".join((reference + "\n" + readme).lower().split())
+
+        for phrase in (
+            "each receive the full `--timeout` bound",
+            "candidate-events.jsonl",
+            "candidate-timing.json",
+            "system/init",
+            "matching `read_file`",
+            "strict-majority",
+            "evals/fixtures/skills/<name>",
+            "previous skill version",
+            "blind comparison",
+            "benchmark.json",
+            "human feedback",
+            "train/validation",
+        ):
+            self.assertIn(phrase, contract)
+        self.assertNotIn("share a 900-second case deadline", contract)
+        self.assertNotIn("share a case deadline", contract)
 
 
 if __name__ == "__main__":

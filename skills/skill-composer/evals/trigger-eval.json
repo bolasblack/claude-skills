@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "skill_name": "skill-composer",
+  "queries": [
+    {
+      "id": "trigger-create-new-skill",
+      "query": "帮我写一个能整理数据库迁移记录的 agent skill。",
+      "should_trigger": true
+    },
+    {
+      "id": "trigger-update-existing-skill",
+      "query": "Update proper-fix so it handles configuration changes as well as code fixes.",
+      "should_trigger": true
+    },
+    {
+      "id": "trigger-review-complete-package",
+      "query": "完整 review 一遍 skills/agent-session，先不要修改。",
+      "should_trigger": true
+    },
+    {
+      "id": "trigger-package-cross-agent",
+      "query": "Package this skill so the same core workflow works in Codex and Claude Code.",
+      "should_trigger": true
+    },
+    {
+      "id": "trigger-fix-description-boundary",
+      "query": "This skill keeps activating for nearby tasks; tighten its description and test the boundary.",
+      "should_trigger": true
+    },
+    {
+      "id": "trigger-add-skill-evals",
+      "query": "给这个 skill 加一套功能 eval 和 trigger eval。",
+      "should_trigger": true
+    },
+    {
+      "id": "trigger-reduce-skill-context",
+      "query": "The SKILL.md is crowding the context window; reorganize it without hiding branch-critical steps.",
+      "should_trigger": true
+    },
+    {
+      "id": "trigger-decide-spec-admission",
+      "query": "Does this skill really need a SPEC.md, and if so what belongs there?",
+      "should_trigger": true
+    },
+    {
+      "id": "trigger-validate-skill-release",
+      "query": "Validate the exact skill artifact in a clean install before I release it.",
+      "should_trigger": true
+    },
+    {
+      "id": "trigger-port-host-only-skill",
+      "query": "这个 skill 现在只靠 Claude hook 才能工作，把核心流程改成跨 agent 可执行。",
+      "should_trigger": true
+    },
+    {
+      "id": "near-miss-install-skill",
+      "query": "Install the skill package at inputs/trigger-project/neat-freak into Codex.",
+      "files": [
+        "trigger-project/neat-freak/SKILL.md"
+      ],
+      "additional_skills": [
+        "skill-installer"
+      ],
+      "should_trigger": false
+    },
+    {
+      "id": "near-miss-create-command",
+      "query": "Create a Claude Code slash command named /release-notes.",
+      "additional_skills": [
+        "command-creator"
+      ],
+      "should_trigger": false
+    },
+    {
+      "id": "near-miss-edit-agents-doc",
+      "query": "Rewrite inputs/trigger-project/AGENTS.md so the coding conventions are easier for agents to follow.",
+      "files": [
+        "trigger-project/AGENTS.md"
+      ],
+      "additional_skills": [
+        "project-docs"
+      ],
+      "should_trigger": false
+    },
+    {
+      "id": "near-miss-review-application-code",
+      "query": "Review inputs/trigger-project/src/app.py against the application ticket.",
+      "files": [
+        "trigger-project/src/app.py"
+      ],
+      "additional_skills": [
+        "code-review"
+      ],
+      "should_trigger": false
+    },
+    {
+      "id": "near-miss-debug-script",
+      "query": "inputs/trigger-project/normalize.py throws FileNotFoundError; diagnose the bug.",
+      "files": [
+        "trigger-project/normalize.py"
+      ],
+      "additional_skills": [
+        "diagnosing-bugs"
+      ],
+      "should_trigger": false
+    },
+    {
+      "id": "near-miss-use-existing-skill",
+      "query": "Use proper-fix to decide whether this cache guard is structurally honest.",
+      "additional_skills": [
+        "proper-fix"
+      ],
+      "should_trigger": false
+    },
+    {
+      "id": "near-miss-build-mcp-server",
+      "query": "Build the MCP server described in inputs/trigger-project/mcp-server-spec.md.",
+      "files": [
+        "trigger-project/mcp-server-spec.md"
+      ],
+      "additional_skills": [
+        "mcp-server-builder"
+      ],
+      "should_trigger": false
+    },
+    {
+      "id": "near-miss-compare-models",
+      "query": "Compare the latest Codex and Claude models for long-running coding tasks.",
+      "additional_skills": [
+        "model-comparison"
+      ],
+      "should_trigger": false
+    },
+    {
+      "id": "near-miss-run-existing-skill",
+      "query": "Run the existing skill at inputs/trigger-project/neat-freak and reconcile the project documentation.",
+      "files": [
+        "trigger-project/neat-freak/SKILL.md"
+      ],
+      "additional_skills": [
+        "neat-freak"
+      ],
+      "should_trigger": false
+    },
+    {
+      "id": "near-miss-edit-project-readme",
+      "query": "Update inputs/trigger-project/README.md to document the new CLI flag.",
+      "files": [
+        "trigger-project/README.md"
+      ],
+      "additional_skills": [
+        "project-docs"
+      ],
+      "should_trigger": false
+    }
+  ]
+}

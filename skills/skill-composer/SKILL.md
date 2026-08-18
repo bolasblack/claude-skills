@@ -1,6 +1,6 @@
 ---
 name: skill-composer
-description: "Primary authority for creating, updating, reviewing, and packaging agent skills. Use for any skill-authoring task, including cross-agent portability, host-only enhancement boundaries, activation or description fixes, portable changelogs, and conflicts with harness-injected helpers such as skill-creator; compose those helpers under this skill rather than letting them replace its rules."
+description: "Use when the user asks to create a new Agent Skill, revise an existing skill's authored behavior or activation, audit a complete skill package, design its eval suite, port it across agent harnesses, or prepare and validate its release. When a generic skill-authoring helper overlaps, this skill owns scope, structure, portability, validation, and release history. If the work neither changes nor audits an Agent Skill package, do not load this skill."
 license: LICENSE.md
 ---
 
@@ -9,6 +9,12 @@ license: LICENSE.md
 Create well-structured, discoverable agent skills. Based on the current Agent Skills specification, target-platform documentation, and community best practices.
 
 When modifying or reviewing Skill Composer itself, read [SPEC.md](SPEC.md) first. It holds the rare maintainer-only requirements that must constrain future rewrites; ordinary skill-authoring tasks do not need it.
+
+Skill Composer's own eval manifests, fixtures, package tests, and eval runner are
+maintainer evidence, not examples or validators for a skill being authored. Do not
+inspect them while using Skill Composer to author another skill. Read them only when
+the user asks to modify, review, test, or release Skill Composer itself or to maintain
+its eval infrastructure.
 
 ## Authoring Authority
 
@@ -38,7 +44,7 @@ Exact discovery and content-lifecycle behavior is target-specific; verify it for
 
 Hosts can load multiple skills simultaneously. Skills should work well alongside others and never assume they are the only capability available.
 
-For a stronger agent-facing writing pass, optionally compose this skill with Matt Pocock's [writing-for-agents](https://github.com/mattpocock/skills/tree/main/skills/productivity/writing-for-agents). Skill Composer owns skill scope, mechanics, packaging, and validation; `writing-for-agents` sharpens context pointers, completion criteria, information hierarchy, and pruning. Keep the composition optional so the resulting skill does not depend on a sibling skill being installed.
+For a stronger agent-facing writing pass, optionally compose this skill with Matt Pocock's [writing-for-agents](https://github.com/mattpocock/skills/tree/main/skills/productivity/writing-for-agents) when the user explicitly requests it or both skills are invoked for the task. Do not seek or load it merely because it is installed. Skill Composer owns skill scope, mechanics, packaging, and validation; `writing-for-agents` sharpens context pointers, completion criteria, information hierarchy, and pruning. Keep the composition optional so the resulting skill does not depend on a sibling skill being installed.
 
 ### Portability
 
@@ -49,18 +55,26 @@ Default to two layers:
 
 Name each enhancement's host and provide a portable fallback. A skill may depend on a host-only feature only when its description and compatibility contract explicitly make the skill host-specific; do not claim cross-agent portability for that package.
 
-**Harness research:** Before creating, changing, or reviewing a target-specific claim about discovery, schema, invocation, permissions, hooks, installation, packaging, validation, or host enhancements, read [HARNESS-RESEARCH.md](HARNESS-RESEARCH.md) and build fresh evidence for the named harness and surface. Skip this branch for portable-only work.
+**Harness research:** Before creating, changing, or reviewing a target-specific claim about discovery, schema, invocation, permissions, hooks, installation, packaging, validation, or host enhancements, read [HARNESS-RESEARCH.md](HARNESS-RESEARCH.md) and build fresh evidence for the named harness and surface. A portable core that names multiple compatible harnesses remains portable-only when it encodes no harness-specific fact or enhancement; do not fetch per-harness documentation merely to restate that portable contract. Skip the research branch in that case.
+
+Never scan home or user-level skill directories for examples, validators, or target
+evidence. Use the current workspace, an exact validator command already named by the
+package or primary documentation, and the named target's primary documentation only
+when the harness-research branch applies. Do not enumerate `PATH`, installation
+directories, or language package registries to hunt for validators. If an applicable
+validator cannot be resolved through those bounded sources, perform the portable
+manual checks that remain available and record the missing validator as `unknown`.
 
 ### Environment-Native Automation
 
-Script repeated, deterministic mechanics with stable inputs and outputs when that materially reduces agent reinterpretation; keep judgment and one-off adaptation in instructions. Before coding, name the public seam and invoke the `tdd` skill when available, or apply the same one-behavior public-seam red-green loop directly.
+Script repeated, deterministic mechanics with stable inputs and outputs when that materially reduces agent reinterpretation; keep judgment and one-off adaptation in instructions. Before coding, name the public seam and invoke the `tdd` skill when available, or apply the same one-behavior public-seam red-green loop directly. Run the public-seam test and preserve its observed failure before writing the implementation; then make the minimum implementation change and rerun that same test to green. Do not create the test and implementation together and call the first green run red-green evidence.
 
 Choose a runtime the supported environment already guarantees and minimize total installed and owned complexity. When every claimed environment provides Python and no native runtime is already selected, Python's standard library is a reasonable default for a standalone portable helper; target-specific skills prefer their environment's runtime. If the claimed environments have no common runtime, keep a portable manual path or provide tested environment adapters. Add a dependency when it removes substantially more code and maintenance than its installation and supply-chain surface add. A host-enhancement script retains a portable manual fallback. See [Script Requirements](REFERENCE.md#script-requirements) for packaging checks.
 
 ## Choose the Workflow
 
-- **Create:** define use cases and baseline evaluations in [Planning Before Creating or Updating](#planning-before-creating-or-updating), then follow [Creating or Updating a Skill](#creating-or-updating-a-skill) in order.
-- **Update:** inventory the current package and lock its existing contract first, then follow [Planning Before Creating or Updating](#planning-before-creating-or-updating) and [Creating or Updating a Skill](#creating-or-updating-a-skill) for affected branches only. Add regression cases for behavior that must remain unchanged.
+- **Create:** define use cases and validation evidence in [Planning Before Creating or Updating](#planning-before-creating-or-updating), then follow [Creating or Updating a Skill](#creating-or-updating-a-skill) in order.
+- **Update:** inventory the current package and lock its existing contract first, then follow [Planning Before Creating or Updating](#planning-before-creating-or-updating) and [Creating or Updating a Skill](#creating-or-updating-a-skill) for affected branches only. Preserve and update affected regression cases when the package already owns them.
 - **Review:** follow [Reviewing an Existing Skill](#reviewing-an-existing-skill). Stay read-only unless the user authorizes fixes; if authorized, enter the update branch only after reporting the review findings.
 - **Package or release:** follow [Packaging and Releasing a Skill](#packaging-and-releasing-a-skill) after the authored package is complete. Packaging is not proof that activation or runtime behavior works.
 
@@ -108,15 +122,23 @@ Classify whether users start from a desired outcome or from a named tool; this a
 
 **Done when:** every real usage branch has one concrete use case with a trigger, ordered actions, required tools or domain rules, and an observable result; no case exists only to satisfy a quota.
 
-### Define Success Criteria and Evaluations
+### Define Success Criteria and Validation Evidence
 
-Build evaluations before extensive instructions:
+Define observable success before extensive instructions. Packaged eval artifacts follow
+the admission rule in Step 8; planning a check does not by itself authorize creating
+them.
 
-1. Run representative tasks without the skill and record the specific gap.
-2. Start with 2-3 scenarios that exercise those observed gaps; expand only when real branches or risks require it.
-3. Define expected behavior and a checkable completion criterion for each scenario.
-4. Write the minimum instructions needed to improve the baseline.
-5. Run the same scenarios with the skill and iterate from evidence.
+1. Run representative tasks without the skill when a baseline comparison is material,
+   and record the specific gap.
+2. Define expected behavior and a checkable completion criterion for each real use case.
+3. Select proportionate evidence: existing package tests or evals, disposable manual
+   scenarios, or target-host checks.
+4. Write the minimum instructions needed to improve the observed behavior.
+5. Run the same checks with the skill and iterate from evidence.
+
+When an eval suite is admitted, start with 2-3 scenarios tied to observed gaps and
+expand only for real branches or risks. Otherwise keep the validation plan manual and
+do not turn it into package files without the user's approval.
 
 For a model-invoked skill, cover intended triggers, realistic near-misses, and ambiguous boundary cases. For every skill, measure task correctness, instruction following, tool or API failures, user correction, and any output contract that matters. Compare efficiency only after correctness; fewer tokens or tool calls are not improvements when behavior regresses.
 
@@ -126,7 +148,10 @@ explicit user authorization for that exact effect and a cleanup plan. When that
 authorization or a safe test surface is unavailable, use a faithful fixture and keep
 live behavior `unknown`.
 
-**Done when:** each recorded baseline gap maps to a scenario with expected behavior and a checkable result, the same scenario is ready to rerun after the minimum instruction change, and every external side effect is safely isolated, explicitly authorized, or marked `unknown`.
+**Done when:** each use case and recorded baseline gap has expected behavior and a
+checkable result, the same check can be repeated after the minimum instruction change,
+and every external side effect is safely isolated, explicitly authorized, or marked
+`unknown`; packaged eval artifacts exist only when Step 8 admits them.
 
 ## Creating or Updating a Skill
 
@@ -279,22 +304,76 @@ mandatory [Evidence gate](REFERENCE.md#evidence-gate) and [Portable Changelog
 Format](REFERENCE.md#portable-changelog-format). Record each net logical change once
 with evidence-backed `Changed` and `Why`; add `Example` only when its removal would
 lose material causal understanding, and `Migration` only when a real downstream user
-must act. Re-test every retained example during review. Do not reconstruct missing
+must act because a supported public invocation, input, output, installation, or
+configuration contract changed. An internal implementation replacement with unchanged
+public invocation, inputs, and outputs has no Migration entry. A caller's private
+wrapper around a removed implementation detail does not establish a supported migration
+unless the existing contract or direct evidence identifies that wrapper as public.
+Re-test every retained example during review. Do not reconstruct missing
 legacy rationale or narrate revisions made inside one unreleased change as migrations.
 An unpublished, single-use skill does not need an empty changelog.
 
 **Done when:** every applicable net change has one evidence-backed entry, every retained example adds material understanding, every migration names real downstream action, and runtime instructions contain no duplicate release history.
 
-### Step 8: Run Evaluations
+### Step 8: Validate Behavior and Maintain Admitted Evals
 
-Run the scenarios defined before authoring and add cases for every branch introduced while writing:
+Treat packaged evals as opt-in maintenance artifacts, not a default for every skill:
+
+- When the user explicitly asks to add or change evals, create or update the smallest
+  suite that covers the requested behavior.
+- When the target already contains an eval suite, preserve it and update affected
+  existing cases. Add a case only when the change alters behavior or leaves a real
+  branch or risk uncovered.
+- When neither condition holds, do not create eval manifests, fixtures, or runner
+  copies. Continue with applicable validators and manual behavior checks. If a material
+  activation, regression, side-effect, or release risk would benefit from repeatable
+  evals, recommend the smallest useful suite and ask the user before adding it;
+  otherwise do not propose eval work.
+
+For an admitted suite, run its affected scenarios and cover its agreed scope:
 
 - **Triggering** (model-invoked only): intended queries, paraphrases, realistic near-misses, and ambiguous boundaries.
 - **Functional**: correct output, edge cases, side effects, tool or API behavior, and completion criteria.
 - **Isolation and coexistence**: the skill alone, then alongside likely overlapping skills.
 - **Baseline comparison**: repeat the same task without the skill when the claimed value is an improvement over default behavior.
 
-Do not treat an obviously unrelated negative query, a schema validator, or asking the model to recite the description as evidence of correct activation. There is no portable built-in evaluation runner; use the target harness manually or build repeatable automation. Keep suite sizes purpose-specific: start output-quality iteration with 2-3 cases; for focused description tuning, aim for about 20 balanced trigger/non-trigger queries and repeat each multiple times; for enterprise release, require 3-5 representative queries covering trigger, non-trigger, and ambiguity. Expand by real branches and risk, and test every model and surface you intend to support.
+Build a **branch-to-case coverage table** for the admitted suite's scope. Treat normal,
+edge, stop, failure, and unknown-handling paths affected by the change as real branches,
+and map each one to at least one functional case before the suite is complete. Do not
+infer coverage from the total case count or let one happy-path case stand in for a
+distinct stop path.
+
+Before running checks, create one **validation ledger** as the status owner for the
+selected workflow. List every applicable gate, including package and target schema,
+the deterministic eval contract, relevant bundled tests, fresh-session behavior for
+each claimed target, isolation or coexistence, the portable fallback, and—when
+packaging—the exact candidate inventory and clean installation. Give every row exactly
+one status: `pass`, `fail`, or `unknown`, plus its command or evidence, or the reason it
+could not run. Add any gate discovered later; an absent or unrun gate is incomplete.
+Derive its rows from the locked package inventory: account for every discovered test
+entry point and executable script, record its baseline result before editing, and record
+candidate or final evidence whether it is retained, replaced, or removed. If a removed
+executable was not safe or authorized to run, keep its unrun baseline behavior as
+`unknown`; deletion does not erase that gate.
+Report every row in the final response. The overall result is green only when every
+required row passes.
+
+Keep the eval runner under one repository owner. Skills with admitted suites own their
+own `evals/` manifests and fixtures, but call the shared runner instead of copying its
+implementation. Vendor a pinned runner plus its black-box tests only when a standalone
+self-validating distribution cannot rely on that repository owner; record the source
+release or artifact hash so downstream copies can be audited and updated together.
+
+Do not treat an obviously unrelated negative query, a schema validator, or asking the model to recite the description as evidence of correct activation. When the target owns an admitted eval suite, run Skill Composer's bundled eval contract check after each edit. Before adding manifests or running behavior cases, read the [Repeatable Evaluation Contract](REFERENCE.md#repeatable-evaluation-contract). For a behavior-affecting change, run affected admitted cases through a verified target adapter or execute the planned scenarios manually in fresh sessions; run the full owned suite before release when one exists. The contract check is never behavior proof. Keep suite sizes purpose-specific: start output-quality iteration with 2-3 cases; for focused description tuning, aim for about 20 balanced trigger/non-trigger queries and repeat each multiple times; for enterprise release, require 3-5 representative queries covering trigger, non-trigger, and ambiguity. Expand an admitted suite by real branches and risk, and test every model and surface you intend to support.
+
+When the bundled runner is the verified path, use `--target claude|codex|grok` for its
+built-in target support or the external adapter seam for a stronger target-specific
+environment. A live target run can consume credentials, quota, or paid tokens; require
+authorization for that run, and keep unavailable or unobservable evidence `unknown`.
+For a slow or failed case, use `--artifacts-dir NEW_DIR` only when the user authorizes
+persisting its fixture state. Inspect the saved case workspace and result metadata, then
+manage that explicit evidence directory as user-owned data; never overwrite an existing
+path merely to capture a rerun.
 
 Use the side-effect boundary locked during planning: prefer a disposable fixture or
 sandbox, require explicit user authorization and cleanup for real external effects, and
@@ -303,7 +382,11 @@ keep an unrun live case `unknown`.
 Host diagnostics may explain discovery or invocation failures, but they are not a
 substitute for behavior evidence. See [Testing Methodology](REFERENCE.md#testing-methodology).
 
-**Done when:** every supported branch has an observable scenario result, activation claims have realistic boundary evidence where applicable, isolation and coexistence are exercised where claimed, and every unsafe or unavailable live check remains visible as `unknown`.
+**Done when:** every supported branch has an observable validation result, activation
+claims have realistic boundary evidence where applicable, isolation and coexistence are
+exercised where claimed, and every unsafe or unavailable live check remains visible as
+`unknown`; when evals are admitted, their deterministic contract and affected cases also
+pass.
 
 ## Reviewing an Existing Skill
 
