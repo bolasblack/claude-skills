@@ -330,63 +330,39 @@ Treat packaged evals as opt-in maintenance artifacts, not a default for every sk
   evals, recommend the smallest useful suite and ask the user before adding it;
   otherwise do not propose eval work.
 
-For an admitted suite, run its affected scenarios and cover its agreed scope:
-
-- **Triggering** (model-invoked only): intended queries, paraphrases, realistic near-misses, and ambiguous boundaries.
-- **Functional**: correct output, edge cases, side effects, tool or API behavior, and completion criteria.
-- **Isolation and coexistence**: the skill alone, then alongside likely overlapping skills.
-- **Baseline comparison**: repeat the same task without the skill when the claimed value is an improvement over default behavior.
-
-Build a **branch-to-case coverage table** for the admitted suite's scope. Treat normal,
-edge, stop, failure, and unknown-handling paths affected by the change as real branches,
-and map each one to at least one functional case before the suite is complete. Do not
-infer coverage from the total case count or let one happy-path case stand in for a
-distinct stop path.
+Before creating, updating, running, tuning, or maintaining an admitted eval suite, read
+the [Evaluation Reference](references/evaluation.md). It owns the suite format, coverage
+model, shared-runner boundary, target evidence, observability, and tuning loop; keep
+those branch-only mechanics there.
 
 Before running checks, create one **validation ledger** as the status owner for the
 selected workflow. List every applicable gate, including package and target schema,
-the deterministic eval contract, relevant bundled tests, fresh-session behavior for
-each claimed target, isolation or coexistence, the portable fallback, and—when
-packaging—the exact candidate inventory and clean installation. Give every row exactly
-one status: `pass`, `fail`, or `unknown`, plus its command or evidence, or the reason it
-could not run. Add any gate discovered later; an absent or unrun gate is incomplete.
-Derive its rows from the locked package inventory: account for every discovered test
-entry point and executable script, record its baseline result before editing, and record
-candidate or final evidence whether it is retained, replaced, or removed. If a removed
-executable was not safe or authorized to run, keep its unrun baseline behavior as
-`unknown`; deletion does not erase that gate.
-Report every row in the final response. The overall result is green only when every
-required row passes.
+bundled tests, fresh-session behavior, the portable fallback, clean installation when
+packaging, and the deterministic eval contract when a suite is admitted. Give every row
+exactly one status: `pass`, `fail`, or `unknown`, plus its command or evidence, or
+the reason it could not run. Add any gate discovered later; an absent or unrun gate is
+incomplete. Derive its rows from the locked package inventory: account for every
+discovered test entry point and executable script, record its baseline result before
+editing, and record final evidence whether it is retained, replaced, or removed. If a
+removed executable was not safe or authorized to run, keep its unrun baseline behavior
+as `unknown`; deletion does not erase that gate.
 
-Keep the eval runner under one repository owner. Skills with admitted suites own their
-own `evals/` manifests and fixtures, but call the shared runner instead of copying its
-implementation. Vendor a pinned runner plus its black-box tests only when a standalone
-self-validating distribution cannot rely on that repository owner; record the source
-release or artifact hash so downstream copies can be audited and updated together.
+Run applicable deterministic validators and affected behavior scenarios. For a
+behavior-affecting change, use a verified target adapter or execute the planned scenario
+manually in a fresh session; run the full owned suite before release when one exists. A
+schema or eval-contract check is never behavior proof. Follow the side-effect boundary
+locked during planning, and require explicit user authorization before any live target
+call that consumes credentials, quota, or paid tokens or causes a real external effect.
+Unavailable or unobservable evidence stays `unknown`.
 
-Do not treat an obviously unrelated negative query, a schema validator, or asking the model to recite the description as evidence of correct activation. When the target owns an admitted eval suite, run Skill Composer's bundled eval contract check after each edit. Before adding manifests or running behavior cases, read the [Repeatable Evaluation Contract](REFERENCE.md#repeatable-evaluation-contract). For a behavior-affecting change, run affected admitted cases through a verified target adapter or execute the planned scenarios manually in fresh sessions; run the full owned suite before release when one exists. The contract check is never behavior proof. Keep suite sizes purpose-specific: start output-quality iteration with 2-3 cases; for focused description tuning, aim for about 20 balanced trigger/non-trigger queries and repeat each multiple times; for enterprise release, require 3-5 representative queries covering trigger, non-trigger, and ambiguity. Expand an admitted suite by real branches and risk, and test every model and surface you intend to support.
+Report every ledger row in the final response. The overall result is green only when
+every required row passes. Host diagnostics may explain discovery or invocation
+failures, but they do not substitute for behavior evidence.
 
-When the bundled runner is the verified path, use `--target claude|codex|grok` for its
-built-in target support or the external adapter seam for a stronger target-specific
-environment. A live target run can consume credentials, quota, or paid tokens; require
-authorization for that run, and keep unavailable or unobservable evidence `unknown`.
-For a slow or failed case, use `--artifacts-dir NEW_DIR` only when the user authorizes
-persisting its fixture state. Inspect the saved case workspace and result metadata, then
-manage that explicit evidence directory as user-owned data; never overwrite an existing
-path merely to capture a rerun.
-
-Use the side-effect boundary locked during planning: prefer a disposable fixture or
-sandbox, require explicit user authorization and cleanup for real external effects, and
-keep an unrun live case `unknown`.
-
-Host diagnostics may explain discovery or invocation failures, but they are not a
-substitute for behavior evidence. See [Testing Methodology](REFERENCE.md#testing-methodology).
-
-**Done when:** every supported branch has an observable validation result, activation
-claims have realistic boundary evidence where applicable, isolation and coexistence are
-exercised where claimed, and every unsafe or unavailable live check remains visible as
-`unknown`; when evals are admitted, their deterministic contract and affected cases also
-pass.
+**Done when:** every supported branch has an observable validation result, every
+applicable gate is reported as `pass`, `fail`, or `unknown`, and every unsafe or
+unavailable live check remains visible; an admitted suite also passes its deterministic
+contract and affected cases.
 
 ## Reviewing an Existing Skill
 

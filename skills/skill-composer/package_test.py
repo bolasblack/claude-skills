@@ -263,6 +263,22 @@ class SkillComposerPackageTest(unittest.TestCase):
             "keeps-evals-opt-in",
             assertions["updates-then-packages-cross-harness"],
         )
+        self.assertIn(
+            "does not load the branch-only evaluation reference",
+            assertions["creates-a-portable-skill"]["keeps-evals-opt-in"].lower(),
+        )
+        self.assertIn(
+            "reads the evaluation reference",
+            assertions["updates-repeatable-mechanics"][
+                "maintains-existing-evals"
+            ].lower(),
+        )
+        self.assertIn(
+            "does not load the branch-only evaluation reference",
+            assertions["updates-then-packages-cross-harness"][
+                "keeps-evals-opt-in"
+            ].lower(),
+        )
 
     def test_unreleased_history_records_net_changes_only(self):
         changelog = PACKAGE.joinpath("CHANGELOG.md").read_text(encoding="utf-8")
@@ -409,21 +425,27 @@ class SkillComposerPackageTest(unittest.TestCase):
             self.assertNotIn("examples/", text, name)
             self.assertNotIn("historical pattern snapshot", text, name)
 
-    def test_release_documentation_keeps_behavior_gates_visible(self):
+    def test_release_evaluation_reference_keeps_behavior_gates_visible(self):
         readme = PACKAGE.joinpath("README.md").read_text(encoding="utf-8")
         skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        evaluation = PACKAGE.joinpath("references", "evaluation.md").read_text(
+            encoding="utf-8"
+        )
 
-        self.assertIn("necessary, not sufficient", readme)
+        self.assertIn(
+            "[Evaluation Reference](references/evaluation.md)", readme
+        )
+        self.assertIn("necessary, not sufficient", evaluation)
         for workflow in ("Create", "Update", "Review", "Package/release"):
-            self.assertIn(f"| {workflow} |", readme)
+            self.assertIn(f"| {workflow} |", evaluation)
         for gate in (
-            "fresh-context activation",
+            "Fresh-context activation",
             "portable fallback",
-            "isolation and coexistence",
+            "Isolation and coexistence",
             "clean installation",
             "`unknown`",
         ):
-            self.assertIn(gate, readme)
+            self.assertIn(gate, evaluation)
         self.assertIn(
             "candidate validation has a result for every locked pre-install gate",
             skill,
@@ -461,7 +483,17 @@ class SkillComposerPackageTest(unittest.TestCase):
             flags=re.MULTILINE | re.DOTALL,
         )
         self.assertIsNotNone(evaluation_step)
-        contract = " ".join(evaluation_step.group(1).lower().split())
+        route = " ".join(evaluation_step.group(1).lower().split())
+        contract = " ".join(
+            PACKAGE.joinpath("references", "evaluation.md")
+            .read_text(encoding="utf-8")
+            .lower()
+            .split()
+        )
+
+        self.assertIn(
+            "[evaluation reference](references/evaluation.md)", route
+        )
 
         for phrase in (
             "branch-to-case coverage table",
@@ -527,7 +559,9 @@ class SkillComposerPackageTest(unittest.TestCase):
         script = PACKAGE / "scripts" / "eval-skill.py"
         script_test = PACKAGE / "scripts" / "eval-skill_test.py"
         skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
-        reference = PACKAGE.joinpath("REFERENCE.md").read_text(encoding="utf-8")
+        evaluation = PACKAGE.joinpath("references", "evaluation.md").read_text(
+            encoding="utf-8"
+        )
         readme = PACKAGE.joinpath("README.md").read_text(encoding="utf-8")
 
         self.assertTrue(script.is_file())
@@ -544,21 +578,22 @@ class SkillComposerPackageTest(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn("functional=4 trigger=20", result.stdout)
         self.assertIn(
-            "[Repeatable Evaluation Contract]"
-            "(REFERENCE.md#repeatable-evaluation-contract)",
+            "[Evaluation Reference](references/evaluation.md)",
             skill,
         )
-        self.assertIn("## Repeatable Evaluation Contract", reference)
-        self.assertIn("one repository owner", skill.lower())
+        self.assertIn("## Repeatable Evaluation Contract", evaluation)
+        self.assertIn("one repository owner", evaluation.lower())
         self.assertRegex(
-            skill.lower(), r"standalone\s+self-validating\s+distribution"
+            evaluation.lower(), r"standalone\s+self-validating\s+distribution"
         )
-        self.assertIn("--target claude|codex|grok", skill)
+        self.assertIn("--target claude|codex|grok", evaluation)
         for target in ("Claude", "Codex", "Grok"):
-            self.assertIn(target, reference)
-        self.assertIn("candidate session", reference)
-        self.assertIn("grader session", reference)
-        self.assertIn("no attributable automatic skill activation event", reference)
+            self.assertIn(target, evaluation)
+        self.assertIn("candidate session", evaluation)
+        self.assertIn("grader session", evaluation)
+        self.assertIn(
+            "no attributable automatic skill activation event", evaluation
+        )
         for packaged_path in (
             "scripts/eval-skill.py",
             "scripts/eval-skill_test.py",
@@ -567,12 +602,61 @@ class SkillComposerPackageTest(unittest.TestCase):
         ):
             self.assertIn(packaged_path, readme)
 
-    def test_eval_docs_match_the_observable_runner_and_iteration_method(self):
+    def test_eval_guidance_is_disclosed_only_for_admitted_suites(self):
+        evaluation_path = PACKAGE / "references" / "evaluation.md"
+        self.assertTrue(evaluation_path.is_file())
+
+        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
         reference = PACKAGE.joinpath("REFERENCE.md").read_text(encoding="utf-8")
         readme = PACKAGE.joinpath("README.md").read_text(encoding="utf-8")
-        contract = " ".join((reference + "\n" + readme).lower().split())
+        evaluation = evaluation_path.read_text(encoding="utf-8")
+        evaluation_step = skill.split("### Step 8:", 1)[1].split("\n## ", 1)[0]
+        routed_contract = " ".join(evaluation_step.lower().split())
+        evaluation_contract = " ".join(evaluation.lower().split())
+        readme_contract = " ".join(readme.lower().split())
+
+        self.assertIn(
+            "before creating, updating, running, tuning, or maintaining an "
+            "admitted eval suite",
+            routed_contract,
+        )
+        self.assertIn(
+            "[evaluation reference](references/evaluation.md)", routed_contract
+        )
+        self.assertIn(
+            "[evaluation reference](references/evaluation.md)", reference.lower()
+        )
+        self.assertIn(
+            "[evaluation reference](references/evaluation.md)", readme.lower()
+        )
+
+        for heading in (
+            "## Repeatable Evaluation Contract",
+            "## Evaluation Tuning Loop",
+            "## Testing Methodology",
+        ):
+            self.assertIn(heading, evaluation)
+            self.assertNotIn(heading, reference)
+
+        for disclosed_detail in (
+            "branch-to-case coverage table",
+            "change exactly one owner per iteration",
+            "system/init",
+            "benchmark.json",
+        ):
+            self.assertIn(disclosed_detail, evaluation_contract)
+            self.assertNotIn(disclosed_detail, routed_contract)
+            self.assertNotIn(disclosed_detail, readme_contract)
+
+    def test_eval_docs_match_the_observable_runner_and_iteration_method(self):
+        evaluation = PACKAGE.joinpath("references", "evaluation.md").read_text(
+            encoding="utf-8"
+        )
+        contract = " ".join(evaluation.lower().split())
 
         for phrase in (
+            "adapts parts of the official agent skills guide",
+            "https://agentskills.io/skill-creation/evaluating-skills",
             "each receive the full `--timeout` bound",
             "candidate-events.jsonl",
             "candidate-timing.json",
@@ -585,10 +669,72 @@ class SkillComposerPackageTest(unittest.TestCase):
             "benchmark.json",
             "human feedback",
             "train/validation",
+            "claude's `--effort` flag",
+            "codex's `model_reasoning_effort` configuration",
+            "linux process is uid 0",
+            "non-root uid before claude starts",
+            "without disabling claude's native sandbox",
         ):
             self.assertIn(phrase, contract)
         self.assertNotIn("share a 900-second case deadline", contract)
         self.assertNotIn("share a case deadline", contract)
+
+    def test_eval_tuning_changes_one_owner_and_accepts_only_the_final_tree(self):
+        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        evaluation = PACKAGE.joinpath("references", "evaluation.md").read_text(
+            encoding="utf-8"
+        )
+        skill_contract = " ".join(skill.lower().split())
+        self.assertIn("## Evaluation Tuning Loop", evaluation)
+        tuning_contract = " ".join(
+            evaluation.split("## Evaluation Tuning Loop", 1)[1]
+            .split("\n## ", 1)[0]
+            .lower()
+            .split()
+        )
+
+        self.assertIn(
+            "[evaluation reference](references/evaluation.md)",
+            skill_contract,
+        )
+
+        for phrase in (
+            "change exactly one owner per iteration",
+            "skill behavior, eval design, runner or adapter, or provider or environment",
+            "rerun the same case",
+            "freeze the final tree",
+            "one explicit hypothesis",
+            "a changed case starts a new baseline",
+            "unknown is not a skill failure",
+            "diagnostic timeout is not an acceptance threshold",
+            "realistic files and competing skills",
+            "do not combine passes from different intermediate trees",
+        ):
+            self.assertIn(phrase, tuning_contract)
+
+        manifest = json.loads(
+            PACKAGE.joinpath("evals", "evals.json").read_text(encoding="utf-8")
+        )
+        update_case = next(
+            case
+            for case in manifest["evals"]
+            if case["id"] == "updates-repeatable-mechanics"
+        )
+        assertion = next(
+            item
+            for item in update_case["assertions"]
+            if item["id"] == "maintains-existing-evals"
+        )["description"].lower()
+        self.assertIn("if an eval result is non-green or flaky", assertion)
+        self.assertIn(
+            "records unavailable fresh-session behavior as unknown", assertion
+        )
+        for phrase in (
+            "classifies the result before editing",
+            "changes only the responsible owner",
+            "reruns the same case",
+        ):
+            self.assertIn(phrase, assertion)
 
 
 if __name__ == "__main__":

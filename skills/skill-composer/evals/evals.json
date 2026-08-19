@@ -30,7 +30,7 @@
         },
         {
           "id": "maintains-existing-evals",
-          "description": "Because this package already owns an eval suite, the agent preserves it, updates affected cases when needed, runs its deterministic contract check and relevant bundled tests, and records unavailable fresh-session behavior as unknown rather than passed."
+          "description": "Because this package already owns an eval suite, the agent reads the Evaluation Reference before preserving it and updating affected cases when needed, runs the deterministic contract check and relevant bundled tests, and records unavailable fresh-session behavior as unknown rather than passed. If an eval result is non-green or flaky, it classifies the result before editing, changes only the responsible owner, and reruns the same case before affected neighbors."
         }
       ]
     },
@@ -79,7 +79,7 @@
         },
         {
           "id": "keeps-evals-opt-in",
-          "description": "Because the user did not request evals and the new package had none, the agent does not create eval manifests, fixtures, or runner copies; if it identifies a material need for repeatability, it asks before adding them."
+          "description": "Because the user did not request evals and the new package had none, the agent does not load the branch-only Evaluation Reference or create eval manifests, fixtures, or runner copies; if it identifies a material need for repeatability, it asks before adding them."
         },
         {
           "id": "validates-without-proxy-claims",
@@ -112,7 +112,7 @@
         },
         {
           "id": "keeps-evals-opt-in",
-          "description": "Because the existing package has no eval suite and the user did not request one, the agent does not add eval manifests, fixtures, or runner copies; it asks first if a material risk makes a repeatable suite worth adding."
+          "description": "Because the existing package has no eval suite and the user did not request one, the agent does not load the branch-only Evaluation Reference or add eval manifests, fixtures, or runner copies; it asks first if a material risk makes a repeatable suite worth adding."
         },
         {
           "id": "validates-the-exact-candidate",

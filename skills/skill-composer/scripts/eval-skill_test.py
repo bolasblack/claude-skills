@@ -4,6 +4,7 @@
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -174,6 +175,7 @@ host_directory = {
 staged_skill = cwd / host_directory / "skills" / "sample-skill"
 record = {
     "target": target,
+    "euid": os.geteuid(),
     "arguments": arguments,
     "cwd": str(cwd),
     "staged_skill": str(staged_skill),
@@ -1123,6 +1125,96 @@ else:
                         candidate["prompt"],
                     )
 
+    def test_run_forwards_codex_reasoning_effort_to_candidate_and_grader(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            log_path = Path(temp_dir, "codex.jsonl")
+            bin_dir = self.make_fake_target(temp_dir, "codex")
+            environment = self.fake_target_environment(bin_dir, log_path)
+
+            result = self.run_cli(
+                "run",
+                skill,
+                "--target",
+                "codex",
+                "--model",
+                "gpt-5.6-terra",
+                "--reasoning-effort",
+                "high",
+                env=environment,
+            )
+            records = self.read_target_log(log_path) if log_path.exists() else []
+
+        self.assertEqual(0, result.returncode, result.stderr + result.stdout)
+        self.assertEqual(2, len(records), records)
+        for record in records:
+            self.assertIn("gpt-5.6-terra", record["arguments"])
+            config_index = record["arguments"].index("-c")
+            self.assertEqual(
+                'model_reasoning_effort="high"',
+                record["arguments"][config_index + 1],
+            )
+
+    def test_run_forwards_claude_reasoning_effort_to_candidate_and_grader(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            log_path = Path(temp_dir, "claude.jsonl")
+            bin_dir = self.make_fake_target(temp_dir, "claude")
+            environment = self.fake_target_environment(bin_dir, log_path)
+
+            result = self.run_cli(
+                "run",
+                skill,
+                "--target",
+                "claude",
+                "--model",
+                "claude-sonnet-5",
+                "--reasoning-effort",
+                "high",
+                env=environment,
+            )
+            records = self.read_target_log(log_path) if log_path.exists() else []
+
+        self.assertEqual(0, result.returncode, result.stderr + result.stdout)
+        self.assertEqual(2, len(records), records)
+        for record in records:
+            self.assertIn("claude-sonnet-5", record["arguments"])
+            effort_index = record["arguments"].index("--effort")
+            self.assertEqual("high", record["arguments"][effort_index + 1])
+            mcp_config_index = record["arguments"].index("--mcp-config")
+            self.assertEqual(
+                {"mcpServers": {}},
+                json.loads(record["arguments"][mcp_config_index + 1]),
+            )
+
+    @unittest.skipUnless(
+        sys.platform.startswith("linux")
+        and os.geteuid() == 0
+        and shutil.which("bwrap"),
+        "Claude's root sandbox regression is Linux/root/bubblewrap-specific",
+    )
+    def test_run_executes_writable_claude_candidate_as_non_root(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            log_path = Path(temp_dir, "claude.jsonl")
+            bin_dir = self.make_fake_target(temp_dir, "claude")
+            environment = self.fake_target_environment(bin_dir, log_path)
+
+            result = self.run_cli(
+                "run",
+                skill,
+                "--target",
+                "claude",
+                env=environment,
+            )
+            records = self.read_target_log(log_path) if log_path.exists() else []
+
+        self.assertEqual(0, result.returncode, result.stderr + result.stdout)
+        candidate = next(item for item in records if not item["grader"])
+        grader = next(item for item in records if item["grader"])
+        self.assertNotEqual(0, candidate["euid"])
+        self.assertEqual(0, grader["euid"])
+
     def test_run_requires_a_completed_inspection_before_grader_output(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             skill = self.make_skill(temp_dir)
@@ -1965,6 +2057,39 @@ else:
             model_without_target = self.run_cli(
                 "run", skill, "--model", "fixture-model"
             )
+            reasoning_without_supported_target = self.run_cli(
+                "run",
+                skill,
+                "--target",
+                "grok",
+                "--reasoning-effort",
+                "high",
+            )
+            unsupported_claude_reasoning = self.run_cli(
+                "run",
+                skill,
+                "--target",
+                "claude",
+                "--reasoning-effort",
+                "minimal",
+            )
+            unsupported_codex_reasoning = self.run_cli(
+                "run",
+                skill,
+                "--target",
+                "codex",
+                "--reasoning-effort",
+                "max",
+            )
+            unsupported_reasoning = self.run_cli(
+                "run",
+                skill,
+                "--target",
+                "codex",
+                "--reasoning-effort",
+                "extreme",
+                env={"PATH": ""},
+            )
             malformed_mapping = self.run_cli(
                 "run",
                 skill,
@@ -1978,6 +2103,23 @@ else:
         self.assertIn("choose either --target or an adapter", target_and_adapter.stderr)
         self.assertEqual(2, model_without_target.returncode)
         self.assertIn("--model requires --target", model_without_target.stderr)
+        self.assertEqual(2, reasoning_without_supported_target.returncode)
+        self.assertIn(
+            "--reasoning-effort requires --target claude or codex",
+            reasoning_without_supported_target.stderr,
+        )
+        self.assertEqual(2, unsupported_claude_reasoning.returncode)
+        self.assertIn(
+            "--reasoning-effort 'minimal' is not supported for --target claude",
+            unsupported_claude_reasoning.stderr,
+        )
+        self.assertEqual(2, unsupported_codex_reasoning.returncode)
+        self.assertIn(
+            "--reasoning-effort 'max' is not supported for --target codex",
+            unsupported_codex_reasoning.stderr,
+        )
+        self.assertEqual(2, unsupported_reasoning.returncode)
+        self.assertIn("invalid choice: 'extreme'", unsupported_reasoning.stderr)
         self.assertEqual(2, malformed_mapping.returncode)
         self.assertIn("NAME=PATH", malformed_mapping.stderr)
 
