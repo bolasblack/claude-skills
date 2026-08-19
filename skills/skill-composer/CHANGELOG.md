@@ -4,10 +4,25 @@ This file records Skill Composer releases so the history travels with standalone
 
 ## [Unreleased]
 
+### Keep Claude live evals strict under root
+
+- **Changed:** Pass an empty MCP set to Claude with its current `{"mcpServers":{}}` configuration shape. On Linux root runs, launch only a writable Claude candidate through a `bwrap` user-namespace identity translation so Claude starts as non-root while its own fail-closed filesystem, network, and Unix-socket sandbox remains enabled. Black-box tests lock both the MCP shape and the candidate/grader identity boundary.
+- **Why:** A Sonnet 5 live eval first stopped before inference because `{}` no longer satisfied Claude's MCP schema, then reached the candidate but every Bash call failed in Claude Code's root-only nested UID-mapping path. Disabling the sandbox, allowing all Unix sockets, or accepting manual reasoning as red-green evidence would have hidden the failure by weakening the eval contract.
+
+### Make live eval effort explicit
+
+- **Changed:** Added a target-aware `--reasoning-effort` runner option and pass its validated value to both the candidate and independent grader through Claude's `--effort` flag or Codex's `model_reasoning_effort` configuration. Black-box coverage observes all four target invocations and rejects target-incompatible values or unsupported targets before a provider call.
+- **Why:** A model override alone could not prove that an authorized live run used the requested reasoning effort, especially while the runner isolated or ignored ambient user configuration. One public option now makes Claude and Codex eval configurations reproducible without mutating either target's global settings.
+
+### Disclose evaluation guidance only for admitted suites
+
+- **Changed:** Consolidated eval manifests, shared-runner behavior, target evidence limits, observability, acceptance gates, tuning, and testing methodology in `references/evaluation.md`. Step 8 retains the opt-in admission decision, universal validation ledger, live-effect authorization boundary, and one conditional pointer; the README now provides only the local validation quick start and that pointer. The evaluation reference explicitly attributes the portions of its case-design and iteration method adapted from the official Agent Skills evaluation guide.
+- **Why:** Eval maintenance is a real but infrequent branch. Keeping its full runner and methodology contract in the always-loaded authoring reference and repeating operational details in the README spent context on skills without evals and created multiple places where the same behavior could drift.
+
 ### Align evaluation iteration with the official method
 
-- **Changed:** Expanded the testing methodology around realistic 2-3-case pilots, same-prompt no-skill or previous-version baselines, fresh isolated workspaces, objectively checkable assertions, evidence-bearing grading, per-phase time/token/cost capture, repeated-run aggregation, transcript outlier analysis, blind comparison, human feedback, and trigger train/validation splits. The documentation distinguishes the runner's implemented case evidence and trigger aggregation from `benchmark.json`, blind comparison, human-feedback, and train/validation orchestration that still require a manual or separately verified path.
-- **Why:** The official Agent Skills evaluation guide treats evals as an iteration loop rather than a collection of prompt files. Without the baseline, evidence, cost, aggregation, transcript, and human-review stages, a passing assertion set cannot show whether a skill improved over default behavior, generalized beyond tuned prompts, or merely spent more time reaching the same result.
+- **Changed:** Expanded the testing methodology around realistic 2-3-case pilots, same-prompt no-skill or previous-version baselines, fresh isolated workspaces, objectively checkable assertions, evidence-bearing grading, per-phase time/token/cost capture, repeated-run aggregation, transcript outlier analysis, blind comparison, human feedback, and trigger train/validation splits. A diagnostic tuning loop now freezes one case, classifies each non-green result as skill behavior, eval design, runner/adapter, or provider/environment, changes one responsible owner per iteration, reruns the same case before neighboring regressions, and accepts only a full-suite result from one frozen final tree. The documentation distinguishes the runner's implemented case evidence and trigger aggregation from `benchmark.json`, blind comparison, human-feedback, and train/validation orchestration that still require a manual or separately verified path.
+- **Why:** The official Agent Skills evaluation guide treats evals as an iteration loop rather than a collection of prompt files. Live evaluation also showed that skill defects, ambiguous fixtures, runner lifecycle or protocol faults, and target limitations can surface as the same non-green verdict; changing several owners or combining passes from intermediate trees would hide causality. Without the baseline, owner classification, single-hypothesis retry, evidence, cost, aggregation, transcript, final-tree rerun, and human-review stages, a passing assertion set cannot show whether a skill improved over default behavior, generalized beyond tuned prompts, or merely spent more time reaching the same result.
 
 ### Keep migration claims on the public contract
 

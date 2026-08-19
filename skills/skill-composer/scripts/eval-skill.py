@@ -22,6 +22,11 @@ FUNCTIONAL_CATEGORIES = {"baseline", "coexistence", "functional", "isolation"}
 SAFE_SIDE_EFFECTS = {"fixture", "none"}
 RESULT_STATUSES = {"fail", "pass", "unknown"}
 TARGETS = {"claude", "codex", "grok"}
+TARGET_REASONING_EFFORTS = {
+    "claude": {"low", "medium", "high", "xhigh", "max"},
+    "codex": {"minimal", "low", "medium", "high", "xhigh"},
+}
+REASONING_EFFORTS = set().union(*TARGET_REASONING_EFFORTS.values())
 TARGET_SKILL_ROOTS = {
     "claude": Path(".claude/skills"),
     "codex": Path(".agents/skills"),
@@ -652,6 +657,38 @@ def claude_settings(writable):
     return settings
 
 
+def claude_command_prefix(writable, grader):
+    if not (
+        writable
+        and not grader
+        and sys.platform.startswith("linux")
+        and os.geteuid() == 0
+    ):
+        return ["claude"]
+    bwrap = shutil.which("bwrap")
+    if bwrap is None:
+        return ["claude"]
+    return [
+        bwrap,
+        "--die-with-parent",
+        "--unshare-user",
+        "--uid",
+        "1000",
+        "--gid",
+        "1000",
+        "--bind",
+        "/",
+        "/",
+        "--dev-bind",
+        "/dev",
+        "/dev",
+        "--proc",
+        "/proc",
+        "--",
+        "claude",
+    ]
+
+
 def build_target_command(
     target,
     prompt,
@@ -659,6 +696,7 @@ def build_target_command(
     model,
     writable,
     *,
+    reasoning_effort=None,
     grader=False,
     schema=None,
     schema_path=None,
@@ -672,7 +710,7 @@ def build_target_command(
         if not grader and not writable:
             tools = "Skill,Read,Glob,Grep"
         command = [
-            "claude",
+            *claude_command_prefix(writable, grader),
             "-p",
             prompt,
             "--output-format",
@@ -682,7 +720,7 @@ def build_target_command(
             "project",
             "--strict-mcp-config",
             "--mcp-config",
-            "{}",
+            '{"mcpServers":{}}',
             "--no-chrome",
             "--permission-mode",
             "dontAsk",
@@ -701,6 +739,8 @@ def build_target_command(
             command.append("--disable-slash-commands")
         if model:
             command.extend(["--model", model])
+        if reasoning_effort:
+            command.extend(["--effort", reasoning_effort])
         return command
 
     if target == "codex":
@@ -725,6 +765,10 @@ def build_target_command(
             )
         if model:
             command.extend(["--model", model])
+        if reasoning_effort:
+            command.extend(
+                ["-c", f'model_reasoning_effort="{reasoning_effort}"']
+            )
         command.append(prompt)
         return command
 
@@ -1657,6 +1701,7 @@ def parse_grader_output(target, completed, output_path=None):
 def grade_functional_case(
     target,
     model,
+    reasoning_effort,
     case,
     workspace,
     candidate,
@@ -1714,6 +1759,7 @@ def grade_functional_case(
             grader_workspace,
             model,
             False,
+            reasoning_effort=reasoning_effort,
             grader=True,
             schema=schema,
             schema_path=schema_path,
@@ -1751,6 +1797,7 @@ def run_builtin_target_case(
     request,
     target,
     model,
+    reasoning_effort,
     workspace,
     timeout,
     additional_skill_paths,
@@ -1791,6 +1838,7 @@ def run_builtin_target_case(
             workspace,
             model,
             writable,
+            reasoning_effort=reasoning_effort,
             disable_skills=not request["skill"]["enabled"],
         )
         stop_when = None
@@ -1869,6 +1917,7 @@ def run_builtin_target_case(
         structured, grader_session_id = grade_functional_case(
             target,
             model,
+            reasoning_effort,
             grading_case,
             workspace,
             candidate,
@@ -1939,6 +1988,7 @@ def run_case(
     adapter,
     target,
     model,
+    reasoning_effort,
     additional_skill_paths,
     iteration,
     timeout,
@@ -1960,6 +2010,7 @@ def run_case(
                 request,
                 target,
                 model,
+                reasoning_effort,
                 workspace,
                 timeout,
                 additional_skill_paths,
@@ -2003,6 +2054,7 @@ def run_evaluations(
     adapter,
     target,
     model,
+    reasoning_effort,
     additional_skill_values,
     repeat,
     timeout,
@@ -2029,6 +2081,17 @@ def run_evaluations(
         raise ContractError("choose either --target or an adapter after --")
     if model and not target:
         raise ContractError("--model requires --target")
+    if reasoning_effort:
+        supported_efforts = TARGET_REASONING_EFFORTS.get(target)
+        if supported_efforts is None:
+            raise ContractError(
+                "--reasoning-effort requires --target claude or codex"
+            )
+        if reasoning_effort not in supported_efforts:
+            raise ContractError(
+                f"--reasoning-effort {reasoning_effort!r} is not supported for "
+                f"--target {target}"
+            )
     if additional_skill_values and not target:
         raise ContractError("--additional-skill requires --target")
     if not target and not adapter:
@@ -2061,6 +2124,7 @@ def run_evaluations(
                 adapter,
                 target,
                 model,
+                reasoning_effort,
                 additional_skill_paths,
                 iteration,
                 timeout,
@@ -2184,6 +2248,11 @@ def build_parser():
         help="target model override; valid only with --target",
     )
     run.add_argument(
+        "--reasoning-effort",
+        choices=sorted(REASONING_EFFORTS),
+        help="target reasoning effort override; valid with --target claude or codex",
+    )
+    run.add_argument(
         "--additional-skill",
         action="append",
         default=[],
@@ -2223,6 +2292,7 @@ def main(argv=None):
                 arguments.adapter,
                 arguments.target,
                 arguments.model,
+                arguments.reasoning_effort,
                 arguments.additional_skill,
                 arguments.repeat,
                 arguments.timeout,
