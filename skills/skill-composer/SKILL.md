@@ -10,11 +10,14 @@ Create well-structured, discoverable agent skills. Based on the current Agent Sk
 
 When modifying or reviewing Skill Composer itself, read [SPEC.md](SPEC.md) first. It holds the rare maintainer-only requirements that must constrain future rewrites; ordinary skill-authoring tasks do not need it.
 
-Skill Composer's own eval manifests, fixtures, package tests, and eval runner are
-maintainer evidence, not examples or validators for a skill being authored. Do not
-inspect them while using Skill Composer to author another skill. Read them only when
-the user asks to modify, review, test, or release Skill Composer itself or to maintain
-its eval infrastructure.
+Skill Composer's own eval manifests, fixtures, package tests, and eval runner's
+implementation are maintainer evidence, not examples or validators for a skill being
+authored. Do not inspect them while using Skill Composer to author another skill. The
+runner's documented public CLI is a shared validator, and Step 8 owns when to invoke
+that CLI. The target is not expected to contain a runner copy. Invoke this public seam
+without inspecting the runner implementation or Skill Composer's own eval package.
+Read maintainer evidence only when the user asks to modify, review, test, or release
+Skill Composer itself or to maintain its eval infrastructure.
 
 ## Authoring Authority
 
@@ -74,7 +77,7 @@ Choose a runtime the supported environment already guarantees and minimize total
 ## Choose the Workflow
 
 - **Create:** define use cases and validation evidence in [Planning Before Creating or Updating](#planning-before-creating-or-updating), then follow [Creating or Updating a Skill](#creating-or-updating-a-skill) in order.
-- **Update:** inventory the current package and lock its existing contract first, then follow [Planning Before Creating or Updating](#planning-before-creating-or-updating) and [Creating or Updating a Skill](#creating-or-updating-a-skill) for affected branches only. Preserve and update affected regression cases when the package already owns them.
+- **Update:** inventory the current package and lock its existing contract first. If the inventory contains `evals/evals.json` or `evals/trigger-eval.json`, or the user explicitly asks for eval work, read the [Evaluation Reference](references/evaluation.md) before editing the target and enter Step 8 for that branch. Otherwise keep that reference unopened. Then follow [Planning Before Creating or Updating](#planning-before-creating-or-updating) and [Creating or Updating a Skill](#creating-or-updating-a-skill) for affected branches only. Preserve and update affected regression cases when the package already owns them.
 - **Review:** follow [Reviewing an Existing Skill](#reviewing-an-existing-skill). Stay read-only unless the user authorizes fixes; if authorized, enter the update branch only after reporting the review findings.
 - **Package or release:** follow [Packaging and Releasing a Skill](#packaging-and-releasing-a-skill) after the authored package is complete. Packaging is not proof that activation or runtime behavior works.
 
@@ -330,6 +333,8 @@ Treat packaged evals as opt-in maintenance artifacts, not a default for every sk
   evals, recommend the smallest useful suite and ask the user before adding it;
   otherwise do not propose eval work.
 
+When neither condition holds, stay in the no-suite branch: do not search, grep, or open the Evaluation Reference; do not inspect or invoke `eval-skill.py`, including `check`. That CLI validates admitted eval contracts and is not a general package or target schema validator. Use the applicable portable schema validator, named target validator, bundled tests, and manual behavior checks instead.
+
 Before creating, updating, running, tuning, or maintaining an admitted eval suite, read
 the [Evaluation Reference](references/evaluation.md). It owns the suite format, coverage
 model, shared-runner boundary, target evidence, observability, and tuning loop; keep
@@ -346,6 +351,8 @@ discovered test entry point and executable script, record its baseline result be
 editing, and record final evidence whether it is retained, replaced, or removed. If a
 removed executable was not safe or authorized to run, keep its unrun baseline behavior
 as `unknown`; deletion does not erase that gate.
+
+Apply ledger evidence to every artifact: frontmatter, body, changelog, and final report may call a named target verified, supported, or tested only when the matching target-behavior ledger row is `pass`. Static schema validation, a manual walkthrough, portable-by-construction design, or a pass on one target does not prove behavior on another; use narrower design wording and keep unrun targets `unknown`.
 
 Run applicable deterministic validators and affected behavior scenarios. For a
 behavior-affecting change, use a verified target adapter or execute the planned scenario
@@ -394,7 +401,7 @@ Run the portable schema validator plus the named target's validator; neither rep
 
 ### Review Step 5: Report, Then Fix if Authorized
 
-For each finding, provide severity, file and line evidence, impact, the smallest adequate fix, and an objective completion criterion. Separate confirmed facts, inferences, and unknowns. If changes are authorized, apply them, rerun affected gates, and update the skill-local changelog under its Evidence gate when the release policy applies.
+A finding is the complete review record: severity, file and line evidence, impact, the smallest adequate fix, and an objective completion criterion. A request for "only findings and evidence" still asks for that complete record; it excludes unrelated narration and mutation, and does not authorize applying the fix. Separate confirmed facts, inferences, and unknowns. If changes are authorized, apply them, rerun affected gates, and update the skill-local changelog under its Evidence gate when the release policy applies.
 
 **Done when:** every review rule and finding is accounted for with evidence, impact, smallest fix, and completion criterion; authorized fixes have affected gates and semantic residue rechecked; changelog evidence is updated where applicable; and no unknown or unrun check is presented as a pass. Use the full [Skill Review Checklist](REFERENCE.md#skill-review-checklist) as the coverage ledger.
 

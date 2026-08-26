@@ -182,6 +182,11 @@ record = {
     "grader": is_grader,
     "prompt": prompt,
     "skill_staged": staged_skill.joinpath("SKILL.md").is_file(),
+    "skill_text": (
+        staged_skill.joinpath("SKILL.md").read_text(encoding="utf-8")
+        if staged_skill.joinpath("SKILL.md").is_file()
+        else None
+    ),
     "top_level_skill_staged": cwd.joinpath("sample-skill", "SKILL.md").is_file(),
     "evals_staged": staged_skill.joinpath("evals").exists(),
     "other_staged": cwd.joinpath(
@@ -193,6 +198,16 @@ record = {
         or "should_trigger" in prompt
     ),
     "disable_autoupdater": os.environ.get("GROK_DISABLE_AUTOUPDATER"),
+    "skill_named_directory_visible": cwd.joinpath(
+        "candidate", "sample-skill", "notes.txt"
+    ).is_file(),
+    "after_state_lists_skill_named_file": (
+        "sample-skill/notes.txt" in json.loads(
+            cwd.joinpath("after.json").read_text(encoding="utf-8")
+        )
+        if cwd.joinpath("after.json").is_file()
+        else None
+    ),
     "sandbox_toml": (
         cwd.joinpath(".grok", "sandbox.toml").read_text(encoding="utf-8")
         if cwd.joinpath(".grok", "sandbox.toml").is_file()
@@ -201,6 +216,14 @@ record = {
 }
 with Path(os.environ["FAKE_TARGET_LOG"]).open("a", encoding="utf-8") as stream:
     stream.write(json.dumps(record) + "\\n")
+
+mutation_target = os.environ.get("FAKE_MUTATE_SOURCE_SKILL")
+mutation_marker = os.environ.get("FAKE_MUTATION_MARKER")
+if mutation_target and mutation_marker and not is_grader:
+    marker = Path(mutation_marker)
+    if not marker.exists():
+        Path(mutation_target).write_text("mutated during run\\n", encoding="utf-8")
+        marker.write_text("mutated\\n", encoding="utf-8")
 
 session_id = (
     os.environ.get("FAKE_FIXED_GRADER_SESSION") if is_grader else None
@@ -305,7 +328,13 @@ if is_grader:
     raise SystemExit(0)
 
 cwd.joinpath("artifact.txt").write_text("created by candidate\\n", encoding="utf-8")
+if os.environ.get("FAKE_WRITE_SKILL_NAMED_DIRECTORY"):
+    cwd.joinpath("sample-skill").mkdir(exist_ok=True)
+    cwd.joinpath("sample-skill", "notes.txt").write_text(
+        "candidate notes\\n", encoding="utf-8"
+    )
 should_activate = "Create a skill" in prompt
+explore_seconds = os.environ.get("FAKE_EXPLORE_BEFORE_DECIDING_SECONDS")
 if target == "claude":
     print(json.dumps({
         "type": "system",
@@ -315,6 +344,20 @@ if target == "claude":
         "skills": [] if os.environ.get("FAKE_NO_CATALOG") else ["sample-skill"],
         "slash_commands": [] if os.environ.get("FAKE_NO_CATALOG") else ["sample-skill"],
     }))
+    if explore_seconds:
+        print(json.dumps({
+            "type": "assistant",
+            "session_id": session_id,
+            "message": {
+                "content": [{
+                    "type": "tool_use",
+                    "name": "Read",
+                    "input": {"file_path": str(cwd / "README.md")},
+                }],
+                "stop_reason": "tool_use",
+            },
+        }), flush=True)
+        time.sleep(float(explore_seconds))
     if should_activate:
         print(json.dumps({
             "type": "assistant",
@@ -326,7 +369,9 @@ if target == "claude":
                     "input": {"skill": "sample-skill"},
                 }],
             },
-        }))
+        }), flush=True)
+        if os.environ.get("FAKE_SLEEP_AFTER_CLAUDE_ACTIVATION"):
+            time.sleep(float(os.environ["FAKE_SLEEP_AFTER_CLAUDE_ACTIVATION"]))
     print(json.dumps({
         "type": "result",
         "subtype": "success",
@@ -357,6 +402,20 @@ else:
         "slash_commands": [] if os.environ.get("FAKE_NO_CATALOG") else ["sample-skill"],
         "tools": ["read_file", "search_replace"],
     }))
+    if explore_seconds:
+        print(json.dumps({
+            "type": "assistant",
+            "session_id": session_id,
+            "message": {
+                "content": [{
+                    "type": "tool_use",
+                    "name": "list_dir",
+                    "input": {"target_directory": str(cwd)},
+                }],
+                "stop_reason": "tool_use",
+            },
+        }), flush=True)
+        time.sleep(float(explore_seconds))
     if should_activate:
         print(json.dumps({
             "type": "assistant",
@@ -374,20 +433,6 @@ else:
         }), flush=True)
         if os.environ.get("FAKE_SLEEP_AFTER_GROK_ACTIVATION"):
             time.sleep(float(os.environ["FAKE_SLEEP_AFTER_GROK_ACTIVATION"]))
-    elif os.environ.get("FAKE_SLEEP_AFTER_GROK_NONACTIVATION"):
-        print(json.dumps({
-            "type": "assistant",
-            "session_id": session_id,
-            "message": {
-                "content": [{
-                    "type": "tool_use",
-                    "name": "list_dir",
-                    "input": {"target_directory": str(cwd)},
-                }],
-                "stop_reason": "tool_use",
-            },
-        }), flush=True)
-        time.sleep(float(os.environ["FAKE_SLEEP_AFTER_GROK_NONACTIVATION"]))
     print(json.dumps({
         "type": "result",
         "subtype": "success",
@@ -418,6 +463,17 @@ else:
             for line in Path(path).read_text(encoding="utf-8").splitlines()
         ]
 
+    def report_path_from(self, result):
+        lines = [
+            line
+            for line in result.stdout.splitlines()
+            if line.startswith("REPORT ")
+        ]
+        self.assertEqual(1, len(lines), result.stdout)
+        label, value = lines[0].split(" path=", 1)
+        self.assertEqual("REPORT", label)
+        return Path(json.loads(value))
+
     def read_evals(self, skill):
         path = skill / "evals" / "evals.json"
         return path, json.loads(path.read_text(encoding="utf-8"))
@@ -436,7 +492,10 @@ else:
                         },
                         {
                             "id": "install-a-skill",
-                            "query": "Install this skill from GitHub.",
+                            "query": (
+                                "Install package https://example.invalid/acme/"
+                                "agent-skill into Codex."
+                            ),
                             "should_trigger": False,
                         },
                     ],
@@ -460,6 +519,263 @@ else:
         )
         self.assertEqual("", result.stderr)
 
+    def test_list_reports_case_ids_without_starting_a_target(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            self.write_trigger_evals(skill)
+
+            result = self.run_cli("list", skill)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(
+            "functional\treturns-requested-artifact\n"
+            "trigger\tcreate-a-skill\tshould_trigger=true\n"
+            "trigger\tinstall-a-skill\tshould_trigger=false\n",
+            result.stdout,
+        )
+
+    def test_run_one_executes_exactly_one_case(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            self.write_trigger_evals(skill)
+            log_path = Path(temp_dir, "claude.jsonl")
+            bin_dir = self.make_fake_target(temp_dir, "claude")
+            environment = self.fake_target_environment(bin_dir, log_path)
+
+            result = self.run_cli(
+                "run-one",
+                skill,
+                "create-a-skill",
+                "--target",
+                "claude",
+                env=environment,
+            )
+            report_path = self.report_path_from(result)
+            self.addCleanup(report_path.unlink, missing_ok=True)
+            records = self.read_target_log(log_path)
+
+        self.assertEqual(0, result.returncode, result.stderr + result.stdout)
+        self.assertEqual(1, len(records), records)
+        self.assertIn("PASS create-a-skill iteration=1", result.stdout)
+        self.assertIn("SUMMARY pass=1 fail=0 unknown=0", result.stdout)
+
+    def test_run_all_stops_after_the_first_non_green_case_by_default(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            path, document = self.read_evals(skill)
+            second = dict(document["evals"][0])
+            second["id"] = "returns-second-artifact"
+            document["evals"].append(second)
+            path.write_text(json.dumps(document) + "\n", encoding="utf-8")
+            log_path = Path(temp_dir, "grok.jsonl")
+            bin_dir = self.make_fake_target(temp_dir, "grok")
+            environment = self.fake_target_environment(bin_dir, log_path)
+            environment["FAKE_BAD_GRADER"] = "1"
+
+            result = self.run_cli(
+                "run-all", skill, "--target", "grok", env=environment
+            )
+            report_path = self.report_path_from(result)
+            self.addCleanup(report_path.unlink, missing_ok=True)
+            records = self.read_target_log(log_path)
+
+        self.assertEqual(1, result.returncode)
+        self.assertEqual(2, len(records), records)
+        self.assertIn("UNKNOWN returns-requested-artifact", result.stdout)
+        self.assertNotIn("returns-second-artifact", result.stdout)
+        self.assertIn("SUMMARY pass=0 fail=0 unknown=1", result.stdout)
+
+    def test_run_all_keep_going_runs_every_case(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            path, document = self.read_evals(skill)
+            second = dict(document["evals"][0])
+            second["id"] = "returns-second-artifact"
+            document["evals"].append(second)
+            path.write_text(json.dumps(document) + "\n", encoding="utf-8")
+            log_path = Path(temp_dir, "grok.jsonl")
+            bin_dir = self.make_fake_target(temp_dir, "grok")
+            environment = self.fake_target_environment(bin_dir, log_path)
+            environment["FAKE_BAD_GRADER"] = "1"
+
+            result = self.run_cli(
+                "run-all",
+                skill,
+                "--target",
+                "grok",
+                "--keep-going",
+                env=environment,
+            )
+            report_path = self.report_path_from(result)
+            self.addCleanup(report_path.unlink, missing_ok=True)
+            records = self.read_target_log(log_path)
+
+        self.assertEqual(1, result.returncode)
+        self.assertEqual(4, len(records), records)
+        self.assertIn("UNKNOWN returns-requested-artifact", result.stdout)
+        self.assertIn("UNKNOWN returns-second-artifact", result.stdout)
+        self.assertIn("SUMMARY pass=0 fail=0 unknown=2", result.stdout)
+
+    def test_run_one_writes_a_sanitized_inspectable_report_automatically(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            log_path = Path(temp_dir, "grok.jsonl")
+            bin_dir = self.make_fake_target(temp_dir, "grok")
+            environment = self.fake_target_environment(bin_dir, log_path)
+
+            result = self.run_cli(
+                "run-one",
+                skill,
+                "returns-requested-artifact",
+                "--target",
+                "grok",
+                env=environment,
+            )
+            report_path = self.report_path_from(result)
+            self.addCleanup(report_path.unlink, missing_ok=True)
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            report_mode = report_path.stat().st_mode & 0o777
+            inspected = self.run_cli("inspect", report_path)
+
+        self.assertEqual(0, result.returncode, result.stderr + result.stdout)
+        self.assertEqual(0, inspected.returncode, inspected.stderr)
+        self.assertEqual(0o600, report_mode)
+        self.assertEqual("skill-eval-run", report["kind"])
+        self.assertEqual("run-one", report["run"]["scope"])
+        self.assertEqual("grok", report["target"]["name"])
+        self.assertEqual("grok-4.6", report["target"]["model"])
+        self.assertEqual("high", report["target"]["reasoning_effort"])
+        self.assertEqual("pass", report["cases"][0]["status"])
+        phases = report["cases"][0]["iterations"][0]["phases"]
+        self.assertEqual({"candidate", "grader"}, set(phases))
+        serialized = json.dumps(report)
+        for secret in (
+            "prompt",
+            "assertions",
+            "evidence",
+            "artifact-created",
+            "candidate completed",
+        ):
+            self.assertNotIn(secret, serialized)
+        self.assertIn(
+            "CASE returns-requested-artifact status=pass", inspected.stdout
+        )
+        self.assertIn("PHASE candidate status=complete", inspected.stdout)
+        self.assertIn("PHASE grader status=complete", inspected.stdout)
+
+    def test_inspect_rejects_malformed_case_records_without_a_traceback(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            report_path = Path(temp_dir, "report.json")
+            report_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "kind": "skill-eval-run",
+                        "skill": {
+                            "name": "sample-skill",
+                            "source_path": "/tmp/sample-skill",
+                            "package_sha256": "0" * 64,
+                        },
+                        "target": {
+                            "name": "grok",
+                            "model": "grok-4.6",
+                            "reasoning_effort": "high",
+                        },
+                        "run": {
+                            "scope": "run-one",
+                            "selected_case_ids": ["case"],
+                            "repeat": 1,
+                            "timeout_seconds": 10,
+                            "fail_fast": True,
+                            "additional_skills": [],
+                        },
+                        "cases": [{}],
+                        "summary": {"pass": 1, "fail": 0, "unknown": 0},
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_cli("inspect", report_path)
+
+        self.assertEqual(2, result.returncode)
+        self.assertIn("invalid report case results", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_run_all_uses_one_frozen_skill_snapshot(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            path, document = self.read_evals(skill)
+            second = dict(document["evals"][0])
+            second["id"] = "returns-second-artifact"
+            document["evals"].append(second)
+            path.write_text(json.dumps(document) + "\n", encoding="utf-8")
+            original = skill.joinpath("SKILL.md").read_text(encoding="utf-8")
+            log_path = Path(temp_dir, "grok.jsonl")
+            bin_dir = self.make_fake_target(temp_dir, "grok")
+            environment = self.fake_target_environment(bin_dir, log_path)
+            environment["FAKE_MUTATE_SOURCE_SKILL"] = str(skill / "SKILL.md")
+            environment["FAKE_MUTATION_MARKER"] = str(Path(temp_dir, "mutated"))
+
+            result = self.run_cli(
+                "run-all",
+                skill,
+                "--target",
+                "grok",
+                "--keep-going",
+                env=environment,
+            )
+            report_path = self.report_path_from(result)
+            self.addCleanup(report_path.unlink, missing_ok=True)
+            records = self.read_target_log(log_path)
+            candidate_records = [
+                record for record in records if not record["grader"]
+            ]
+
+        self.assertEqual(0, result.returncode, result.stderr + result.stdout)
+        self.assertEqual(2, len(candidate_records), candidate_records)
+        self.assertEqual(
+            [original, original],
+            [record["skill_text"] for record in candidate_records],
+        )
+
+    def test_rerun_reuses_a_reported_case_but_refuses_package_drift(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            self.write_trigger_evals(skill)
+            log_path = Path(temp_dir, "claude.jsonl")
+            bin_dir = self.make_fake_target(temp_dir, "claude")
+            environment = self.fake_target_environment(bin_dir, log_path)
+
+            first = self.run_cli(
+                "run-one",
+                skill,
+                "create-a-skill",
+                "--target",
+                "claude",
+                env=environment,
+            )
+            first_report = self.report_path_from(first)
+            self.addCleanup(first_report.unlink, missing_ok=True)
+            rerun = self.run_cli("rerun", first_report, env=environment)
+            rerun_report = self.report_path_from(rerun)
+            self.addCleanup(rerun_report.unlink, missing_ok=True)
+            before_drift = self.read_target_log(log_path)
+            skill.joinpath("SKILL.md").write_text(
+                "---\nname: sample-skill\ndescription: Changed.\n---\n",
+                encoding="utf-8",
+            )
+            drifted = self.run_cli("rerun", first_report, env=environment)
+            after_drift = self.read_target_log(log_path)
+
+        self.assertEqual(0, first.returncode, first.stderr + first.stdout)
+        self.assertEqual(0, rerun.returncode, rerun.stderr + rerun.stdout)
+        self.assertEqual(2, len(before_drift), before_drift)
+        self.assertEqual(2, drifted.returncode)
+        self.assertIn("package changed since the recorded run", drifted.stderr)
+        self.assertEqual(before_drift, after_drift)
+
     def test_check_requires_an_integer_schema_version(self):
         for invalid_version in (True, 1.0):
             with self.subTest(invalid_version=invalid_version):
@@ -475,6 +791,20 @@ else:
 
                 self.assertEqual(2, result.returncode)
                 self.assertIn("schema_version must be 1", result.stderr)
+
+    def test_check_rejects_an_ownerless_deictic_negative_trigger(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            self.write_trigger_evals(skill)
+            path = skill / "evals" / "trigger-eval.json"
+            document = json.loads(path.read_text(encoding="utf-8"))
+            document["queries"][1]["query"] = "Install this skill from GitHub."
+            path.write_text(json.dumps(document) + "\n", encoding="utf-8")
+
+            result = self.run_cli("check", skill)
+
+        self.assertEqual(2, result.returncode)
+        self.assertIn("deictic owner needs a fixture or competing skill", result.stderr)
 
     def test_check_rejects_a_skill_without_evaluation_cases(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1092,7 +1422,7 @@ else:
                         "--reasoning-effort"
                     )
                     self.assertEqual(
-                        "low", candidate["arguments"][effort_index + 1]
+                        "high", candidate["arguments"][effort_index + 1]
                     )
                     self.assertEqual("1", candidate["disable_autoupdater"])
                     self.assertIn("streaming-messages-json", grader["arguments"])
@@ -1126,66 +1456,189 @@ else:
                     )
 
     def test_run_forwards_codex_reasoning_effort_to_candidate_and_grader(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            skill = self.make_skill(temp_dir)
-            log_path = Path(temp_dir, "codex.jsonl")
-            bin_dir = self.make_fake_target(temp_dir, "codex")
-            environment = self.fake_target_environment(bin_dir, log_path)
+        for effort in (
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+            "ultra",
+        ):
+            with self.subTest(effort=effort):
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    skill = self.make_skill(temp_dir)
+                    log_path = Path(temp_dir, "codex.jsonl")
+                    bin_dir = self.make_fake_target(temp_dir, "codex")
+                    environment = self.fake_target_environment(bin_dir, log_path)
 
-            result = self.run_cli(
-                "run",
-                skill,
-                "--target",
-                "codex",
-                "--model",
-                "gpt-5.6-terra",
-                "--reasoning-effort",
-                "high",
-                env=environment,
-            )
-            records = self.read_target_log(log_path) if log_path.exists() else []
+                    result = self.run_cli(
+                        "run",
+                        skill,
+                        "--target",
+                        "codex",
+                        "--model",
+                        "gpt-5.6-terra",
+                        "--reasoning-effort",
+                        effort,
+                        env=environment,
+                    )
+                    records = (
+                        self.read_target_log(log_path)
+                        if log_path.exists()
+                        else []
+                    )
 
-        self.assertEqual(0, result.returncode, result.stderr + result.stdout)
-        self.assertEqual(2, len(records), records)
-        for record in records:
-            self.assertIn("gpt-5.6-terra", record["arguments"])
-            config_index = record["arguments"].index("-c")
-            self.assertEqual(
-                'model_reasoning_effort="high"',
-                record["arguments"][config_index + 1],
-            )
+                self.assertEqual(
+                    0, result.returncode, result.stderr + result.stdout
+                )
+                self.assertEqual(2, len(records), records)
+                for record in records:
+                    self.assertIn("gpt-5.6-terra", record["arguments"])
+                    config_index = record["arguments"].index("-c")
+                    self.assertEqual(
+                        f'model_reasoning_effort="{effort}"',
+                        record["arguments"][config_index + 1],
+                    )
 
     def test_run_forwards_claude_reasoning_effort_to_candidate_and_grader(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            skill = self.make_skill(temp_dir)
-            log_path = Path(temp_dir, "claude.jsonl")
-            bin_dir = self.make_fake_target(temp_dir, "claude")
-            environment = self.fake_target_environment(bin_dir, log_path)
+        for effort in ("low", "medium", "high", "xhigh", "max"):
+            with self.subTest(effort=effort):
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    skill = self.make_skill(temp_dir)
+                    log_path = Path(temp_dir, "claude.jsonl")
+                    bin_dir = self.make_fake_target(temp_dir, "claude")
+                    environment = self.fake_target_environment(bin_dir, log_path)
 
-            result = self.run_cli(
-                "run",
-                skill,
-                "--target",
-                "claude",
-                "--model",
-                "claude-sonnet-5",
-                "--reasoning-effort",
-                "high",
-                env=environment,
-            )
-            records = self.read_target_log(log_path) if log_path.exists() else []
+                    result = self.run_cli(
+                        "run",
+                        skill,
+                        "--target",
+                        "claude",
+                        "--model",
+                        "claude-sonnet-5",
+                        "--reasoning-effort",
+                        effort,
+                        env=environment,
+                    )
+                    records = (
+                        self.read_target_log(log_path)
+                        if log_path.exists()
+                        else []
+                    )
 
-        self.assertEqual(0, result.returncode, result.stderr + result.stdout)
-        self.assertEqual(2, len(records), records)
-        for record in records:
-            self.assertIn("claude-sonnet-5", record["arguments"])
-            effort_index = record["arguments"].index("--effort")
-            self.assertEqual("high", record["arguments"][effort_index + 1])
-            mcp_config_index = record["arguments"].index("--mcp-config")
-            self.assertEqual(
-                {"mcpServers": {}},
-                json.loads(record["arguments"][mcp_config_index + 1]),
-            )
+                self.assertEqual(
+                    0, result.returncode, result.stderr + result.stdout
+                )
+                self.assertEqual(2, len(records), records)
+                for record in records:
+                    self.assertIn("claude-sonnet-5", record["arguments"])
+                    effort_index = record["arguments"].index("--effort")
+                    self.assertEqual(
+                        effort, record["arguments"][effort_index + 1]
+                    )
+                    mcp_config_index = record["arguments"].index("--mcp-config")
+                    self.assertEqual(
+                        {"mcpServers": {}},
+                        json.loads(record["arguments"][mcp_config_index + 1]),
+                    )
+
+    def test_run_forwards_grok_reasoning_effort_to_candidate_and_grader(self):
+        for effort in (
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+        ):
+            with self.subTest(effort=effort):
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    skill = self.make_skill(temp_dir)
+                    log_path = Path(temp_dir, "grok.jsonl")
+                    bin_dir = self.make_fake_target(temp_dir, "grok")
+                    environment = self.fake_target_environment(bin_dir, log_path)
+
+                    result = self.run_cli(
+                        "run",
+                        skill,
+                        "--target",
+                        "grok",
+                        "--model",
+                        "grok-4.6",
+                        "--reasoning-effort",
+                        effort,
+                        env=environment,
+                    )
+                    records = (
+                        self.read_target_log(log_path)
+                        if log_path.exists()
+                        else []
+                    )
+
+                self.assertEqual(
+                    0, result.returncode, result.stderr + result.stdout
+                )
+                self.assertEqual(2, len(records), records)
+                for record in records:
+                    self.assertIn("grok-4.6", record["arguments"])
+                    effort_index = record["arguments"].index(
+                        "--reasoning-effort"
+                    )
+                    self.assertEqual(
+                        effort, record["arguments"][effort_index + 1]
+                    )
+
+    def test_run_uses_target_default_model_and_reasoning_effort(self):
+        defaults = {
+            "claude": ("claude-sonnet-5", "high"),
+            "codex": ("gpt-5.6-terra", "high"),
+            "grok": ("grok-4.6", "high"),
+        }
+        for target, (model, effort) in defaults.items():
+            with self.subTest(target=target):
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    skill = self.make_skill(temp_dir)
+                    log_path = Path(temp_dir, f"{target}.jsonl")
+                    bin_dir = self.make_fake_target(temp_dir, target)
+                    environment = self.fake_target_environment(bin_dir, log_path)
+
+                    result = self.run_cli(
+                        "run",
+                        skill,
+                        "--target",
+                        target,
+                        env=environment,
+                    )
+                    records = self.read_target_log(log_path)
+
+                self.assertEqual(
+                    0, result.returncode, result.stderr + result.stdout
+                )
+                self.assertEqual(2, len(records), records)
+                for record in records:
+                    model_index = record["arguments"].index("--model")
+                    self.assertEqual(
+                        model, record["arguments"][model_index + 1]
+                    )
+                    if target == "codex":
+                        config_index = record["arguments"].index("-c")
+                        self.assertEqual(
+                            f'model_reasoning_effort="{effort}"',
+                            record["arguments"][config_index + 1],
+                        )
+                    else:
+                        effort_flag = (
+                            "--effort"
+                            if target == "claude"
+                            else "--reasoning-effort"
+                        )
+                        effort_index = record["arguments"].index(effort_flag)
+                        self.assertEqual(
+                            effort, record["arguments"][effort_index + 1]
+                        )
 
     @unittest.skipUnless(
         sys.platform.startswith("linux")
@@ -1567,6 +2020,76 @@ else:
                     "known-unobservable trigger evaluation spent a target call",
                 )
 
+    def test_run_stops_claude_after_attributable_positive_activation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            path, document = self.read_evals(skill)
+            document["evals"] = []
+            path.write_text(json.dumps(document) + "\n", encoding="utf-8")
+            self.write_trigger_evals(skill)
+            log_path = Path(temp_dir, "claude.jsonl")
+            bin_dir = self.make_fake_target(temp_dir, "claude")
+            environment = self.fake_target_environment(bin_dir, log_path)
+            environment["FAKE_SLEEP_AFTER_CLAUDE_ACTIVATION"] = "30"
+
+            started = time.monotonic()
+            result = self.run_cli(
+                "run",
+                skill,
+                "--target",
+                "claude",
+                "--case",
+                "create-a-skill",
+                "--timeout",
+                "0.2",
+                env=environment,
+            )
+            elapsed = time.monotonic() - started
+
+        self.assertEqual(0, result.returncode, result.stderr + result.stdout)
+        self.assertIn("PASS create-a-skill", result.stdout)
+        self.assertIn("phase=candidate status=observed", result.stderr)
+        self.assertLess(elapsed, 2.0, result.stdout + result.stderr)
+
+    def test_run_waits_for_claude_to_finish_before_judging_nonactivation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            path, document = self.read_evals(skill)
+            document["evals"] = []
+            path.write_text(json.dumps(document) + "\n", encoding="utf-8")
+            self.write_trigger_evals(skill)
+            log_path = Path(temp_dir, "claude.jsonl")
+            bin_dir = self.make_fake_target(temp_dir, "claude")
+            environment = self.fake_target_environment(bin_dir, log_path)
+            # The model explores first and only decides on a later turn, after
+            # the runner's first observation tick has already seen a tool call.
+            environment["FAKE_EXPLORE_BEFORE_DECIDING_SECONDS"] = "6"
+
+            result = self.run_cli(
+                "run",
+                skill,
+                "--target",
+                "claude",
+                "--case",
+                "create-a-skill",
+                "--case",
+                "install-a-skill",
+                "--timeout",
+                "30",
+                env=environment,
+            )
+
+        self.assertEqual(0, result.returncode, result.stderr + result.stdout)
+        self.assertIn("PASS create-a-skill", result.stdout)
+        self.assertIn("PASS install-a-skill", result.stdout)
+        self.assertIn("SUMMARY pass=2 fail=0 unknown=0", result.stdout)
+        negative_prefix = (
+            "OBSERVE case=install-a-skill iteration=1 target=claude "
+            "phase=candidate"
+        )
+        self.assertIn(f"{negative_prefix} status=complete", result.stderr)
+        self.assertNotIn(f"{negative_prefix} status=observed", result.stderr)
+
     def test_run_stops_grok_after_attributable_positive_activation(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             skill = self.make_skill(temp_dir)
@@ -1598,7 +2121,7 @@ else:
         self.assertIn("phase=candidate status=observed", result.stderr)
         self.assertLess(elapsed, 2.0, result.stdout + result.stderr)
 
-    def test_run_stops_grok_after_attributable_nonactivation(self):
+    def test_run_waits_for_grok_to_finish_before_judging_nonactivation(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             skill = self.make_skill(temp_dir)
             path, document = self.read_evals(skill)
@@ -1608,26 +2131,92 @@ else:
             log_path = Path(temp_dir, "grok.jsonl")
             bin_dir = self.make_fake_target(temp_dir, "grok")
             environment = self.fake_target_environment(bin_dir, log_path)
-            environment["FAKE_SLEEP_AFTER_GROK_NONACTIVATION"] = "30"
+            # The model explores first and only decides on a later turn, after
+            # the runner's first observation tick has already seen a tool call.
+            environment["FAKE_EXPLORE_BEFORE_DECIDING_SECONDS"] = "6"
 
-            started = time.monotonic()
             result = self.run_cli(
                 "run",
                 skill,
                 "--target",
                 "grok",
                 "--case",
+                "create-a-skill",
+                "--case",
                 "install-a-skill",
                 "--timeout",
-                "0.2",
+                "30",
                 env=environment,
             )
-            elapsed = time.monotonic() - started
 
         self.assertEqual(0, result.returncode, result.stderr + result.stdout)
+        self.assertIn("PASS create-a-skill", result.stdout)
         self.assertIn("PASS install-a-skill", result.stdout)
-        self.assertIn("phase=candidate status=observed", result.stderr)
-        self.assertLess(elapsed, 2.0, result.stdout + result.stderr)
+        self.assertIn("SUMMARY pass=2 fail=0 unknown=0", result.stdout)
+        negative_prefix = (
+            "OBSERVE case=install-a-skill iteration=1 target=grok "
+            "phase=candidate"
+        )
+        self.assertIn(f"{negative_prefix} status=complete", result.stderr)
+        self.assertNotIn(f"{negative_prefix} status=observed", result.stderr)
+
+    def test_run_grader_sees_a_workspace_directory_named_after_the_skill(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            log_path = Path(temp_dir, "claude.jsonl")
+            bin_dir = self.make_fake_target(temp_dir, "claude")
+            environment = self.fake_target_environment(bin_dir, log_path)
+            environment["FAKE_WRITE_SKILL_NAMED_DIRECTORY"] = "1"
+
+            result = self.run_cli(
+                "run", skill, "--target", "claude", env=environment
+            )
+            records = self.read_target_log(log_path)
+
+        self.assertEqual(0, result.returncode, result.stderr + result.stdout)
+        grader = next(item for item in records if item["grader"])
+        self.assertTrue(grader["skill_named_directory_visible"], grader)
+        self.assertTrue(grader["after_state_lists_skill_named_file"], grader)
+
+    def test_rerun_ignores_non_executable_permission_bits(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            self.write_trigger_evals(skill)
+            log_path = Path(temp_dir, "claude.jsonl")
+            bin_dir = self.make_fake_target(temp_dir, "claude")
+            environment = self.fake_target_environment(bin_dir, log_path)
+            skill_md = skill / "SKILL.md"
+            skill_md.chmod(0o644)
+
+            first = self.run_cli(
+                "run-one",
+                skill,
+                "create-a-skill",
+                "--target",
+                "claude",
+                env=environment,
+            )
+            first_report = self.report_path_from(first)
+            self.addCleanup(first_report.unlink, missing_ok=True)
+            skill_md.chmod(0o600)
+            same_content = self.run_cli("rerun", first_report, env=environment)
+            if same_content.returncode == 0:
+                self.addCleanup(
+                    self.report_path_from(same_content).unlink, missing_ok=True
+                )
+            skill_md.chmod(0o755)
+            executable_drift = self.run_cli(
+                "rerun", first_report, env=environment
+            )
+
+        self.assertEqual(0, first.returncode, first.stderr + first.stdout)
+        self.assertEqual(
+            0, same_content.returncode, same_content.stderr + same_content.stdout
+        )
+        self.assertEqual(2, executable_drift.returncode)
+        self.assertIn(
+            "package changed since the recorded run", executable_drift.stderr
+        )
 
     def test_run_requires_target_catalog_evidence_for_non_activation(self):
         for target in ("claude", "grok"):
@@ -1949,6 +2538,28 @@ else:
             " ".join(result.stdout.split()),
         )
 
+    def test_run_help_describes_target_defaults(self):
+        result = self.run_cli("run", "--help")
+        help_text = " ".join(result.stdout.split())
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        for target_default in (
+            "claude=claude-sonnet-5",
+            "codex=gpt-5.6-terra",
+            "grok=grok-4.6",
+        ):
+            self.assertIn(target_default, help_text)
+        self.assertIn(
+            "defaults: claude=high, codex=high, grok=high",
+            help_text,
+        )
+        for target_efforts in (
+            "claude=low/medium/high/xhigh/max",
+            "codex=none/minimal/low/medium/high/xhigh/max/ultra",
+            "grok=none/minimal/low/medium/high/xhigh/max",
+        ):
+            self.assertIn(target_efforts, help_text)
+
     def test_run_rejects_a_reused_builtin_grader_session_as_unknown(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             skill = self.make_skill(temp_dir)
@@ -2057,13 +2668,16 @@ else:
             model_without_target = self.run_cli(
                 "run", skill, "--model", "fixture-model"
             )
-            reasoning_without_supported_target = self.run_cli(
+            reasoning_without_target = self.run_cli(
+                "run", skill, "--reasoning-effort", "high"
+            )
+            unsupported_grok_reasoning = self.run_cli(
                 "run",
                 skill,
                 "--target",
                 "grok",
                 "--reasoning-effort",
-                "high",
+                "ultra",
             )
             unsupported_claude_reasoning = self.run_cli(
                 "run",
@@ -2072,14 +2686,6 @@ else:
                 "claude",
                 "--reasoning-effort",
                 "minimal",
-            )
-            unsupported_codex_reasoning = self.run_cli(
-                "run",
-                skill,
-                "--target",
-                "codex",
-                "--reasoning-effort",
-                "max",
             )
             unsupported_reasoning = self.run_cli(
                 "run",
@@ -2103,20 +2709,20 @@ else:
         self.assertIn("choose either --target or an adapter", target_and_adapter.stderr)
         self.assertEqual(2, model_without_target.returncode)
         self.assertIn("--model requires --target", model_without_target.stderr)
-        self.assertEqual(2, reasoning_without_supported_target.returncode)
+        self.assertEqual(2, reasoning_without_target.returncode)
         self.assertIn(
-            "--reasoning-effort requires --target claude or codex",
-            reasoning_without_supported_target.stderr,
+            "--reasoning-effort requires --target",
+            reasoning_without_target.stderr,
+        )
+        self.assertEqual(2, unsupported_grok_reasoning.returncode)
+        self.assertIn(
+            "--reasoning-effort 'ultra' is not supported for --target grok",
+            unsupported_grok_reasoning.stderr,
         )
         self.assertEqual(2, unsupported_claude_reasoning.returncode)
         self.assertIn(
             "--reasoning-effort 'minimal' is not supported for --target claude",
             unsupported_claude_reasoning.stderr,
-        )
-        self.assertEqual(2, unsupported_codex_reasoning.returncode)
-        self.assertIn(
-            "--reasoning-effort 'max' is not supported for --target codex",
-            unsupported_codex_reasoning.stderr,
         )
         self.assertEqual(2, unsupported_reasoning.returncode)
         self.assertIn("invalid choice: 'extreme'", unsupported_reasoning.stderr)
