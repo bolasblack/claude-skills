@@ -18,21 +18,63 @@ import time
 
 SCHEMA_VERSION = 1
 IDENTIFIER = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+DEICTIC_NEGATIVE_OWNER = re.compile(
+    r"\b(?:this|that|the)\s+(?:package|project|script|skill)\b",
+    re.IGNORECASE,
+)
 FUNCTIONAL_CATEGORIES = {"baseline", "coexistence", "functional", "isolation"}
 SAFE_SIDE_EFFECTS = {"fixture", "none"}
 RESULT_STATUSES = {"fail", "pass", "unknown"}
-TARGETS = {"claude", "codex", "grok"}
-TARGET_REASONING_EFFORTS = {
-    "claude": {"low", "medium", "high", "xhigh", "max"},
-    "codex": {"minimal", "low", "medium", "high", "xhigh"},
+TARGET_CONFIGS = {
+    "claude": {
+        "model": "claude-sonnet-5",
+        "reasoning_effort": "high",
+        "canonical_reasoning_efforts": (
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+        ),
+    },
+    "codex": {
+        "model": "gpt-5.6-terra",
+        "reasoning_effort": "high",
+        "canonical_reasoning_efforts": (
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+            "ultra",
+        ),
+    },
+    "grok": {
+        "model": "grok-4.6",
+        "reasoning_effort": "high",
+        "canonical_reasoning_efforts": (
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+        ),
+    },
 }
-REASONING_EFFORTS = set().union(*TARGET_REASONING_EFFORTS.values())
+TARGETS = set(TARGET_CONFIGS)
+REASONING_EFFORTS = set().union(
+    *(config["canonical_reasoning_efforts"] for config in TARGET_CONFIGS.values())
+)
 TARGET_SKILL_ROOTS = {
     "claude": Path(".claude/skills"),
     "codex": Path(".agents/skills"),
     "grok": Path(".grok/skills"),
 }
-TARGET_OUTPUT_LIMIT = 4 * 1024 * 1024
+TARGET_OUTPUT_LIMIT = 32 * 1024 * 1024
 TARGET_OBSERVATION_INTERVAL = 5.0
 TARGET_TERMINATION_GRACE = 1.0
 GROK_EVAL_SANDBOX_PROFILE = "skill-eval-strict"
@@ -168,6 +210,57 @@ def copy_skill_without_evals(source, destination):
         return set()
 
     shutil.copytree(source, destination, ignore=ignore_eval_answers)
+
+
+def package_digest(package_dir):
+    package_dir = Path(package_dir).resolve()
+    digest = hashlib.sha256()
+    try:
+        paths = sorted(
+            (package_dir, *package_dir.rglob("*")),
+            key=lambda path: path.relative_to(package_dir).as_posix(),
+        )
+        for path in paths:
+            relative = path.relative_to(package_dir).as_posix() or "."
+            mode = path.lstat().st_mode
+            if stat.S_ISLNK(mode):
+                raise ContractError(
+                    f"{package_dir}: symbolic links are not supported: {relative}"
+                )
+            if stat.S_ISDIR(mode):
+                kind = b"directory"
+                content = b""
+            elif stat.S_ISREG(mode):
+                kind = b"file"
+                content = path.read_bytes()
+            else:
+                raise ContractError(
+                    f"{package_dir}: unsupported special file: {relative}"
+                )
+            digest.update(kind + b"\0")
+            digest.update(relative.encode("utf-8") + b"\0")
+            # Only the executable bit is identity; other permission bits vary
+            # with the checkout umask and would make identical content drift.
+            digest.update((b"x" if mode & 0o111 else b"-") + b"\0")
+            digest.update(str(len(content)).encode("ascii") + b"\0")
+            digest.update(content)
+    except (OSError, UnicodeError) as error:
+        raise ContractError(f"could not hash skill package {package_dir}: {error}") from error
+    return digest.hexdigest()
+
+
+def copy_stable_package(source, destination):
+    source = Path(source).resolve()
+    before = package_digest(source)
+    try:
+        shutil.copytree(source, destination)
+    except OSError as error:
+        raise ContractError(f"could not snapshot skill package {source}: {error}") from error
+    after = package_digest(source)
+    copied = package_digest(destination)
+    if before != after or before != copied:
+        raise ContractError(f"{source}: package changed while it was being snapshotted")
+    return copied
 
 
 def validate_functional_evals(path, skill_name):
@@ -339,6 +432,15 @@ def validate_trigger_evals(path, skill_name):
         validate_fixture_files(
             query.get("files", []), location, path.parent / "fixtures"
         )
+        if (
+            not should_trigger
+            and DEICTIC_NEGATIVE_OWNER.search(text)
+            and not query.get("files")
+            and not query.get("additional_skills")
+        ):
+            raise ContractError(
+                f"{location} deictic owner needs a fixture or competing skill"
+            )
         expected.add(should_trigger)
     if expected != {False, True}:
         raise ContractError(
@@ -539,21 +641,33 @@ def target_skill_sources(request, additional_skill_paths):
     return sources
 
 
-def grok_sandbox_sources(request, additional_skill_paths):
+def grok_sandbox_sources(
+    request, additional_skill_paths, denied_source_skill_paths=()
+):
     sources = [Path(request["skill"]["path"])]
     for name in request["case"].get("additional_skills", []):
         source = additional_skill_paths.get(name)
         if source is None:
             raise TargetError(f"missing additional skill path: {name}")
         sources.append(source)
+    sources.extend(Path(path) for path in denied_source_skill_paths)
     return sources
 
 
-def stage_target_skills(request, target, workspace, additional_skill_paths):
+def stage_target_skills(
+    request,
+    target,
+    workspace,
+    additional_skill_paths,
+    denied_source_skill_paths=(),
+):
     sources = target_skill_sources(request, additional_skill_paths)
     if target == "grok":
         write_grok_eval_sandbox(
-            workspace, grok_sandbox_sources(request, additional_skill_paths)
+            workspace,
+            grok_sandbox_sources(
+                request, additional_skill_paths, denied_source_skill_paths
+            ),
         )
     if not sources:
         return
@@ -704,10 +818,11 @@ def build_target_command(
     disable_skills=False,
 ):
     if target == "claude":
-        tools = "Read,Glob,Grep" if grader or not writable else (
-            "Skill,Read,Glob,Grep,Edit,Write,Bash"
-        )
-        if not grader and not writable:
+        if grader:
+            tools = "Read,Glob,Grep"
+        elif writable:
+            tools = "Skill,Read,Glob,Grep,Edit,Write,Bash"
+        else:
             tools = "Skill,Read,Glob,Grep"
         command = [
             *claude_command_prefix(writable, grader),
@@ -716,6 +831,9 @@ def build_target_command(
             "--output-format",
             "json" if grader else "stream-json",
             "--no-session-persistence",
+            # "project" excludes the user source that owns ~/.claude/skills
+            # and ~/.claude/commands, so the staged project copy is the only
+            # one Claude loads; a same-name user skill would otherwise win.
             "--setting-sources",
             "project",
             "--strict-mcp-config",
@@ -792,7 +910,7 @@ def build_target_command(
         "--permission-mode",
         "bypassPermissions",
         "--reasoning-effort",
-        "low",
+        reasoning_effort,
         "--deny",
         f"Read({home}/**)",
         "--deny",
@@ -1337,32 +1455,34 @@ def parse_candidate_output(target, completed):
     }
 
 
-def parse_grok_observation(stdout, stderr):
+def parse_target_observation(target, stdout, stderr):
+    if target not in {"claude", "grok"}:
+        raise TargetError(f"{target} has no attributable trigger observation")
     if isinstance(stdout, bytes):
         stdout = stdout.decode("utf-8", errors="replace")
     if isinstance(stderr, bytes):
         stderr = stderr.decode("utf-8", errors="replace")
     stdout = stdout or ""
     stderr = stderr or ""
-    events = parse_json_lines(stdout, "grok")
+    events = parse_json_lines(stdout, target)
     init_events = [
         event
         for event in events
         if event.get("type") == "system" and event.get("subtype") == "init"
     ]
     if len(init_events) != 1:
-        raise TargetError("grok did not emit exactly one system/init event")
+        raise TargetError(f"{target} did not emit exactly one system/init event")
     init = init_events[0]
     session_id = init.get("session_id") or init.get("sessionId")
     if not isinstance(session_id, str) or not session_id.strip():
-        raise TargetError("grok system/init did not include a session id")
+        raise TargetError(f"{target} system/init did not include a session id")
     event_session_ids = {
         event.get("session_id") or event.get("sessionId")
         for event in events
         if event.get("session_id") or event.get("sessionId")
     }
     if event_session_ids != {session_id}:
-        raise TargetError("grok observation stream mixed session ids")
+        raise TargetError(f"{target} observation stream mixed session ids")
     return {
         "events": events,
         "final_text": "",
@@ -1371,6 +1491,10 @@ def parse_grok_observation(stdout, stderr):
         "stderr": stderr,
         "stdout": stdout,
     }
+
+
+def parse_grok_observation(stdout, stderr):
+    return parse_target_observation("grok", stdout, stderr)
 
 
 def normalized_catalog_names(values):
@@ -1476,6 +1600,14 @@ def observe_grok_activation(candidate, skill_name, workspace):
     )
 
 
+def observe_target_activation(target, candidate, skill_name, workspace):
+    if target == "claude":
+        return observe_claude_activation(candidate, skill_name)
+    if target == "grok":
+        return observe_grok_activation(candidate, skill_name, workspace)
+    return None, f"{target} exposes no attributable automatic skill activation event"
+
+
 def workspace_state(workspace, excluded_roots):
     state = {}
     for path in sorted(workspace.rglob("*")):
@@ -1534,6 +1666,331 @@ def prepare_artifacts_root(value, skill_dir):
     except OSError as error:
         raise ContractError(f"could not create --artifacts-dir {root}: {error}") from error
     return root
+
+
+def sanitized_phase_records(phase_records):
+    sanitized = {}
+    for phase, record in sorted((phase_records or {}).items()):
+        sanitized[phase] = {
+            "status": record["status"],
+            "wall_duration_ms": record["elapsed_ms"],
+            "stdout_bytes": len(record["stdout"].encode()),
+            "stderr_bytes": len(record["stderr"].encode()),
+            "summary": record["summary"],
+            "metrics": record["metrics"],
+        }
+    return sanitized
+
+
+def result_reason_code(case, status, phases):
+    if status == "pass":
+        return "passed"
+    if status == "fail":
+        return (
+            "activation_mismatch"
+            if "should_trigger" in case
+            else "assertion_failed"
+        )
+    for phase, record in phases.items():
+        if record["status"] == "process_error":
+            return f"{phase}_process_error"
+    if "grader" in phases:
+        return "grader_protocol_or_evidence_unknown"
+    if "candidate" in phases:
+        return "candidate_protocol_or_evidence_unknown"
+    return "unverifiable"
+
+
+def validate_report_destination(value, skill_dir):
+    if value is None:
+        return None
+    destination = Path(value).expanduser().resolve()
+    if destination.exists():
+        raise ContractError(f"--report already exists: {destination}")
+    try:
+        destination.relative_to(skill_dir)
+    except ValueError:
+        pass
+    else:
+        raise ContractError("--report must be outside the skill package")
+    if not destination.parent.is_dir():
+        raise ContractError(f"--report parent directory not found: {destination.parent}")
+    return destination
+
+
+def write_run_report(document, destination=None):
+    encoded = (json.dumps(document, indent=2, sort_keys=True) + "\n").encode()
+    try:
+        if destination is None:
+            descriptor, raw_path = tempfile.mkstemp(
+                prefix="skill-eval-report-", suffix=".json"
+            )
+            path = Path(raw_path)
+        else:
+            path = destination
+            descriptor = os.open(
+                path,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                0o600,
+            )
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(encoded)
+    except OSError as error:
+        raise ContractError(f"could not write eval report: {error}") from error
+    print(f"REPORT path={json.dumps(str(path))}")
+    return path
+
+
+def validate_report_case_results(path, cases, repeat, summary):
+    if not isinstance(cases, list) or not cases:
+        raise ContractError(f"{path}: invalid report case results")
+    observed_case_ids = set()
+    observed_summary = {status: 0 for status in RESULT_STATUSES}
+    phase_fields = {
+        "metrics",
+        "status",
+        "stderr_bytes",
+        "stdout_bytes",
+        "summary",
+        "wall_duration_ms",
+    }
+    for case in cases:
+        if not isinstance(case, dict) or set(case) != {
+            "case_id",
+            "iterations",
+            "kind",
+            "status",
+        }:
+            raise ContractError(f"{path}: invalid report case results")
+        case_id = case.get("case_id")
+        if (
+            not isinstance(case_id, str)
+            or not IDENTIFIER.fullmatch(case_id)
+            or case_id in observed_case_ids
+            or case.get("kind") not in {"functional", "trigger"}
+            or case.get("status") not in RESULT_STATUSES
+        ):
+            raise ContractError(f"{path}: invalid report case results")
+        observed_case_ids.add(case_id)
+        iterations = case.get("iterations")
+        if not isinstance(iterations, list) or not iterations:
+            raise ContractError(f"{path}: invalid report case results")
+        statuses = []
+        observed_iterations = set()
+        for iteration in iterations:
+            if not isinstance(iteration, dict) or set(iteration) != {
+                "iteration",
+                "phases",
+                "reason_code",
+                "status",
+            }:
+                raise ContractError(f"{path}: invalid report case results")
+            number = iteration.get("iteration")
+            reason = iteration.get("reason_code")
+            status = iteration.get("status")
+            phases = iteration.get("phases")
+            if (
+                type(number) is not int
+                or number < 1
+                or number > repeat
+                or number in observed_iterations
+                or status not in RESULT_STATUSES
+                or not isinstance(reason, str)
+                or not reason
+                or "\n" in reason
+                or "\r" in reason
+                or not isinstance(phases, dict)
+            ):
+                raise ContractError(f"{path}: invalid report case results")
+            observed_iterations.add(number)
+            statuses.append(status)
+            for phase, record in phases.items():
+                if (
+                    phase not in {"candidate", "grader"}
+                    or not isinstance(record, dict)
+                    or set(record) != phase_fields
+                    or record.get("status")
+                    not in {"complete", "observed", "process_error", "progress"}
+                    or any(
+                        type(record.get(field)) is not int or record[field] < 0
+                        for field in (
+                            "stderr_bytes",
+                            "stdout_bytes",
+                            "wall_duration_ms",
+                        )
+                    )
+                    or not isinstance(record.get("summary"), str)
+                    or "\n" in record["summary"]
+                    or "\r" in record["summary"]
+                    or not isinstance(record.get("metrics"), dict)
+                ):
+                    raise ContractError(f"{path}: invalid report case results")
+        if case["kind"] == "functional":
+            for status in statuses:
+                observed_summary[status] += 1
+            if "fail" in statuses:
+                expected_status = "fail"
+            elif "unknown" in statuses:
+                expected_status = "unknown"
+            else:
+                expected_status = "pass"
+        else:
+            required_correct = repeat // 2 + 1
+            if statuses.count("pass") >= required_correct:
+                expected_status = "pass"
+            elif statuses.count("fail") >= required_correct:
+                expected_status = "fail"
+            else:
+                expected_status = "unknown"
+            observed_summary[expected_status] += 1
+        if case["status"] != expected_status:
+            raise ContractError(f"{path}: invalid report case results")
+    if summary != observed_summary:
+        raise ContractError(f"{path}: report summary does not match case results")
+
+
+def load_run_report(value):
+    path = Path(value).expanduser().resolve()
+    document = load_json(path)
+    if not isinstance(document, dict):
+        raise ContractError(f"{path}: report root must be an object")
+    required = {"cases", "kind", "run", "schema_version", "skill", "summary", "target"}
+    if set(document) != required:
+        raise ContractError(f"{path}: invalid eval report fields")
+    if (
+        type(document.get("schema_version")) is not int
+        or document["schema_version"] != SCHEMA_VERSION
+    ):
+        raise ContractError(f"{path}: unsupported eval report schema")
+    if document.get("kind") != "skill-eval-run":
+        raise ContractError(f"{path}: not a skill eval run report")
+    skill = document.get("skill")
+    target = document.get("target")
+    run = document.get("run")
+    cases = document.get("cases")
+    summary = document.get("summary")
+    if not isinstance(skill, dict) or set(skill) != {"name", "package_sha256", "source_path"}:
+        raise ContractError(f"{path}: invalid report skill metadata")
+    if not all(isinstance(skill.get(key), str) and skill[key] for key in skill):
+        raise ContractError(f"{path}: invalid report skill metadata")
+    if (
+        not IDENTIFIER.fullmatch(skill["name"])
+        or not re.fullmatch(r"[0-9a-f]{64}", skill["package_sha256"])
+    ):
+        raise ContractError(f"{path}: invalid report skill metadata")
+    if not isinstance(target, dict) or set(target) != {"model", "name", "reasoning_effort"}:
+        raise ContractError(f"{path}: invalid report target metadata")
+    if target.get("name") not in TARGETS | {"external-adapter"}:
+        raise ContractError(f"{path}: invalid report target")
+    if not all(isinstance(target.get(key), str) and target[key] for key in target):
+        raise ContractError(f"{path}: invalid report target metadata")
+    expected_run_fields = {
+        "additional_skills",
+        "fail_fast",
+        "repeat",
+        "scope",
+        "selected_case_ids",
+        "timeout_seconds",
+    }
+    if not isinstance(run, dict) or set(run) != expected_run_fields:
+        raise ContractError(f"{path}: invalid report run metadata")
+    if run.get("scope") not in {"run", "run-all", "run-one"}:
+        raise ContractError(f"{path}: invalid report run scope")
+    if type(run.get("repeat")) is not int or run["repeat"] < 1:
+        raise ContractError(f"{path}: invalid report repeat")
+    if not isinstance(run.get("timeout_seconds"), (int, float)) or isinstance(
+        run["timeout_seconds"], bool
+    ) or run["timeout_seconds"] <= 0:
+        raise ContractError(f"{path}: invalid report timeout")
+    selected = run.get("selected_case_ids")
+    if selected is not None and (
+        not isinstance(selected, list)
+        or any(
+            not isinstance(item, str) or not IDENTIFIER.fullmatch(item)
+            for item in selected
+        )
+        or len(selected) != len(set(selected))
+    ):
+        raise ContractError(f"{path}: invalid report case selection")
+    if not isinstance(run.get("fail_fast"), bool):
+        raise ContractError(f"{path}: invalid report fail-fast setting")
+    additional = run.get("additional_skills")
+    if not isinstance(additional, list) or any(
+        not isinstance(item, dict)
+        or set(item) != {"name", "package_sha256", "source_path"}
+        or any(not isinstance(item.get(key), str) or not item[key] for key in item)
+        for item in additional
+    ):
+        raise ContractError(f"{path}: invalid report additional skills")
+    if len({item["name"] for item in additional}) != len(additional) or any(
+        not IDENTIFIER.fullmatch(item["name"])
+        or not re.fullmatch(r"[0-9a-f]{64}", item["package_sha256"])
+        for item in additional
+    ):
+        raise ContractError(f"{path}: invalid report additional skills")
+    if not isinstance(summary, dict):
+        raise ContractError(f"{path}: invalid report results")
+    if set(summary) != RESULT_STATUSES or any(
+        type(summary.get(status)) is not int or summary[status] < 0
+        for status in RESULT_STATUSES
+    ):
+        raise ContractError(f"{path}: invalid report summary")
+    validate_report_case_results(path, cases, run["repeat"], summary)
+    return document
+
+
+def inspect_run_report(document):
+    skill = document["skill"]
+    target = document["target"]
+    run = document["run"]
+    summary = document["summary"]
+    print(
+        f"RUN skill={skill['name']} sha256={skill['package_sha256']} "
+        f"target={target['name']} model={target['model']} "
+        f"effort={target['reasoning_effort']} scope={run['scope']}"
+    )
+    for case in document["cases"]:
+        print(f"CASE {case['case_id']} status={case['status']}")
+        for iteration in case["iterations"]:
+            print(
+                f"  ITERATION {iteration['iteration']} status={iteration['status']} "
+                f"reason={iteration['reason_code']}"
+            )
+            for phase, record in iteration["phases"].items():
+                print(
+                    f"    PHASE {phase} status={record['status']} "
+                    f"elapsed_ms={record['wall_duration_ms']} {record['summary']}"
+                )
+    print(
+        f"SUMMARY pass={summary['pass']} fail={summary['fail']} "
+        f"unknown={summary['unknown']}"
+    )
+
+
+def rerun_from_report(document):
+    target = document["target"]
+    if target["name"] not in TARGETS:
+        raise ContractError("report uses an external adapter and cannot be rerun")
+    run = document["run"]
+    additional = run["additional_skills"]
+    return run_evaluations(
+        document["skill"]["source_path"],
+        [],
+        target["name"],
+        target["model"],
+        target["reasoning_effort"],
+        [f"{item['name']}={item['source_path']}" for item in additional],
+        run["repeat"],
+        run["timeout_seconds"],
+        run["selected_case_ids"],
+        None,
+        run["fail_fast"],
+        report_scope=run["scope"],
+        expected_package_digest=document["skill"]["package_sha256"],
+        expected_additional_digests={
+            item["name"]: item["package_sha256"] for item in additional
+        },
+    )
 
 
 def write_case_result_metadata(destination, case, iteration, result):
@@ -1712,14 +2169,7 @@ def grade_functional_case(
     phase_records,
     source_skills=(),
 ):
-    excluded_roots = {
-        ".agents",
-        ".claude",
-        ".git",
-        ".grok",
-        case.get("skill_name", ""),
-    }
-    excluded_roots.discard("")
+    excluded_roots = {".agents", ".claude", ".git", ".grok"}
     with tempfile.TemporaryDirectory(
         prefix=f"skill-eval-grader-{case['id']}-"
     ) as temp_dir:
@@ -1801,6 +2251,7 @@ def run_builtin_target_case(
     workspace,
     timeout,
     additional_skill_paths,
+    denied_source_skill_paths,
     phase_records,
 ):
     case = request["case"]
@@ -1821,15 +2272,13 @@ def run_builtin_target_case(
                 f"{target} exposes no attributable automatic skill activation event"
             )
         stage_target_skills(
-            request, target, workspace, additional_skill_paths
+            request,
+            target,
+            workspace,
+            additional_skill_paths,
+            denied_source_skill_paths,
         )
-        excluded_roots = {
-            ".agents",
-            ".claude",
-            ".git",
-            ".grok",
-            request["skill"]["name"],
-        }
+        excluded_roots = {".agents", ".claude", ".git", ".grok"}
         before_state = workspace_state(workspace, excluded_roots)
         writable = case.get("side_effects") == "fixture"
         command = build_target_command(
@@ -1842,20 +2291,23 @@ def run_builtin_target_case(
             disable_skills=not request["skill"]["enabled"],
         )
         stop_when = None
-        if "should_trigger" in case and target == "grok":
+        if "should_trigger" in case and target in {"claude", "grok"}:
             def stop_when(stdout, stderr):
                 try:
-                    observed = parse_grok_observation(stdout, stderr)
+                    observed = parse_target_observation(target, stdout, stderr)
                 except TargetError:
                     return False
-                activated, _ = observe_grok_activation(
-                    observed, request["skill"]["name"], workspace
+                activated, _ = observe_target_activation(
+                    target,
+                    observed,
+                    request["skill"]["name"],
+                    workspace,
                 )
-                assistant_decided = any(
-                    event.get("type") == "assistant"
-                    for event in observed["events"]
-                )
-                return activated is not None and assistant_decided
+                # Only a matching activation is attributable mid-run. Its
+                # absence proves nothing until the turn ends: the model may
+                # read or search first and invoke the skill on a later turn,
+                # so non-activation is judged on the completed event stream.
+                return activated is True
 
         completed, stopped_early = run_observed_target_phase(
             target,
@@ -1870,8 +2322,8 @@ def run_builtin_target_case(
         )
         try:
             if stopped_early:
-                candidate = parse_grok_observation(
-                    completed.stdout, completed.stderr
+                candidate = parse_target_observation(
+                    target, completed.stdout, completed.stderr
                 )
             else:
                 candidate = parse_candidate_output(target, completed)
@@ -1885,14 +2337,9 @@ def run_builtin_target_case(
             raise TargetError(f"candidate protocol: {error}") from error
         session_id = candidate["session_id"]
         if "should_trigger" in case:
-            if target == "grok":
-                activated, evidence = observe_grok_activation(
-                    candidate, request["skill"]["name"], workspace
-                )
-            else:
-                activated, evidence = observe_claude_activation(
-                    candidate, request["skill"]["name"]
-                )
+            activated, evidence = observe_target_activation(
+                target, candidate, request["skill"]["name"], workspace
+            )
             if activated is None:
                 return (
                     "unknown",
@@ -1912,13 +2359,11 @@ def run_builtin_target_case(
             return result[0], result[1], result[2], [session_id]
 
         after_state = workspace_state(workspace, excluded_roots)
-        grading_case = dict(case)
-        grading_case["skill_name"] = request["skill"]["name"]
         structured, grader_session_id = grade_functional_case(
             target,
             model,
             reasoning_effort,
-            grading_case,
+            case,
             workspace,
             candidate,
             before_state,
@@ -1926,7 +2371,9 @@ def run_builtin_target_case(
             time.monotonic() + timeout,
             iteration,
             phase_records,
-            grok_sandbox_sources(request, additional_skill_paths),
+            grok_sandbox_sources(
+                request, additional_skill_paths, denied_source_skill_paths
+            ),
         )
         response = {
             "protocol_version": SCHEMA_VERSION,
@@ -1990,13 +2437,14 @@ def run_case(
     model,
     reasoning_effort,
     additional_skill_paths,
+    denied_source_skill_paths,
     iteration,
     timeout,
     artifacts_root,
 ):
     with tempfile.TemporaryDirectory(prefix=f"skill-eval-{case['id']}-") as temp_dir:
         workspace = Path(temp_dir)
-        phase_records = {} if artifacts_root is not None and target else None
+        phase_records = {} if target else None
         request = stage_request(
             skill_dir,
             skill_name,
@@ -2014,6 +2462,7 @@ def run_case(
                 workspace,
                 timeout,
                 additional_skill_paths,
+                denied_source_skill_paths,
                 phase_records,
             )
         else:
@@ -2046,23 +2495,10 @@ def run_case(
                     [f"  UNKNOWN artifacts: {detail}"],
                     result[3],
                 )
-        return result
+        return result, sanitized_phase_records(phase_records)
 
 
-def run_evaluations(
-    skill_path,
-    adapter,
-    target,
-    model,
-    reasoning_effort,
-    additional_skill_values,
-    repeat,
-    timeout,
-    selected_case_ids,
-    artifacts_dir,
-):
-    skill_name, functional, trigger = inspect_skill(skill_path)
-    skill_dir = Path(skill_path).resolve()
+def select_cases(functional, trigger, selected_case_ids):
     cases = functional + trigger
     if selected_case_ids:
         if len(selected_case_ids) != len(set(selected_case_ids)):
@@ -2075,49 +2511,38 @@ def run_evaluations(
             )
         selected_case_ids = set(selected_case_ids)
         cases = [case for case in cases if case["id"] in selected_case_ids]
-    if adapter[:1] == ["--"]:
-        adapter = adapter[1:]
-    if target and adapter:
-        raise ContractError("choose either --target or an adapter after --")
-    if model and not target:
-        raise ContractError("--model requires --target")
-    if reasoning_effort:
-        supported_efforts = TARGET_REASONING_EFFORTS.get(target)
-        if supported_efforts is None:
-            raise ContractError(
-                "--reasoning-effort requires --target claude or codex"
-            )
-        if reasoning_effort not in supported_efforts:
-            raise ContractError(
-                f"--reasoning-effort {reasoning_effort!r} is not supported for "
-                f"--target {target}"
-            )
-    if additional_skill_values and not target:
-        raise ContractError("--additional-skill requires --target")
-    if not target and not adapter:
-        raise ContractError("run requires --target or an adapter command after --")
-    additional_skill_paths = parse_additional_skill_paths(
-        additional_skill_values, skill_name
-    )
-    additional_skill_paths = add_package_fixture_skill_paths(
-        additional_skill_paths, skill_dir, cases
-    )
-    if repeat < 1:
-        raise ContractError("--repeat must be at least 1")
-    if timeout <= 0:
-        raise ContractError("--timeout must be greater than 0")
-    artifacts_root = prepare_artifacts_root(artifacts_dir, skill_dir)
+    return cases
 
+
+def execute_cases(
+    skill_dir,
+    skill_name,
+    cases,
+    adapter,
+    target,
+    model,
+    reasoning_effort,
+    additional_skill_paths,
+    denied_source_skill_paths,
+    repeat,
+    timeout,
+    artifacts_root,
+    fail_fast,
+):
     counts = {status: 0 for status in RESULT_STATUSES}
-    trigger_outcomes = {
-        case["id"]: {status: 0 for status in RESULT_STATUSES}
-        for case in cases
-        if "should_trigger" in case
-    }
+    case_reports = []
     session_ids = set()
-    for iteration in range(1, repeat + 1):
-        for case in cases:
-            status, detail, evidence_lines, observed_session_ids = run_case(
+    required_correct = repeat // 2 + 1
+    for case in cases:
+        trigger_outcomes = (
+            {status: 0 for status in RESULT_STATUSES}
+            if "should_trigger" in case
+            else None
+        )
+        stop_after_case = False
+        iteration_reports = []
+        for iteration in range(1, repeat + 1):
+            result, phases = run_case(
                 skill_dir,
                 skill_name,
                 case,
@@ -2126,10 +2551,12 @@ def run_evaluations(
                 model,
                 reasoning_effort,
                 additional_skill_paths,
+                denied_source_skill_paths,
                 iteration,
                 timeout,
                 artifacts_root,
             )
+            status, detail, evidence_lines, observed_session_ids = result
             duplicates = {
                 session_id
                 for session_id in observed_session_ids
@@ -2158,36 +2585,66 @@ def run_evaluations(
                         detail = f"artifact metadata finalization failed: {error}"
                         evidence_lines = [f"  UNKNOWN artifacts: {detail}"]
             session_ids.update(observed_session_ids)
-            if "should_trigger" in case:
-                trigger_outcomes[case["id"]][status] += 1
+            iteration_reports.append(
+                {
+                    "iteration": iteration,
+                    "status": status,
+                    "reason_code": result_reason_code(case, status, phases),
+                    "phases": phases,
+                }
+            )
+            if trigger_outcomes is not None:
+                trigger_outcomes[status] += 1
             else:
                 counts[status] += 1
+                if fail_fast and status != "pass":
+                    stop_after_case = True
             suffix = "" if status == "pass" else f" reason={detail}"
             print(f"{status.upper()} {case['id']} iteration={iteration}{suffix}")
             for line in evidence_lines:
                 print(line)
-    required_correct = repeat // 2 + 1
-    for case in cases:
-        if "should_trigger" not in case:
-            continue
-        outcomes = trigger_outcomes[case["id"]]
-        if outcomes["pass"] >= required_correct:
-            aggregate_status = "pass"
-        elif outcomes["fail"] >= required_correct:
-            aggregate_status = "fail"
+            if stop_after_case:
+                break
+        if trigger_outcomes is not None:
+            if trigger_outcomes["pass"] >= required_correct:
+                aggregate_status = "pass"
+            elif trigger_outcomes["fail"] >= required_correct:
+                aggregate_status = "fail"
+            else:
+                aggregate_status = "unknown"
+            counts[aggregate_status] += 1
+            if fail_fast and aggregate_status != "pass":
+                stop_after_case = True
         else:
-            aggregate_status = "unknown"
-        counts[aggregate_status] += 1
-        if repeat > 1:
+            iteration_statuses = {
+                iteration["status"] for iteration in iteration_reports
+            }
+            if "fail" in iteration_statuses:
+                aggregate_status = "fail"
+            elif "unknown" in iteration_statuses:
+                aggregate_status = "unknown"
+            else:
+                aggregate_status = "pass"
+        case_reports.append(
+            {
+                "case_id": case["id"],
+                "kind": (
+                    "trigger" if "should_trigger" in case else "functional"
+                ),
+                "status": aggregate_status,
+                "iterations": iteration_reports,
+            }
+        )
+        if trigger_outcomes is not None and repeat > 1:
             triggered = (
-                outcomes["pass"]
+                trigger_outcomes["pass"]
                 if case["should_trigger"]
-                else outcomes["fail"]
+                else trigger_outcomes["fail"]
             )
-            if outcomes["unknown"]:
+            if trigger_outcomes["unknown"]:
                 rate = (
                     f"{triggered / repeat:.3f}.."
-                    f"{(triggered + outcomes['unknown']) / repeat:.3f}"
+                    f"{(triggered + trigger_outcomes['unknown']) / repeat:.3f}"
                 )
             else:
                 rate = f"{triggered / repeat:.3f}"
@@ -2196,40 +2653,162 @@ def run_evaluations(
                 f"rate={rate} expected={str(case['should_trigger']).lower()} "
                 f"threshold=0.5 status={aggregate_status}"
             )
+        if stop_after_case:
+            break
     print(
         f"SUMMARY pass={counts['pass']} fail={counts['fail']} "
         f"unknown={counts['unknown']}"
     )
+    return counts, case_reports
+
+
+def run_evaluations(
+    skill_path,
+    adapter,
+    target,
+    model,
+    reasoning_effort,
+    additional_skill_values,
+    repeat,
+    timeout,
+    selected_case_ids,
+    artifacts_dir,
+    fail_fast=False,
+    report_path=None,
+    report_scope=None,
+    expected_package_digest=None,
+    expected_additional_digests=None,
+):
+    skill_name, source_functional, source_trigger = inspect_skill(skill_path)
+    select_cases(source_functional, source_trigger, selected_case_ids)
+    source_skill_dir = Path(skill_path).resolve()
+    if adapter[:1] == ["--"]:
+        adapter = adapter[1:]
+    if target and adapter:
+        raise ContractError("choose either --target or an adapter after --")
+    if model and not target:
+        raise ContractError("--model requires --target")
+    if reasoning_effort and not target:
+        raise ContractError("--reasoning-effort requires --target")
+    if target:
+        target_config = TARGET_CONFIGS[target]
+        if model is None:
+            model = target_config["model"]
+        if reasoning_effort is None:
+            reasoning_effort = target_config["reasoning_effort"]
+        supported_efforts = target_config["canonical_reasoning_efforts"]
+        if reasoning_effort not in supported_efforts:
+            raise ContractError(
+                f"--reasoning-effort {reasoning_effort!r} is not supported for "
+                f"--target {target}"
+            )
+    if additional_skill_values and not target:
+        raise ContractError("--additional-skill requires --target")
+    if not target and not adapter:
+        raise ContractError("run requires --target or an adapter command after --")
+    source_additional_skill_paths = parse_additional_skill_paths(
+        additional_skill_values, skill_name
+    )
+    if repeat < 1:
+        raise ContractError("--repeat must be at least 1")
+    if timeout <= 0:
+        raise ContractError("--timeout must be greater than 0")
+    report_destination = validate_report_destination(report_path, source_skill_dir)
+    with tempfile.TemporaryDirectory(prefix="skill-eval-snapshot-") as temp_dir:
+        snapshot_root = Path(temp_dir)
+        snapshot_skill_dir = snapshot_root / skill_name
+        skill_digest = copy_stable_package(source_skill_dir, snapshot_skill_dir)
+        if (
+            expected_package_digest is not None
+            and skill_digest != expected_package_digest
+        ):
+            raise ContractError("package changed since the recorded run")
+        snapshot_name, functional, trigger = inspect_skill(snapshot_skill_dir)
+        if snapshot_name != skill_name:
+            raise ContractError("skill package identity changed while snapshotting")
+        cases = select_cases(functional, trigger, selected_case_ids)
+
+        snapshot_additional_skill_paths = {}
+        additional_report = []
+        for name, source in sorted(source_additional_skill_paths.items()):
+            destination = snapshot_root / "additional-skills" / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            additional_digest = copy_stable_package(source, destination)
+            snapshot_additional_skill_paths[name] = destination
+            additional_report.append(
+                {
+                    "name": name,
+                    "source_path": str(source),
+                    "package_sha256": additional_digest,
+                }
+            )
+        expected_additional_digests = expected_additional_digests or {}
+        observed_additional_digests = {
+            item["name"]: item["package_sha256"] for item in additional_report
+        }
+        if (
+            expected_additional_digests
+            and observed_additional_digests != expected_additional_digests
+        ):
+            raise ContractError("additional skill package changed since the recorded run")
+        snapshot_additional_skill_paths = add_package_fixture_skill_paths(
+            snapshot_additional_skill_paths, snapshot_skill_dir, cases
+        )
+        artifacts_root = prepare_artifacts_root(artifacts_dir, source_skill_dir)
+        counts, case_reports = execute_cases(
+            snapshot_skill_dir,
+            skill_name,
+            cases,
+            adapter,
+            target,
+            model,
+            reasoning_effort,
+            snapshot_additional_skill_paths,
+            [source_skill_dir, *source_additional_skill_paths.values()],
+            repeat,
+            timeout,
+            artifacts_root,
+            fail_fast,
+        )
+
+    if report_scope is not None or report_destination is not None:
+        target_report = {
+            "name": target or "external-adapter",
+            "model": model or "n/a",
+            "reasoning_effort": reasoning_effort or "n/a",
+        }
+        report = {
+            "schema_version": SCHEMA_VERSION,
+            "kind": "skill-eval-run",
+            "skill": {
+                "name": skill_name,
+                "source_path": str(source_skill_dir),
+                "package_sha256": skill_digest,
+            },
+            "target": target_report,
+            "run": {
+                "scope": report_scope or "run",
+                "selected_case_ids": (
+                    list(selected_case_ids) if selected_case_ids else None
+                ),
+                "repeat": repeat,
+                "timeout_seconds": timeout,
+                "fail_fast": fail_fast,
+                "additional_skills": additional_report,
+            },
+            "cases": case_reports,
+            "summary": counts,
+        }
+        write_run_report(report, report_destination)
     return 0 if counts["fail"] == 0 and counts["unknown"] == 0 else 1
 
 
-def build_parser():
-    parser = argparse.ArgumentParser(
-        description="Validate and run portable skill evaluation cases."
-    )
-    subparsers = parser.add_subparsers(dest="command", required=True)
-    check = subparsers.add_parser("check", help="validate a skill and its evals")
-    check.add_argument("skill_dir", help="skill package containing evals/")
-    run = subparsers.add_parser(
-        "run",
-        help="run evals through a built-in target or external adapter",
-        description=(
-            "Validate and run skill evals. Select --target claude, codex, or "
-            "grok, or put an external adapter command and its arguments after --."
-        ),
-    )
-    run.add_argument("skill_dir", help="skill package containing evals/")
-    run.add_argument(
-        "--case",
-        action="append",
-        dest="case_ids",
-        metavar="CASE_ID",
-        help="run one affected case; repeat for additional cases",
-    )
-    run.add_argument(
+def add_run_arguments(parser, model_defaults, effort_defaults, canonical_efforts):
+    parser.add_argument("skill_dir", help="skill package containing evals/")
+    parser.add_argument(
         "--repeat", type=int, default=1, help="fresh runs per selected case"
     )
-    run.add_argument(
+    parser.add_argument(
         "--timeout",
         type=float,
         default=900,
@@ -2238,28 +2817,34 @@ def build_parser():
             "external-adapter case (default: 900)"
         ),
     )
-    run.add_argument(
+    parser.add_argument(
         "--target",
         choices=sorted(TARGETS),
         help="run with a bundled Claude, Codex, or Grok adapter",
     )
-    run.add_argument(
+    parser.add_argument(
         "--model",
-        help="target model override; valid only with --target",
+        help=(
+            f"target model override; valid only with --target; defaults: "
+            f"{model_defaults}"
+        ),
     )
-    run.add_argument(
+    parser.add_argument(
         "--reasoning-effort",
         choices=sorted(REASONING_EFFORTS),
-        help="target reasoning effort override; valid with --target claude or codex",
+        help=(
+            "target reasoning effort override; canonical target CLI values: "
+            f"{canonical_efforts}; defaults: {effort_defaults}"
+        ),
     )
-    run.add_argument(
+    parser.add_argument(
         "--additional-skill",
         action="append",
         default=[],
         metavar="NAME=PATH",
         help="stage a declared coexistence skill; repeat for additional skills",
     )
-    run.add_argument(
+    parser.add_argument(
         "--artifacts-dir",
         metavar="NEW_DIR",
         help=(
@@ -2267,18 +2852,99 @@ def build_parser():
             "directory"
         ),
     )
+    parser.add_argument(
+        "--report",
+        metavar="NEW_FILE",
+        help=(
+            "write the sanitized run report to a new file; run-one and run-all "
+            "create a temporary report automatically when omitted"
+        ),
+    )
+
+
+def build_parser():
+    model_defaults = ", ".join(
+        f"{target}={TARGET_CONFIGS[target]['model']}" for target in sorted(TARGETS)
+    )
+    effort_defaults = ", ".join(
+        f"{target}={TARGET_CONFIGS[target]['reasoning_effort']}"
+        for target in sorted(TARGETS)
+    )
+    canonical_efforts = ", ".join(
+        f"{target}={'/'.join(TARGET_CONFIGS[target]['canonical_reasoning_efforts'])}"
+        for target in sorted(TARGETS)
+    )
+    parser = argparse.ArgumentParser(
+        description="Validate and run portable skill evaluation cases."
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    check = subparsers.add_parser("check", help="validate a skill and its evals")
+    check.add_argument("skill_dir", help="skill package containing evals/")
+    list_cases = subparsers.add_parser(
+        "list", help="list validated functional and trigger case ids"
+    )
+    list_cases.add_argument("skill_dir", help="skill package containing evals/")
+    inspect = subparsers.add_parser(
+        "inspect", help="summarize a sanitized eval run report"
+    )
+    inspect.add_argument("report", help="report emitted by run-one or run-all")
+    rerun = subparsers.add_parser(
+        "rerun", help="rerun a recorded built-in target configuration"
+    )
+    rerun.add_argument("report", help="report emitted by run-one or run-all")
+    run = subparsers.add_parser(
+        "run",
+        help="run evals through a built-in target or external adapter",
+        description=(
+            "Validate and run skill evals. Select --target claude, codex, or "
+            "grok, or put an external adapter command and its arguments after --."
+        ),
+    )
+    add_run_arguments(run, model_defaults, effort_defaults, canonical_efforts)
+    run.add_argument(
+        "--case",
+        action="append",
+        dest="case_ids",
+        metavar="CASE_ID",
+        help="run one affected case; repeat for additional cases",
+    )
+    run_one = subparsers.add_parser(
+        "run-one",
+        help="run exactly one case for focused debugging",
+        description=(
+            "Validate and run exactly one skill eval. Select --target claude, "
+            "codex, or grok, or put an external adapter after --."
+        ),
+    )
+    add_run_arguments(run_one, model_defaults, effort_defaults, canonical_efforts)
+    run_one.add_argument("case_id", metavar="CASE_ID", help="case id to run")
+    run_all = subparsers.add_parser(
+        "run-all",
+        help="run the full suite, stopping at the first non-green case",
+        description=(
+            "Validate and run every skill eval. The run stops after the first "
+            "non-green case unless --keep-going is supplied."
+        ),
+    )
+    add_run_arguments(run_all, model_defaults, effort_defaults, canonical_efforts)
+    run_all.add_argument(
+        "--keep-going",
+        action="store_true",
+        help="run remaining cases after a fail or unknown result",
+    )
     return parser
 
 
 def parse_arguments(argv):
     values = list(sys.argv[1:] if argv is None else argv)
     adapter = []
-    if values[:1] == ["run"] and "--" in values:
+    run_commands = {"run", "run-one", "run-all"}
+    if values[:1] and values[0] in run_commands and "--" in values:
         delimiter = values.index("--")
         adapter = values[delimiter + 1 :]
         values = values[:delimiter]
     arguments = build_parser().parse_args(values)
-    if arguments.command == "run":
+    if arguments.command in run_commands:
         arguments.adapter = adapter
     return arguments
 
@@ -2286,7 +2952,25 @@ def parse_arguments(argv):
 def main(argv=None):
     arguments = parse_arguments(argv)
     try:
-        if arguments.command == "run":
+        if arguments.command in {"inspect", "rerun"}:
+            report = load_run_report(arguments.report)
+            if arguments.command == "inspect":
+                inspect_run_report(report)
+                return 0
+            return rerun_from_report(report)
+        if arguments.command in {"run", "run-one", "run-all"}:
+            if arguments.command == "run-one":
+                selected_case_ids = [arguments.case_id]
+                fail_fast = True
+                report_scope = "run-one"
+            elif arguments.command == "run-all":
+                selected_case_ids = None
+                fail_fast = not arguments.keep_going
+                report_scope = "run-all"
+            else:
+                selected_case_ids = arguments.case_ids
+                fail_fast = False
+                report_scope = "run" if arguments.report else None
             return run_evaluations(
                 arguments.skill_dir,
                 arguments.adapter,
@@ -2296,17 +2980,27 @@ def main(argv=None):
                 arguments.additional_skill,
                 arguments.repeat,
                 arguments.timeout,
-                arguments.case_ids,
+                selected_case_ids,
                 arguments.artifacts_dir,
+                fail_fast,
+                arguments.report,
+                report_scope,
             )
         skill_name, functional, trigger = inspect_skill(arguments.skill_dir)
     except ContractError as error:
         print(f"ERROR {error}", file=sys.stderr)
         return 2
-    print(
-        f"OK {skill_name}: eval_contract=valid "
-        f"functional={len(functional)} trigger={len(trigger)}"
-    )
+    if arguments.command == "list":
+        for case in functional:
+            print(f"functional\t{case['id']}")
+        for case in trigger:
+            expected = str(case["should_trigger"]).lower()
+            print(f"trigger\t{case['id']}\tshould_trigger={expected}")
+    else:
+        print(
+            f"OK {skill_name}: eval_contract=valid "
+            f"functional={len(functional)} trigger={len(trigger)}"
+        )
     return 0
 
 

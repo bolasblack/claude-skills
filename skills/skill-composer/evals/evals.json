@@ -30,7 +30,23 @@
         },
         {
           "id": "maintains-existing-evals",
-          "description": "Because this package already owns an eval suite, the agent reads the Evaluation Reference before preserving it and updating affected cases when needed, runs the deterministic contract check and relevant bundled tests, and records unavailable fresh-session behavior as unknown rather than passed. If an eval result is non-green or flaky, it classifies the result before editing, changes only the responsible owner, and reruns the same case before affected neighbors."
+          "description": "Because this package already owns an eval suite, the agent reads the Evaluation Reference before editing the target, preserves the existing suite, and updates the cases affected by the change."
+        },
+        {
+          "id": "runs-the-eval-contract-and-bundled-tests",
+          "description": "The agent runs the deterministic eval contract check and the relevant bundled tests and reports their results."
+        },
+        {
+          "id": "records-unrun-sessions-as-unknown",
+          "description": "The agent records unavailable fresh-session behavior as unknown rather than passed."
+        },
+        {
+          "id": "probes-one-case-before-widening",
+          "description": "Any eval execution uses the explicit one-case scope and sanitized report for a focused probe before widening to affected neighbors or the full frozen-suite scope."
+        },
+        {
+          "id": "tunes-one-owner-per-iteration",
+          "description": "If an eval result is non-green or flaky, the agent classifies the result before editing, changes only the responsible owner, and reruns the same case before affected neighbors."
         }
       ]
     },
@@ -79,7 +95,11 @@
         },
         {
           "id": "keeps-evals-opt-in",
-          "description": "Because the user did not request evals and the new package had none, the agent does not load the branch-only Evaluation Reference or create eval manifests, fixtures, or runner copies; if it identifies a material need for repeatability, it asks before adding them."
+          "description": "Because the user did not request evals and the new package had none, the agent does not load the branch-only Evaluation Reference or create eval manifests, fixtures, or runner copies."
+        },
+        {
+          "id": "asks-before-adding-evals",
+          "description": "Any material need for repeatable evals that the agent identifies is raised as a question to the user; no eval artifact is added without that approval."
         },
         {
           "id": "validates-without-proxy-claims",
@@ -112,11 +132,19 @@
         },
         {
           "id": "keeps-evals-opt-in",
-          "description": "Because the existing package has no eval suite and the user did not request one, the agent does not load the branch-only Evaluation Reference or add eval manifests, fixtures, or runner copies; it asks first if a material risk makes a repeatable suite worth adding."
+          "description": "Because the existing package has no eval suite and the user did not request one, the agent does not load the branch-only Evaluation Reference or add eval manifests, fixtures, or runner copies."
         },
         {
-          "id": "validates-the-exact-candidate",
-          "description": "The candidate inventory, bundled tests, fresh-session behavior gates, portable fallback, and clean-install checks each have evidence or an explicit unknown; the absent, unrequested eval contract is not called passed or treated as a failure."
+          "id": "asks-before-adding-evals",
+          "description": "Any material risk that the agent judges worth a repeatable suite is raised as a question to the user; no eval artifact is added without that approval."
+        },
+        {
+          "id": "ledgers-every-release-gate",
+          "description": "The validation ledger gives the candidate inventory, bundled tests, fresh-session behavior gates, portable fallback, and clean-install checks each an evidence-backed result or an explicit unknown."
+        },
+        {
+          "id": "does-not-invent-an-eval-gate",
+          "description": "The absent, unrequested eval contract is neither reported as passed nor treated as a failure."
         },
         {
           "id": "records-evidence-backed-history",

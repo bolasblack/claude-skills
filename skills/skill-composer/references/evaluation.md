@@ -11,6 +11,30 @@ quality](https://agentskills.io/skill-creation/evaluating-skills). Skill Compose
 manifest schema, runner protocol, target adapters, and evidence limits remain the
 package-local contract documented here.
 
+## Before Writing a Case
+
+Make one case answer one question at one layer. A trigger case asks only whether the
+target activates the skill; once Claude emits the matching `Skill` call or Grok reads
+the staged `SKILL.md`, the runner has the required positive observation and terminates
+that candidate instead of letting it complete the functional task. A functional case
+starts from a valid, installable package and tests the requested behavior; do not
+manufacture a red result by breaking its launcher, wrapper, or package shape unless
+that breakage is itself the behavior under test.
+
+Give every negative trigger query a more plausible owner than the evaluated skill.
+Words such as “this skill,” “this project,” or “the script” are a deictic owner, not
+realistic context. Supply a referenced fixture or competing skill that those words can
+identify; the runner rejects a negative deictic owner with neither. This structural
+check cannot prove that an arbitrary fixture is semantically plausible, so fix the
+fixture before tuning the description. If two description-only revisions leave the
+same failure distribution, stop editing wording and reclassify the case or environment.
+
+Assert observable evidence, not response shape or grader confidence. Valid JSON is
+transport evidence, not completion evidence: a candidate or grader must perform the
+tool work needed to establish its claim. Start with `check` and `list`, run one case
+through `run-one`, inspect its report, and widen to `run-all` only after that smallest
+slice behaves as intended.
+
 ## Repeatable Evaluation Contract
 
 The admission decision lives in [Step 8](../SKILL.md#step-8-validate-behavior-and-maintain-admitted-evals).
@@ -20,13 +44,16 @@ condition applies:
 
 ```bash
 python3 /path/to/skill-composer/scripts/eval-skill.py check /path/to/skill
-python3 /path/to/skill-composer/scripts/eval-skill.py run /path/to/skill \
-  [--case CASE_ID] [--repeat 3] [--model MODEL] \
+python3 /path/to/skill-composer/scripts/eval-skill.py list /path/to/skill
+python3 /path/to/skill-composer/scripts/eval-skill.py run-one \
+  /path/to/skill CASE_ID [--repeat 3] [--model MODEL] \
   [--reasoning-effort EFFORT] --target claude|codex|grok
-python3 /path/to/skill-composer/scripts/eval-skill.py run /path/to/skill \
+python3 /path/to/skill-composer/scripts/eval-skill.py inspect /path/to/report.json
+python3 /path/to/skill-composer/scripts/eval-skill.py rerun /path/to/report.json
+python3 /path/to/skill-composer/scripts/eval-skill.py run-all /path/to/skill \
   --additional-skill NAME=/path/to/skill --target TARGET
-python3 /path/to/skill-composer/scripts/eval-skill.py run /path/to/skill \
-  [--case CASE_ID] [--repeat 3] -- ADAPTER [ARG ...]
+python3 /path/to/skill-composer/scripts/eval-skill.py run-all /path/to/skill \
+  [--keep-going] [--repeat 3] -- ADAPTER [ARG ...]
 ```
 
 Give the runner one repository owner and let each evaluated skill own only its manifests
@@ -36,9 +63,11 @@ repository owner; include the matching black-box test and record the Skill Compo
 release or artifact hash that identifies the copy.
 
 `check` validates the skill's package identity, rejects symlinks before staging, and
-checks eval manifests, identifiers, safe side-effect declarations, assertions, and
-fixture paths. It is not the portable Agent Skills schema validator or a target
-validator, and it supplies no activation or functional evidence.
+checks eval manifests, identifiers, safe side-effect declarations, assertions, fixture
+paths, and ownerless deictic negative queries. `list` prints the validated functional
+and trigger case IDs without starting a target. Neither command is the portable Agent
+Skills schema validator or a target validator, and neither supplies activation or
+functional evidence.
 
 Keep domain truth with the evaluated skill:
 
@@ -55,24 +84,52 @@ Keep domain truth with the evaluated skill:
   competitors. A package-local competitor can live at
   `evals/fixtures/skills/<name>`; an explicitly supplied `--additional-skill` mapping
   takes precedence. A present trigger suite must contain both positive and negative
-  cases.
+  cases. A negative query containing `this`, `that`, or `the` before `skill`, `project`,
+  `script`, or `package` must also declare a fixture or competitor; authors still own
+  whether that context gives the phrase a genuinely more plausible referent.
 - Both documents use `schema_version: 1` and a `skill_name` matching `SKILL.md` and the
   package directory. Unknown fields fail closed so misspellings cannot silently weaken
   a gate. At least one case must exist across the two manifests; an empty package is
   not a valid eval contract.
 
-`run` validates first, then creates a new temporary workspace for every case and
-iteration. It copies the skill without `evals/` and stages only declared fixture inputs.
-Repeat `--case` to run affected IDs after a focused change; omitted `--case` runs the
-whole suite, while an unknown or duplicate ID is a command-contract error. `--model`
-overrides the selected target's model. `--reasoning-effort` supports target-specific
-values for Claude and Codex. Claude accepts `low`, `medium`, `high`, `xhigh`, or `max`
-through Claude's `--effort` flag; Codex accepts `minimal`, `low`, `medium`, `high`, or
-`xhigh` through Codex's `model_reasoning_effort` configuration. The runner rejects
-values outside the selected target's set and rejects the option for other targets before
-a provider call. It passes the selected effort explicitly to both the candidate and
-independent grader instead of relying on ambient target configuration. Whether a
-particular model supports the selected value remains target-runtime evidence.
+Every execution validates first and copies the complete evaluated package into one
+frozen package snapshot. The runner verifies that its content hash stayed stable while
+copying, then creates a new temporary workspace for every case and iteration from that
+snapshot. A source edit during a multi-case run therefore cannot mix package versions.
+Each case workspace receives an eval-free skill copy and only its declared fixture
+inputs.
+
+`run-one` executes exactly one case and is the tuning and debugging entry point.
+`run-all` runs the complete suite from the same snapshot and fails fast after the first
+non-green case; pass `--keep-going` only when collecting all independent failures is
+worth the additional calls. The older `run --case` surface remains compatible for
+external callers, but new workflows use the explicit scopes so omission cannot turn a
+focused probe into a full paid suite. An unknown or duplicate case ID is a
+command-contract error. Built-in targets use these runner-owned defaults:
+
+| Target | Model | Reasoning effort |
+|---|---|---|
+| Claude | `claude-sonnet-5` | `high` |
+| Codex | `gpt-5.6-terra` | `high` |
+| Grok | `grok-4.6` | `high` |
+
+`--model` and `--reasoning-effort` override the selected target's defaults. The
+runner's stable canonical CLI vocabulary is:
+
+| Target | Canonical reasoning-effort values | Target surface |
+|---|---|---|
+| Claude | `low`, `medium`, `high`, `xhigh`, `max` | Claude's `--effort` flag |
+| Codex | `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`, `ultra` | Codex's `model_reasoning_effort` configuration |
+| Grok | `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max` | Grok's `--reasoning-effort` flag |
+
+These values describe harness input vocabulary, not a claim that every model accepts
+every value. A target may advertise a model-specific subset or additional menu IDs;
+the runner keeps its public override contract to the canonical names above, and the
+selected target runtime owns model compatibility. The runner rejects canonical values
+outside the selected target's set and rejects either override without a built-in target
+before a provider call. It passes the resolved model and effort explicitly to both the
+candidate and independent grader instead of relying on ambient target configuration.
+Whether a particular model supports the selected value remains target-runtime evidence.
 A case that declares `additional_skills` needs one package-local fixture or
 `--additional-skill NAME=PATH` mapping per named package in built-in mode; a missing
 mapping becomes `unknown`, while a malformed or mismatched package is a command-contract
@@ -110,6 +167,20 @@ target is collapsed to `<outside-workspace>`. On POSIX, timeout cleanup signals 
 process group, bounds the final pipe-drain interval, and closes this run's capture pipes
 rather than waiting indefinitely on a detached process that inherited them.
 
+`run-one` and `run-all` automatically write a mode-`0600` sanitized report and print its
+path. Pass `--report NEW_FILE` to choose another new path. The report records the frozen
+package hash, resolved target/model/effort, exact scope, case and iteration statuses,
+reason codes, structural phase summaries, timing, and provider metrics. It does not
+store prompts, rubrics, assertion evidence, model text, tool arguments, session IDs, or
+raw stderr. Use the `inspect` command on `REPORT` to classify the failed phase before
+increasing a timeout. Use the `rerun` command only to reproduce the same built-in target
+configuration; it refuses to run when the source package hash has drifted, and emits a
+new report instead of overwriting the old one. The hash covers paths, content, and
+executable bits; other permission bits do not change package identity.
+External-adapter reports remain
+inspectable but are not rerunnable because persisting an arbitrary adapter command could
+persist secrets.
+
 Use `--artifacts-dir NEW_DIR` when a slow or failed run needs filesystem-level debugging.
 The option is explicit because fixture state can be sensitive: it refuses to overwrite an
 existing path or write inside the evaluated skill package, then stores one sanitized
@@ -126,8 +197,15 @@ remains temporary.
 
 Built-in target support deliberately stops where the current structured evidence stops:
 
-- **Claude:** a matching structured `Skill` call proves activation. A negative result
-  additionally requires the initialization catalog to prove the skill was offered.
+- **Claude:** a matching structured `Skill` call proves activation, and the runner stops
+  the candidate as soon as that call appears. A negative result requires the
+  initialization catalog to prove the skill was offered and a completed turn—the
+  terminal result event—without the matching call. The runner never judges
+  non-activation from an intermediate assistant event, because the model may read or
+  search first and invoke the skill on a later turn. The session loads only
+  project-scoped settings, skills, and commands, so the staged copy is the only one the
+  catalog can advertise or the `Skill` call can name; the [harness
+  ledger](../HARNESS-RESEARCH.md#current-eval-target-evidence) records that evidence.
   Fixture-writing functional runs require Claude's native sandbox to start in strict
   fail-closed mode. When the Linux process is UID 0 and `bwrap` is available, the runner
   starts only the writable candidate through a user namespace that maps it to a non-root
@@ -143,18 +221,18 @@ Built-in target support deliberately stops where the current structured evidence
   access, and stages only the selected project-local copies. The profile collapses
   redundant descendant denials so nested package-local competitor fixtures remain
   mountable. A `system/init` catalog advertising the evaluated skill plus a matching
-  `read_file` call for its staged `SKILL.md` proves positive activation. For a negative
-  case, the same catalog plus a decisive assistant event without that matching read
-  proves non-activation; the runner may stop at that point to reduce cost. Completed
-  `end_turn` responses provide functional text. This controlled workspace also supports
-  Grok baseline and isolation cases; if the profile is unavailable or does not start
-  fail closed, the result is `unknown`.
+  `read_file` call for its staged `SKILL.md` proves positive activation and stops the
+  candidate. For a negative case, the same catalog plus a completed `end_turn` turn
+  without that matching read proves non-activation; an intermediate tool call is not a
+  verdict. Completed `end_turn` responses provide functional text. This controlled
+  workspace also supports Grok baseline and isolation cases; if the profile is
+  unavailable or does not start fail closed, the result is `unknown`.
 
 The built-in Codex command cannot prove that ambient user skills were absent, so Codex
 baseline and isolation categories remain `unknown`. Use an external adapter in a clean
 host when those claims matter. A built-in target executable that is missing, times out,
-fails, emits malformed or oversized output, mixes session IDs, or cannot supply required
-evidence also produces `unknown`, never pass.
+fails, emits malformed output or more than 32 MiB of output in one phase, mixes session
+IDs, or cannot supply required evidence also produces `unknown`, never pass.
 
 External-adapter mode starts the adapter as an argument vector without a shell. The
 adapter receives one JSON request on standard input containing protocol version 1, the
@@ -190,12 +268,16 @@ green by weakening the case.
 1. **Freeze the comparison.** Lock one case ID, prompt, files, assertions, target,
    model, configuration, and no-skill or previous-version baseline. A changed case
    starts a new baseline; do not compare its result with scores from the old prompt,
-   fixture, or rubric.
-2. **Run the smallest observable slice.** Run the deterministic contract first, then
-   one affected case once in a fresh session. When the runner or adapter changed, prove
-   its public seam with a fake target before spending a live call. Preserve artifacts
-   only through an explicitly authorized new directory. Set phase bounds from observed
-   timing and progress; a diagnostic timeout is not an acceptance threshold.
+   fixture, or rubric. The runner freezes one package snapshot and records its hash;
+   retain that report as the identity of the observed run.
+2. **Run the smallest observable slice.** Run `check` and `list`, then invoke `run-one`
+   for one affected case once in a fresh session. When the runner or adapter changed,
+   prove its public seam with a fake target before spending a live call. A parser,
+   grader-transport, or completion change also needs one authorized real probe showing
+   that the model performed the required tool work; valid JSON alone is insufficient.
+   Preserve raw artifacts only through an explicitly authorized new directory. Set
+   phase bounds from observed timing and progress; a diagnostic timeout is not an
+   acceptance threshold.
 3. **Classify before editing.** Classify the result as skill behavior, eval design,
    runner or adapter, or provider or environment. A valid case exposing wrong task
    behavior belongs to the skill. An ambiguous prompt, missing input, unrealistic
@@ -203,23 +285,28 @@ green by weakening the case.
    design. Process cleanup, timeout accounting, event parsing, grading transport, or
    sandbox enforcement belongs to the runner or adapter. Authentication, service
    latency, missing target evidence, or an unavailable platform capability belongs to
-   the provider or environment.
+   the provider or environment. Start with `inspect REPORT`; for `unknown`, locate the
+   candidate, grader, protocol, or environment phase before increasing a timeout.
    Record the last two classes as `unknown`: unknown is not a skill failure.
 4. **Test one hypothesis.** State one explicit hypothesis and change exactly one owner
    per iteration: the skill, the case or rubric, the runner or adapter, or the selected
    target configuration. Do not edit skill instructions and the case that judges them
    in the same iteration. A retry without a new hypothesis or new evidence is not an
    evaluation step.
-5. **Prove locally, then widen.** Rerun the same case in a fresh session. After it
-   demonstrates the intended change, run the closest affected positive, negative, and
-   edge cases. Trigger cases use realistic files and competing skills; tune wording only
-   from the fixed training split, then judge it on the untouched validation split.
-   Repeat a flaky case and report its rate rather than selecting the favorable run.
-6. **Accept one exact result.** Freeze the final tree, rerun the full owned suite on
-   every claimed model and surface, and perform independent acceptance only after that
-   freeze. Do not combine passes from different intermediate trees. Report the exact
-   tree, target configuration, case and repeat counts, `pass`/`fail`/`unknown`, timing,
-   cost when known, and every unrun gate.
+5. **Prove locally, then widen.** Rerun the same case in a fresh session with the same
+   explicit configuration. Use `rerun REPORT` only when reproducing the unchanged
+   package; after an intended edit, issue the same `run-one` scope and let it record the
+   new hash. After the case demonstrates the intended change, run the closest affected
+   positive, negative, and edge cases. Trigger cases use realistic files and competing
+   skills; tune wording only from the fixed training split, then judge it on the
+   untouched validation split. Repeat a flaky case and report its rate rather than
+   selecting the favorable run.
+6. **Accept one exact result.** Freeze the final tree, use `run-all` for the full owned
+   suite on every claimed model and surface, and perform independent acceptance only
+   after that freeze. The default fail-fast pass is the shortest acceptance probe;
+   `--keep-going` is an explicit diagnostic choice. Do not combine passes from different
+   intermediate trees. Report the exact tree, target configuration, case and repeat
+   counts, `pass`/`fail`/`unknown`, timing, cost when known, and every unrun gate.
 
 **Done when:** the failure class and owner are evidenced, each retry tests one explicit
 hypothesis, the same case and its affected neighbors demonstrate the result, and the
@@ -267,10 +354,11 @@ this runner, every functional case must carry at least one assertion.
 
 ### 2. Run Fresh, Isolated Iterations
 
-Give every run a clean workspace and session. Keep candidate assertions and expected
-trigger labels hidden until grading, and save each new round under a new iteration
-rather than overwriting earlier evidence. Run the same cases after each instruction
-change so the comparison measures the skill rather than leftover conversation or files.
+The runner gives every iteration a clean workspace and session while all cases in one
+command share the same frozen source snapshot. Keep candidate assertions and expected
+trigger labels hidden until grading, and save each new round under a new report rather
+than overwriting earlier evidence. Run the same cases after each instruction change so
+the comparison measures the skill rather than leftover conversation or files.
 
 ### 3. Grade with Concrete Evidence
 
@@ -294,14 +382,20 @@ each configuration and their delta in `benchmark.json`; standard deviation is me
 only with multiple observations. Inspect the full execution transcript for slow, costly,
 flaky, or surprising cases instead of diagnosing from the final answer alone.
 
-The bundled runner currently records per-phase transcript and timing artifacts and
-aggregates trigger rates. It does not yet generate `benchmark.json`, blind comparisons,
-or human feedback artifacts; perform those steps manually or with a separately verified
-orchestrator and keep them out of automated claims until evidence exists.
+The bundled runner automatically records sanitized per-phase timing, metrics, and
+structural summaries, can explicitly retain sensitive transcripts and workspace
+artifacts, and aggregates trigger rates. It does not yet generate `benchmark.json`,
+blind comparisons, or human feedback artifacts; perform those steps manually or with a
+separately verified orchestrator and keep them out of automated claims until evidence
+exists.
 
 ### 5. Test Trigger Boundaries without Overfitting
 
-For model-invoked skills, test whether the host loads the skill at the right boundary. Negative cases must be realistic near-misses, not unrelated topics that test nothing.
+For model-invoked skills, test whether the host loads the skill at the right boundary.
+Negative cases must be realistic near-misses, not unrelated topics that test nothing.
+If a negative uses a deictic owner such as “this skill,” “this project,” or “the
+script,” its fixture or competing skill must be a more plausible referent than the
+evaluated skill; otherwise repair the case before editing the description.
 
 ```
 Should trigger:

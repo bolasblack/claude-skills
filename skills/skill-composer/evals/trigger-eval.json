@@ -5,11 +5,17 @@
     {
       "id": "trigger-create-new-skill",
       "query": "帮我写一个能整理数据库迁移记录的 agent skill。",
+      "additional_skills": [
+        "command-creator"
+      ],
       "should_trigger": true
     },
     {
       "id": "trigger-update-existing-skill",
       "query": "Update proper-fix so it handles configuration changes as well as code fixes.",
+      "additional_skills": [
+        "proper-fix"
+      ],
       "should_trigger": true
     },
     {
@@ -20,6 +26,9 @@
     {
       "id": "trigger-package-cross-agent",
       "query": "Package this skill so the same core workflow works in Codex and Claude Code.",
+      "additional_skills": [
+        "skill-installer"
+      ],
       "should_trigger": true
     },
     {

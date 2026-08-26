@@ -213,22 +213,98 @@ class SkillComposerPackageTest(unittest.TestCase):
             self.assertIn(phrase, skill.lower())
         self.assertNotIn("## Invocation Modes", reference)
 
-    def test_authoring_another_skill_does_not_open_maintainer_evidence(self):
+    def test_review_findings_keep_the_complete_record_when_changes_are_forbidden(self):
         skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
-        contract = " ".join(skill.split())
+        review = skill.split("## Reviewing an Existing Skill", 1)[1].split(
+            "## Packaging and Releasing a Skill", 1
+        )[0]
+
+        self.assertIn("A finding is the complete review record", review)
+        self.assertIn("only findings and evidence", review)
+        self.assertIn("does not authorize applying the fix", review)
+
+    def test_authoring_another_skill_uses_only_the_shared_eval_runner_public_seam(self):
+        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        boundary = skill.split("# Skill Composer", 1)[1].split(
+            "## Authoring Authority", 1
+        )[0]
+        contract = " ".join(boundary.split())
 
         self.assertIn(
             "Do not inspect them while using Skill Composer to author another skill",
             contract,
         )
+        self.assertIn("eval runner's implementation", contract)
+        self.assertIn("documented public CLI is a shared validator", contract)
+        self.assertIn("Step 8 owns when to invoke that CLI", contract)
+        self.assertIn("target is not expected to contain a runner copy", contract)
+        self.assertIn("without inspecting the runner implementation", contract)
+        self.assertNotIn("eval runner are maintainer evidence", contract)
+
+        full_contract = " ".join(skill.split())
         self.assertIn(
-            "Do not seek or load it merely because it is installed", contract
+            "Do not seek or load it merely because it is installed", full_contract
         )
         self.assertIn(
             "Never scan home or user-level skill directories for examples, "
             "validators, or target evidence",
+            full_contract,
+        )
+
+    def test_introduction_keeps_eval_reference_behind_the_update_router(self):
+        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        boundary = skill.split("# Skill Composer", 1)[1].split(
+            "## Authoring Authority", 1
+        )[0]
+        contract = " ".join(boundary.split())
+        update_route = skill.split("- **Update:**", 1)[1].split(
+            "\n- **Review:**", 1
+        )[0]
+
+        self.assertNotIn("[Evaluation Reference](references/evaluation.md)", contract)
+        self.assertIn(
+            "[Evaluation Reference](references/evaluation.md)", update_route
+        )
+        self.assertIn("target is not expected to contain a runner copy", contract)
+
+    def test_update_router_admits_eval_guidance_from_observable_inputs_only(self):
+        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        update_route = skill.split("- **Update:**", 1)[1].split(
+            "\n- **Review:**", 1
+        )[0]
+        contract = " ".join(update_route.split())
+
+        self.assertIn(
+            "inventory contains `evals/evals.json` or `evals/trigger-eval.json`",
             contract,
         )
+        self.assertIn("user explicitly asks for eval work", contract)
+        self.assertIn(
+            "read the [Evaluation Reference](references/evaluation.md) before "
+            "editing the target",
+            contract,
+        )
+        self.assertIn("Otherwise keep that reference unopened", contract)
+
+    def test_no_suite_branch_cannot_treat_eval_check_as_a_schema_validator(self):
+        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        evaluation_step = skill.split("### Step 8:", 1)[1].split("\n## ", 1)[0]
+        contract = " ".join(evaluation_step.split())
+
+        self.assertIn("do not search, grep, or open the Evaluation Reference", contract)
+        self.assertIn("do not inspect or invoke `eval-skill.py`", contract)
+        self.assertIn("not a general package or target schema validator", contract)
+
+    def test_target_compatibility_claims_require_matching_behavior_evidence(self):
+        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        evaluation_step = skill.split("### Step 8:", 1)[1].split("\n## ", 1)[0]
+        contract = " ".join(evaluation_step.lower().split())
+
+        self.assertIn("frontmatter, body, changelog, and final report", contract)
+        self.assertIn("verified, supported, or tested", contract)
+        self.assertIn("matching target-behavior ledger row is `pass`", contract)
+        self.assertIn("static schema validation", contract)
+        self.assertIn("manual walkthrough", contract)
 
     def test_packaged_evals_are_opt_in_and_existing_suites_follow_changed_behavior(self):
         skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
@@ -279,6 +355,30 @@ class SkillComposerPackageTest(unittest.TestCase):
                 "keeps-evals-opt-in"
             ].lower(),
         )
+        for case_id in (
+            "creates-a-portable-skill",
+            "updates-then-packages-cross-harness",
+        ):
+            self.assertIn("asks-before-adding-evals", assertions[case_id])
+
+    def test_trigger_suite_stages_competitors_for_both_labels(self):
+        manifest = json.loads(
+            PACKAGE.joinpath("evals", "trigger-eval.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        fixtures = PACKAGE / "evals" / "fixtures" / "skills"
+        staged = {True: 0, False: 0}
+        for query in manifest["queries"]:
+            competitors = query.get("additional_skills", [])
+            for name in competitors:
+                self.assertTrue(
+                    fixtures.joinpath(name, "SKILL.md").is_file(), name
+                )
+            if competitors:
+                staged[query["should_trigger"]] += 1
+        self.assertGreaterEqual(staged[True], 3)
+        self.assertGreaterEqual(staged[False], 3)
 
     def test_unreleased_history_records_net_changes_only(self):
         changelog = PACKAGE.joinpath("CHANGELOG.md").read_text(encoding="utf-8")
@@ -669,8 +769,13 @@ class SkillComposerPackageTest(unittest.TestCase):
             "benchmark.json",
             "human feedback",
             "train/validation",
+            "claude-sonnet-5",
+            "gpt-5.6-terra",
+            "grok-4.6",
+            "canonical cli vocabulary",
             "claude's `--effort` flag",
             "codex's `model_reasoning_effort` configuration",
+            "grok's `--reasoning-effort` flag",
             "linux process is uid 0",
             "non-root uid before claude starts",
             "without disabling claude's native sandbox",
@@ -678,6 +783,31 @@ class SkillComposerPackageTest(unittest.TestCase):
             self.assertIn(phrase, contract)
         self.assertNotIn("share a 900-second case deadline", contract)
         self.assertNotIn("share a case deadline", contract)
+
+    def test_eval_runner_owns_focused_execution_and_debug_evidence(self):
+        evaluation = PACKAGE.joinpath("references", "evaluation.md").read_text(
+            encoding="utf-8"
+        )
+        contract = " ".join(evaluation.lower().split())
+
+        for phrase in (
+            "## before writing a case",
+            "`run-one` executes exactly one case",
+            "`run-all` runs the complete suite",
+            "fails fast",
+            "`--keep-going`",
+            "one frozen package snapshot",
+            "sanitized report",
+            "`inspect`",
+            "`rerun`",
+            "package hash has drifted",
+            "deictic owner",
+            "valid json is transport evidence, not completion evidence",
+            "before increasing a timeout",
+            "fake target",
+            "one authorized real probe",
+        ):
+            self.assertIn(phrase, contract)
 
     def test_eval_tuning_changes_one_owner_and_accepts_only_the_final_tree(self):
         skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
@@ -720,15 +850,15 @@ class SkillComposerPackageTest(unittest.TestCase):
             for case in manifest["evals"]
             if case["id"] == "updates-repeatable-mechanics"
         )
-        assertion = next(
-            item
-            for item in update_case["assertions"]
-            if item["id"] == "maintains-existing-evals"
-        )["description"].lower()
+        assertion = " ".join(
+            item["description"] for item in update_case["assertions"]
+        ).lower()
         self.assertIn("if an eval result is non-green or flaky", assertion)
         self.assertIn(
             "records unavailable fresh-session behavior as unknown", assertion
         )
+        self.assertIn("explicit one-case scope and sanitized report", assertion)
+        self.assertIn("full frozen-suite scope", assertion)
         for phrase in (
             "classifies the result before editing",
             "changes only the responsible owner",
