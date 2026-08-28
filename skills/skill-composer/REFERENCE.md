@@ -368,6 +368,21 @@ Use a skill-local `CHANGELOG.md` when a skill has releases of its own or may be 
 
 Keep the changelog outside `SKILL.md` so historical narration does not consume runtime context. Package it with the skill, update it in the same change as released behavior, and record only changes that matter to a user, integrator, or downstream maintainer. Omit it for unpublished, single-use skills until there is a real release history to preserve.
 
+### Published baseline
+
+Before writing `Unreleased`, identify the last artifact actually published to the
+changelog's audience. `Unreleased` is the net difference between that artifact and the
+release candidate, not a diary of commits, drafts, or revisions within the current
+release cycle. A working-tree state, commit, pull request, candidate artifact, or
+existing `Unreleased` entry does not prove that users received it. Establish publication
+from the published artifact, a release record that identifies it, or the user's explicit
+confirmation.
+
+When no prior artifact was published, record the resulting first-release contract and
+its evidenced reason. Fold all pre-release edits into that resulting capability. A
+behavior that existed only in an unpublished intermediate state creates no release
+transition, compatibility change, or migration.
+
 ### Evidence gate
 
 Evidence outranks the desire to fill every field. Write a changelog claim only when it is directly supported by at least one traceable source:
@@ -377,6 +392,10 @@ Evidence outranks the desire to fill every field. Write a changelog claim only w
 - observed diff or code;
 - test or log output; or
 - an existing release record, limited to what that record actually says.
+
+These sources can establish the candidate behavior and its reason. A claim that behavior
+changed for released users also requires evidence for the published baseline above; an
+observed diff or implementation state alone does not establish audience-visible history.
 
 A historical conversation can establish why the user chose a separate file, boundary, or workflow even when the current request only says to implement it. Preserve that explicit reason. Do not promote an agent's plausible interpretation of the conversation into the user's rationale, and do not use the changelog entry being written as evidence for itself.
 
