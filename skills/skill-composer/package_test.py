@@ -634,6 +634,28 @@ class SkillComposerPackageTest(unittest.TestCase):
                 contract,
             )
 
+    def test_changelog_history_uses_the_published_artifact_as_its_baseline(self):
+        skill = " ".join(
+            PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8").lower().split()
+        )
+        reference = " ".join(
+            PACKAGE.joinpath("REFERENCE.md")
+            .read_text(encoding="utf-8")
+            .lower()
+            .split()
+        )
+
+        for phrase in (
+            "last artifact actually published to the changelog's audience",
+            "not a diary of commits, drafts, or revisions",
+            "does not prove that users received it",
+            "resulting first-release contract",
+        ):
+            self.assertIn(phrase, reference)
+
+        self.assertIn("establish the published baseline", skill)
+        self.assertIn("relative to that baseline", skill)
+
     def test_script_changes_require_observed_public_seam_red_green_evidence(self):
         skill = " ".join(
             PACKAGE.joinpath("SKILL.md")

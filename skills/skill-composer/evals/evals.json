@@ -148,7 +148,7 @@
         },
         {
           "id": "records-evidence-backed-history",
-          "description": "The Unreleased changelog records the net change and its supported reason without assigning a release version or inventing migration work."
+          "description": "Because the fixture declares no released changes, the Unreleased changelog records the candidate's resulting portable cross-harness capability and supported reason as initial-release history; it does not present the fixture's Claude-only implementation as a released transition, removal, compatibility change, or migration."
         }
       ]
     }

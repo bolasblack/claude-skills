@@ -4,6 +4,11 @@ This file records Skill Composer releases so the history travels with standalone
 
 ## [Unreleased]
 
+### Keep release history on the published baseline
+
+- **Changed:** Changelog authoring now establishes the last artifact actually published to its audience and records `Unreleased` as the net delta from that artifact. Pre-release revisions fold into the candidate's resulting contract, and a first release describes its resulting capability instead of transitions from unpublished drafts. The existing cross-harness release eval now locks this baseline behavior.
+- **Why:** An unreleased skill draft briefly required a local tool before the first release finalized that tool as optional. Recording the draft-to-final correction as release history would tell users that a published requirement changed even though no artifact they received ever imposed it.
+
 ### Make focused eval debugging runner-owned
 
 - **Changed:** Added explicit `list`, `run-one`, and fail-fast `run-all` scopes to the shared evaluator, with `--keep-going` as an opt-in diagnostic mode. Every command now evaluates one content-hashed package snapshot whose identity covers paths, content, and executable bits but not other permission bits; trigger probes stop as soon as Claude or Grok supplies an attributable positive activation and judge non-activation only on a completed turn; and ownerless deictic negative queries fail contract validation. Focused and full runs automatically emit a mode-`0600` sanitized phase report; `inspect` summarizes it, while `rerun` reproduces the recorded built-in configuration only when the source and explicit additional-skill hashes still match. Black-box coverage locks single-case execution, fail-fast behavior, snapshot stability under a concurrent source edit, report redaction and validation, drift refusal, permission-bit tolerance, positive early termination, and a candidate that explores before invoking the skill on a later turn.

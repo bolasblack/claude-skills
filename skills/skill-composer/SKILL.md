@@ -304,19 +304,21 @@ Pre-Approval](REFERENCE.md#tool-pre-approval).
 When a skill has releases of its own or independent distribution, update its local
 `CHANGELOG.md` in the same change as released behavior. Before writing, read the
 mandatory [Evidence gate](REFERENCE.md#evidence-gate) and [Portable Changelog
-Format](REFERENCE.md#portable-changelog-format). Record each net logical change once
-with evidence-backed `Changed` and `Why`; add `Example` only when its removal would
-lose material causal understanding, and `Migration` only when a real downstream user
-must act because a supported public invocation, input, output, installation, or
-configuration contract changed. An internal implementation replacement with unchanged
-public invocation, inputs, and outputs has no Migration entry. A caller's private
-wrapper around a removed implementation detail does not establish a supported migration
-unless the existing contract or direct evidence identifies that wrapper as public.
-Re-test every retained example during review. Do not reconstruct missing
-legacy rationale or narrate revisions made inside one unreleased change as migrations.
-An unpublished, single-use skill does not need an empty changelog.
+Format](REFERENCE.md#portable-changelog-format). Establish the published baseline
+defined there, then record each net logical change once with evidence-backed `Changed`
+and `Why`; add `Example` only when its removal would lose material causal understanding,
+and `Migration` only when a real downstream user must act because a supported public
+invocation, input, output, installation, or configuration contract changed. An internal
+implementation replacement with unchanged public invocation, inputs, and outputs has no
+Migration entry. A caller's private wrapper around a removed implementation detail does
+not establish a supported migration unless the existing contract or direct evidence
+identifies that wrapper as public. Describe changes relative to that baseline: fold
+revisions made inside one unreleased cycle into the resulting contract instead of
+recording them as separate changes or migrations. Re-test every retained example during
+review, and do not reconstruct missing legacy rationale. An unpublished, single-use
+skill does not need an empty changelog.
 
-**Done when:** every applicable net change has one evidence-backed entry, every retained example adds material understanding, every migration names real downstream action, and runtime instructions contain no duplicate release history.
+**Done when:** every entry is a net delta from an evidenced published baseline or describes the resulting first-release contract, every retained example adds material understanding, every migration names real downstream action, and runtime instructions contain no duplicate release history.
 
 ### Step 8: Validate Behavior and Maintain Admitted Evals
 
@@ -435,12 +437,13 @@ artifact after testing.
 
 ### Release Step 4: Prepare Release Records
 
-Apply the [Evidence gate](REFERENCE.md#evidence-gate), update the skill-local changelog
-under `Unreleased`, prepare target-owned version metadata, and state any compatibility
-or migration effect without inventing rationale. Build and validate a release candidate
-without presenting it as the completed release.
+Apply the [Evidence gate](REFERENCE.md#evidence-gate) and [Portable Changelog
+Format](REFERENCE.md#portable-changelog-format), establish the published baseline, and
+update the skill-local changelog under `Unreleased`. Prepare target-owned version
+metadata and state any compatibility or migration effect without inventing rationale.
+Build and validate a release candidate without presenting it as the completed release.
 
-**Done when:** the candidate records each net change once, every migration corresponds to real downstream action, all metadata is ready for one proposed version while the changelog remains `Unreleased`, and candidate validation has a result for every locked pre-install gate.
+**Done when:** the candidate records each net change relative to that baseline, every migration corresponds to real downstream action, all metadata is ready for one proposed version while the changelog remains `Unreleased`, and candidate validation has a result for every locked pre-install gate.
 
 ### Release Step 5: Verify and Promote the Exact Artifact
 
