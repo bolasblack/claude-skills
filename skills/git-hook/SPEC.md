@@ -8,73 +8,102 @@ identity or complete trigger surface of the skill. A generic Git-hook request pr
 the repository's existing manager until migration is explicitly chosen.
 
 **Why:** The user expects other Git-hook tools to be supported over time. Coupling the
-skill's identity to Lefthook would make future branches awkward and could turn a generic
-request into an unintended migration.
+skill's identity to one manager could turn a generic request into an unintended
+migration.
 
-## Reusable Default, Contextual Fit
+## Assessment and User Decision
 
-Provide one reusable adoption default aimed at roughly 80–90% of ordinary Git-hook
-needs across arbitrary repositories without rewriting the skill. Reuse hook
-configuration and supporting scripts where their policy is shared, while leaving
-project-specific jobs and commands with the repository that owns them.
+Generic setup first inspects the repository, recommends one manager from observable
+fit, explains the alternative, and waits for the user's selection before mutation. An
+explicit manager named in the request already supplies that selection unless it
+conflicts with an existing owner. Selection uses existing ownership, the natural hook
+expression model, available project tooling, and explicit operating or supply-chain
+constraints; it does not use a score.
 
-The agent adapts materialization to repository evidence. In particular, it chooses the
-tracked runner or script location from an existing repo-owned convention and uses a
-documented fallback only when no convention exists.
+Lefthook is the ordinary-project recommendation when its configuration model fits and
+the project or current environment already makes it low-friction. git-hook-pure is the
+recommendation for repository-owned executable composition, explicit offline or
+self-contained operation, auditable vendoring, or minimum manager supply-chain surface.
+Current-machine availability is disclosed separately from reproducible fresh-clone
+provisioning.
 
-**Why:** The user wants to maximize reuse, while repositories use different native
-layouts such as `scripts/`, `.bin/`, or another suitable location. One universal path
-such as `tools/lefthook` would reduce that fit.
+**Why:** The user wants a small, understandable assessment and retains the final choice.
+Separating facts, recommendation, and selection prevents setup from silently encoding
+the agent's risk tolerance or replacing an existing owner.
+
+## Reusable Default, Contextual Materialization
+
+Provide reusable adoption paths aimed at ordinary Git-hook needs across arbitrary
+repositories. Reuse hook configuration and supporting scripts where policy is shared,
+while leaving project-specific jobs and commands with the repository that owns them.
+
+The agent chooses tracked runner, manager, and handler locations from existing
+repo-owned conventions and uses a branch-specific documented fallback only when no
+convention exists.
+
+**Why:** Repositories use different native layouts such as `scripts/`, `bin/`, or
+`tools/`. One universal path would reduce reuse and create unnecessary structure.
 
 ## Clean Repository-Local Adoption
 
 Adoption stays repository-local, avoids changing global Git or tool configuration, and
 adds only the smallest justified tracked surface. It does not introduce or modify an
-unrelated language package manager, lifecycle hook, or task system solely to install Git
-hooks. Downloaded installation artifacts and installed hook state under Git-private
-paths remain clone-private. Reusable source configuration and hook scripts may be
-tracked according to the manager's native model.
+unrelated language package manager, lifecycle hook, or task system solely to install
+Git hooks. Downloaded installation artifacts and installed hook state under Git-private
+paths remain clone-private. Reusable source configuration, vendored managers, and hook
+scripts may be tracked according to the selected manager's native model.
 
-**Why:** The user requires a clean installation that neither pollutes the host
-environment nor spreads setup across unnecessary files and ecosystems.
+**Why:** Installation should neither pollute the host environment nor spread setup
+across unnecessary files and ecosystems.
 
 ## Lefthook Project Version Owner
 
 In the Lefthook branch, the repository's YAML `min_version` field is the single
 project-facing owner of the selected Lefthook version. Bootstrap trust data is not a
-second user-configurable version source. Other manager branches follow their native
-repository-local version model.
+second user-configurable version source.
 
-**Why:** The user wants the version to travel with the reusable hook configuration.
-One visible project owner prevents setup commands, hidden metadata, and external
-manifests from drifting independently.
+**Why:** One visible project owner prevents setup commands, hidden metadata, and
+external manifests from drifting independently.
 
 ## Lefthook Copied Bootstrap Runner
 
-In the Lefthook branch, package deterministic bootstrap mechanics with the skill and
-copy them into the target repository rather than linking the repository back to an
-installed skill. Explicit setup obtains the selected binary without requiring a
-globally installed hook manager: prefer a compatible project-adopted mise setup when
-available, otherwise use a verified official release path. Neither provisioning path
-changes global configuration or silently trusts new release material.
+The Lefthook branch copies deterministic bootstrap mechanics from the skill into the
+target repository rather than linking back to the installed skill. Explicit setup
+obtains the selected binary without requiring a globally installed manager: it prefers
+a compatible project-adopted mise setup when available and otherwise uses a verified
+official release path. Neither path changes global configuration or silently trusts
+new release material.
 
-Other manager branches may use their native repository-local installation model and
-are not required to copy a runner, use mise, or download a standalone release.
+**Why:** Lefthook remains reproducible for fresh clones while honoring an existing mise
+choice without making a language package or global installation universal.
 
-**Why:** The user wants reusable setup that can honor a project's existing mise choice
-without making mise, a language package, or a global Lefthook installation a universal
-prerequisite.
+## git-hook-pure Upstream-Owned Adoption
+
+The git-hook-pure branch owns only selection and adoption guidance. The official
+repository remains the source of its executable, tests, license, release checksums, and
+detailed operating documentation. This skill does not redistribute those upstream
+artifacts or become a second version and release owner.
+
+When a target repository selects git-hook-pure, it pins an exact upstream version and
+vendors the standalone executable through that tag's upstream `install-standalone.sh`.
+npm and Node.js are not installation prerequisites. The committed executable's
+embedded version is that repository's project-facing version owner; ordinary hook
+execution then needs no package manager, network, or external hook-manager binary.
+
+**Why:** Keeping implementation and release evidence with upstream avoids stale copies
+and avoids assuming a language toolchain merely to adopt a shell hook manager, while
+target-repository vendoring still provides repository-owned executable composition and
+a smaller runtime supply-chain surface. It does not remove trust in the publisher,
+bootstrap, or repository hook code.
 
 ## Explicit Fresh-Clone Activation
 
 Every manager branch gives a newly cloned worktree one documented repository-local
 activation path and does not assume clone will execute repository code. Reuse an
 existing onboarding or bootstrap surface when present, while keeping a direct command
-available without introducing a new task system. In the Lefthook branch, provisioning
-happens only during explicit setup; ordinary hook execution remains offline and fails
-with setup guidance when its binary is missing. Required checks remain independently
+available without introducing a new task system. Required checks remain independently
 enforced outside local hooks.
 
-**Why:** Git does not activate tracked hook configuration during clone. An explicit,
-discoverable setup makes fresh clones predictable without making checkout execute
-repository code or treating optional local hooks as enforcement.
+**Why:** Git does not activate tracked hook configuration during clone. Explicit setup
+makes fresh clones predictable without executing repository code during checkout or
+treating optional local hooks as enforcement.
