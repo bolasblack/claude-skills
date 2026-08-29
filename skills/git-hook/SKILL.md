@@ -1,6 +1,6 @@
 ---
 name: git-hook
-description: "Adopt or harden reusable Git-hook automation in a repository. Use when setting up or standardizing project Git hooks, migrating a hook-manager setup, reusing hook configuration or scripts, or bootstrapping hooks for fresh clones. The current automated tool branch is Lefthook."
+description: "Assess, adopt, or harden repository-local Git-hook automation. Use when setting up or standardizing project hooks, choosing between Lefthook and git-hook-pure, migrating an existing hook manager, reusing hook configuration or scripts, or bootstrapping hooks for fresh clones."
 ---
 
 # Git Hook
@@ -9,234 +9,134 @@ When modifying or reviewing this skill, read [SPEC.md](SPEC.md) first. It holds 
 user-owned requirements that must survive tool branches and rewrites; ordinary Git-hook
 adoption does not need it.
 
-The automated workflow below currently supports Lefthook. For another hook manager,
-identify its ownership in Step 1 and stop before materializing the bundled runner; a
-generic Git-hook request does not authorize migration to Lefthook.
+This skill automates two explicit manager branches: Lefthook and git-hook-pure. A
+generic setup request starts with assessment and recommendation, not installation. The
+user owns the manager choice. If the request already names a manager, that choice gate
+is satisfied unless it conflicts with an existing hook owner.
 
-The Lefthook branch avoids adding a hook manager to a language package manifest or
-changing global Git configuration. A tracked runner bootstraps one trusted version into
-the clone's Git common directory; installed hooks call the same runner. Setup may
-provision the binary, while ordinary hook execution is offline and fail-closed.
+Both documented branches require Git 2.31 or newer and a POSIX/Bourne-compatible
+shell. Their supported Windows surface is Git Bash.
 
-The runner requires Git 2.31 or newer and a POSIX shell. Its direct bootstrap recognizes
-Linux, macOS, and Git for Windows on x86_64 or arm64.
-
-`<SKILL_PATH>` means the loaded base directory of this skill. The bundled runner is
-`<SKILL_PATH>/scripts/lefthook`; copy it into the target repository rather than linking
-back to the installed skill.
+`<SKILL_PATH>` means the loaded base directory of this skill. Copy a resource only when
+the selected branch explicitly identifies it as bundled; never link a repository back
+to the installed skill. The Lefthook runner is bundled here. git-hook-pure remains
+upstream-owned and is obtained from an exact upstream version by the target repository.
 
 ## Ownership
 
-- The repository's one YAML Lefthook config owns `min_version`, hook jobs, remotes,
-  and script references.
-- The copied runner owns trusted release assets, checksums, platform mapping, and the
-  Git-private binary location.
-- The agent owns the contextual destination of that runner and its integration with an
-  existing project setup entry.
+- The user owns the manager selection and every migration decision.
+- An existing hook manager, `core.hooksPath`, or hand-written hook remains the current
+  owner until the user explicitly chooses replacement or composition.
+- The selected manager branch owns its installation and runtime model.
+- The repository owns hook policy, commands, tracked configuration, and handler
+  scripts.
 - Git owns clone-local hooks under its resolved hooks directory. CI or server-side
-  checks remain the enforcement owner because a fresh clone has no installed hooks.
-
-The portable tracked result is normally one runner, one existing-or-new Lefthook YAML
-config, and a small addition to an existing onboarding surface. The binary and generated
-hooks stay under Git's private directory.
+  checks remain the enforcement owner because fresh clones have no installed hooks.
 
 ## Workflow
 
-### Step 1: Inspect the repository
+### Step 1: Inspect without mutation
 
-Read repository guidance and check the worktree before choosing files. Locate:
+Read repository guidance and inspect the worktree before recommending a manager. Find:
 
-- existing Lefthook configs, including YAML, TOML, JSON, and `.config/` variants;
-- existing Git-hook managers, executable non-sample files in the resolved hooks
-  directory, and every configured `core.hooksPath` scope;
+- unrelated dirty or staged files that must be preserved;
+- existing hook-manager configs, executable non-sample files in Git's resolved hooks
+  directory, and every visible `core.hooksPath` scope;
+- repository-owned commands and the hooks that should run them;
 - tracked script or executable directories and their naming conventions;
-- `.gitattributes` rules that control shell-script checkout line endings;
-- existing `setup`, `bootstrap`, devcontainer, or onboarding entry points;
-- existing hook commands and repo-owned lint, format, test, or validation commands.
+- the existing setup, bootstrap, devcontainer, or onboarding entry point;
+- an active project tool owner such as a Nix flake/dev shell, mise config, or asdf
+  `.tool-versions`, and whether it already supplies or can naturally pin Lefthook;
+- whether `lefthook` is available on the current `PATH`;
+- explicit requirements for custom executable handlers, offline or self-contained
+  operation, auditable vendoring, minimum hook-manager supply-chain surface, or code
+  provenance.
 
-Preserve unrelated dirty files. Use one of Lefthook's supported YAML main-config names:
-`lefthook.yml`, `lefthook.yaml`, `.lefthook.yml`, `.lefthook.yaml`,
-`.config/lefthook.yml`, or `.config/lefthook.yaml`. If the repository already has
-multiple main configs, or only a TOML/JSON config, stop and surface that ownership
-decision instead of creating a competing YAML file.
+Do not treat the mere presence of a Nix, mise, or asdf file as project adoption; check
+repository guidance and actual usage. A `lefthook` executable found only on the current
+machine is local convenience evidence, not fresh-clone provisioning.
+git-hook-pure v4's upstream documentation discloses substantial AI assistance; when a
+repository has a provenance policy, surface that compatibility fact before recommending
+the branch.
 
-Treat an existing hook manager, `core.hooksPath`, or hand-written hook as a migration
-boundary. Report the current owner and obtain an explicit migration decision before
-replacing it; keep the runner's normal `install` path force-free. That flag choice is
-not automatic protection: Lefthook 2.1.10 may rename an existing target hook to `.old`
-and install its own wrapper without chaining the old hook, so inspect hook files before
-every first adoption.
+**Done when:** repository rules, dirty state, current hook owner, available commands,
+onboarding owner, Lefthook supply evidence, and any custom or supply-chain constraint
+are each known or explicitly absent, with no repository mutation performed.
 
-**Done when:** repository rules, dirty state, the one config owner, current hook owner,
-available project commands, runner-path conventions, and onboarding entry are each
-known or explicitly absent.
+### Step 2: Recommend one manager and wait
 
-### Step 2: Choose the runner destination
+Apply these rules in order; do not score the repository or build a comparison matrix:
 
-Choose from evidence in the repository, not a universal directory preference. Reuse an
-established tracked location such as `scripts/`, `bin/`, `tools/`, or `.bin/` only when
-that directory is repo-owned rather than generated. Exclude dependency bins, ignored
-paths, build output, and directories whose existing purpose conflicts with a source
-script.
+1. When a hook manager already owns the repository, recommend preserving it. Migration
+   requires an explicit user decision.
+2. Otherwise recommend **git-hook-pure** when the hooks are best expressed as ordered,
+   repository-owned executables, or when the user or repository explicitly requires
+   offline/self-contained operation, reviewable vendoring, or minimum manager
+   supply-chain surface.
+3. Otherwise recommend **Lefthook** when ordinary hook jobs fit its configuration model
+   and an active Nix/mise/asdf setup can supply it, or Lefthook is already available in
+   the current environment.
+4. When neither manager has an existing supply advantage, recommend
+   **git-hook-pure** because its manager is vendored with the repository; explain that
+   Lefthook remains the simpler configuration model for conventional jobs if the user
+   prefers to add its binary supply path.
 
-The selected path must:
+Explicit custom or supply-chain requirements outweigh Lefthook installation
+convenience. Lefthook availability never overrides an existing hook owner. When only a
+current-machine Lefthook binary exists, disclose that other contributors and fresh
+clones still need repository-local setup.
 
-- stay inside the Git root and use a repository-relative reference;
-- be suitable for a tracked source file;
-- contain no whitespace, `..`, or shell metacharacters;
-- be able to receive a path-specific `text eol=lf` attribute without conflicting with
-  repository policy;
-- avoid overwriting an unrelated file.
+Report exactly:
 
-Use `scripts/lefthook` only as the fallback when the repository has no stronger
-convention. State the selected path and the evidence for it before editing.
+- the current hook owner, if any;
+- the recommendation and the observed facts supporting it;
+- the alternative and when it would fit better;
+- the fresh-clone and supply-chain consequence of each option;
+- any migration or compatibility decision still required.
 
-**Done when:** one collision-free, non-ignored, repo-relative destination is selected,
-and its choice follows an observed convention or the documented fallback.
+Then stop. Do not add configuration, copy a bundled resource, install hooks, alter a
+toolchain file, or change Git configuration until the user selects a manager. If the
+user's original request explicitly selected a manager, report the assessment and
+continue without asking them to repeat that selection.
 
-### Step 3: Materialize the runner and configuration
+**Done when:** one recommendation and its alternative are explained from repository
+evidence, and the user has either explicitly selected a manager or the workflow is
+waiting without mutation.
 
-Copy `<SKILL_PATH>/scripts/lefthook` byte-for-byte to the selected destination and make
-the copied file executable. Do not reimplement its download or dispatch logic in a
-package script, task runner, or second launcher.
+### Step 3: Run only the selected branch
 
-Run `git check-attr text eol -- ./<runner-path>`. If existing attributes do not report
-both `text: set` and `eol: lf`, add the narrow root-relative rule below to the existing
-root `.gitattributes`, or create that one file when absent:
+- For **Lefthook**, read [references/lefthook.md](references/lefthook.md) completely,
+  then follow it.
+- For **git-hook-pure**, read
+  [references/git-hook-pure.md](references/git-hook-pure.md) completely, then follow it.
+- For another manager, identify its native repository owner and stop before using
+  either documented branch's installation path. This skill does not automate that
+  branch yet.
 
-```gitattributes
-/<runner-path> text eol=lf
-```
+Perform the selected branch's compatibility checks before mutation. A failed check is
+a blocker to report, not permission to switch managers silently.
 
-Do not normalize unrelated paths. Re-copy the LF resource when the current worktree file
-contains CRLF, then run `sh -n ./<runner-path>`. The attribute protects later Windows
-checkouts; the syntax check verifies the bytes being adopted now.
+**Done when:** exactly one selected branch has completed its own installation and
+verification contract, or the branch has stopped with an evidence-backed blocker and
+no unapproved fallback.
 
-Read the manifest version from the copied runner:
+### Step 4: Report the resulting repository
 
-```sh
-sed -n 's/^trusted_release_version=//p' ./<runner-path>
-```
+Report the selected manager, tracked files changed, the direct fresh-clone activation
+command, and every verification result. Distinguish a tested hook from configuration
+or installation checks; unsafe or unrun hook behavior remains `unknown`. Confirm that
+no global Git or tool configuration changed and that required checks remain enforced
+outside local hooks.
 
-Require exactly one `x.y.z` result. In the repository's one YAML config, preserve all
-existing hooks and add or reconcile this bootstrap stanza:
-
-```yaml
-min_version: "<trusted-release-version>"
-assert_lefthook_installed: true
-no_auto_install: true
-lefthook: sh ./<runner-path>
-```
-
-`min_version` is the only project version source. This adoption contract strengthens
-it from Lefthook's normal minimum into the exact version provisioned by the runner.
-Use the official field directly: arbitrary top-level `x-*` keys are custom-hook space,
-and `templates` is command-replacement space rather than private metadata.
-
-When an existing `min_version` differs from the runner's trusted manifest, preserve the
-current repository state and surface the version migration. The safe outcomes are an
-approved config migration or an updated, independently verified runner manifest; an
-unverified dynamic checksum is not a version-update path.
-
-Keep hook jobs grounded in commands the repository already owns. Reuse existing task
-entry points and extract a script only when several hooks need the same real logic.
-Place that script according to the repository's conventions; the bootstrap runner does
-not own linting, formatting, commit-message, or test policy.
-
-**Done when:** the tracked runner matches the bundled resource, its attributes resolve
-to `text: set` and `eol: lf`, `sh -n` passes, the YAML config has one exact supported
-version and the selected runner command, existing hook behavior is preserved, and each
-configured job resolves to a real repo-owned command or script.
-
-### Step 4: Wire fresh-clone onboarding
-
-The canonical direct setup command is:
-
-```sh
-sh ./<runner-path> install
-```
-
-If the repository already has a setup or bootstrap entry, make that entry delegate to
-the canonical command. Keep the direct command discoverable in the existing README,
-CONTRIBUTING guide, or equivalent onboarding document so it works without the optional
-task runner. Do not create Make, just, mise, npm, or another task system solely for Git
-hooks, and do not use a package lifecycle script as the universal entry.
-
-Keep required checks in CI independently of local hooks. Clone cannot safely execute a
-tracked repository script automatically, and `assert_lefthook_installed` only applies
-after a hook wrapper exists.
-
-**Done when:** a new contributor has one documented direct command, any existing
-bootstrap entry delegates to it without duplicating logic, and merge enforcement does
-not depend on local hook installation.
-
-### Step 5: Install and verify
-
-Run the canonical setup command from the Git worktree. This is the only runner mode
-allowed to provision a binary:
-
-```sh
-sh ./<runner-path> install
-```
-
-The runner performs these observable operations:
-
-1. Resolves the repository and Git common directory, including linked worktrees.
-2. Rejects multiple YAML configs, a non-exact/unsupported version, an unknown platform,
-   or any configured `core.hooksPath` before provisioning.
-3. Uses `mise install-into` only when a standard project-root mise config is tracked,
-   mise is on `PATH`, and that command is supported. It changes mise's working directory
-   to the isolated install directory so fresh-clone trust state is not mutated. A failed
-   mise installation stops; it does not silently switch supply chains.
-4. Otherwise downloads the fixed official release asset, verifies the bundled SHA-256,
-   and installs it under the Git common directory.
-5. Runs `lefthook validate`, `lefthook install`, and `lefthook check-install` in order.
-
-The mise path writes neither project nor global mise configuration and never runs
-`mise trust`; changing to the isolated install directory keeps the repository config
-outside mise's active hierarchy. The direct path requires `curl`, `gzip`, and either
-`sha256sum` or `shasum`.
-
-After setup, run this read-only smoke check:
-
-```sh
-sh ./<runner-path> version
-```
-
-Inspect the target repository's status and diff. Exercise a real hook only when its
-commands and possible file mutations are safe for the current task; otherwise report
-that live hook execution remains untested.
-
-**Done when:** setup and the version smoke check exit zero, `check-install` passed, no
-global Git or mise config changed, tracked diffs contain only the approved adoption,
-and every unrun hook/platform behavior is reported as unknown rather than passed.
+**Done when:** the user can see what owns hook policy, how a fresh clone activates it,
+what was actually tested, and any remaining unknown without relying on earlier status
+updates.
 
 ## Failure Contract
 
-- Runtime commands execute only the exact Git-private binary. A missing binary exits
-  nonzero with the canonical setup command; PATH binaries, mise, and network are not
-  runtime fallbacks.
-- Setup promotes a candidate only after its supply-chain and version checks pass. A
-  failure before final placement leaves no new or staged binary. Later config or hook
-  installation failure may retain that verified Git-private cache for a safe retry.
-- If repair of a mismatched old cache fails, runtime continues to reject that cache;
-  it never executes a reported version that differs from `min_version`.
-- Existing `core.hooksPath` configuration remains untouched. Resolve ownership instead
-  of adding `--force` or resetting a local/global value.
-- A copied runner supports only versions in its bundled trust manifest. Updating
-  `min_version` alone cannot authorize a new release.
-
-## Maintaining This Skill
-
-When changing the bundled runner, keep its public seams as
-`sh <runner> install` and `sh <runner> <lefthook-argv...>`. Add one black-box RED case
-for the changed behavior, implement the smallest GREEN, then run:
-
-```sh
-sh -n <SKILL_PATH>/scripts/lefthook
-python3 -B <SKILL_PATH>/scripts/lefthook_test.py
-```
-
-Update release hashes only from a verified official Lefthook release and retain a real
-asset smoke test on every platform claimed by the change. Schema validation, simulated
-platform mapping, and fake installers do not prove that a real target binary executes.
+- Never reset, override, or silently follow an existing `core.hooksPath`.
+- Never replace or compose with an existing hook owner without the user's explicit
+  decision.
+- Never use a different manager because the selected branch fails installation.
+- Preserve unrelated dirty and staged files throughout adoption.
+- Local hooks are convenience and feedback; they are not the sole enforcement path.
