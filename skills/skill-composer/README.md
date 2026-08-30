@@ -1,6 +1,21 @@
 # Skill Composer
 
-Primary policy for creating, updating, reviewing, and packaging agent skills. Based on the current [Agent Skills specification](https://agentskills.io/specification), target-platform documentation, and community patterns.
+Create and maintain skills that work across agent harnesses, with opt-in infrastructure for repeatable evals. Skill Composer is based on the current [Agent Skills specification](https://agentskills.io/specification), target-platform documentation, and community patterns.
+
+## Beyond Scaffolding
+
+Skill Composer owns the whole skill package, not merely the generation of a plausible `SKILL.md`. Harness-provided helpers such as `skill-creator` can still contribute platform-specific scaffolding, schema validation, or evaluation capabilities, but their defaults are advisory inputs. Skill Composer retains the decisions about scope, structure, portability, validation, packaging, release history, and quality.
+
+| Dimension | Scaffolding-focused composer/helper | Skill Composer |
+|---|---|---|
+| Lifecycle | Generate an initial skill | Create, update, read-only review, package, and release |
+| Portability | Optimize for one agent harness | Start with a portable core; name each host-only enhancement and require a fallback |
+| Evidence | Treat plausible instructions or schema validation as completion | Separate schema from behavior, maintain a validation ledger, and leave unsupported target claims `unknown` |
+| Evals | Outside the scaffolding task | Provide opt-in manifests and fixtures plus a shared runner for repeatable functional, activation, isolation, and coexistence checks |
+| Maintenance | Hand off the generated files | Own the package references, tested automation, and evidence-backed release history |
+| Context | Add guidance until the prompt looks complete | Keep runtime context proportional and move only branch-specific material behind explicit read conditions |
+
+Use Skill Composer when a skill must remain maintainable across agent harnesses, future updates, independent review, and standalone distribution. Use a scaffolding helper alone when a one-off first draft is the whole job.
 
 ## Features
 
