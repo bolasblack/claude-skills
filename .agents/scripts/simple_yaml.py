@@ -13,6 +13,8 @@ def parse_frontmatter(content: str) -> tuple[dict[str, str | int | float | bool 
 
     Returns:
         tuple: (frontmatter_dict, body_content)
+        body_content contains every character after the closing `---`,
+        including the delimiter's line ending and any blank lines.
 
     Type detection order:
     1. null → None
@@ -104,6 +106,8 @@ def serialize_frontmatter(frontmatter: dict[str, str | int | float | bool | None
     """Serialize frontmatter dict back to markdown with YAML frontmatter.
 
     Uses stdlib-only YAML serialization optimized for AGD files.
+    body is the exact suffix returned by parse_frontmatter, including any
+    line ending after the closing `---`.
 
     Supported types:
     - None → "null" (unquoted)
@@ -182,7 +186,7 @@ def serialize_frontmatter(frontmatter: dict[str, str | int | float | bool | None
             lines.append(f"{key}: {value}")
 
     yaml_content = '\n'.join(lines)
-    return f'---\n{yaml_content}\n---\n{body}'
+    return f'---\n{yaml_content}\n---{body}'
 
 
 def _needs_yaml_quoting(value: str) -> bool:

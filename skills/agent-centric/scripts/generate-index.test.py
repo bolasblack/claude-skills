@@ -3,6 +3,7 @@
 
 import importlib.util
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -152,6 +153,43 @@ obsoleted_by: AGD-003""",
 
         self.assertNotIn("updated_by", frontmatter)
         self.assertNotIn("obsoleted_by", frontmatter)
+
+    def test_cli_reverse_reference_changes_preserve_body(self):
+        for body in [
+            b"",
+            b"\n",
+            b"\n## Context\n",
+            b"\n\n## Context\n\nBody.\n\n",
+            "\n\n\n \t\n    indented code\n\n---\n\n正文 without final newline".encode(),
+            b"\r\n\r\n## Context\r\n\r\n    indented code\r\n\r\n",
+        ]:
+            with self.subTest(body=body):
+                self.assert_cli_preserves_body(body)
+
+    def assert_cli_preserves_body(self, body: bytes) -> None:
+        target = self.decisions_dir / "AGD-001_original.md"
+        header = b"---\ntitle: Original\ndescription: Original decision\n"
+        target.write_bytes(header + b"---" + body)
+
+        for relation, expected_field in [
+            ("updates", b"updated_by: AGD-002\n"),
+            ("updates", b"updated_by: AGD-002\n"),
+            ("obsoletes", b"obsoleted_by: AGD-002\n"),
+            ("related", b""),
+            ("updates", b"updated_by: AGD-002\n"),
+        ]:
+            with self.subTest(relation=relation):
+                self.write_agd(
+                    "AGD-002_update.md",
+                    "title: Update\ndescription: Changes original\n"
+                    f"{relation}: AGD-001",
+                )
+                subprocess.run(
+                    [sys.executable, "-B", str(SCRIPT_DIR / "generate-index.py"),
+                     str(self.project_dir)],
+                    check=True, capture_output=True, text=True, timeout=10,
+                )
+                self.assertEqual(target.read_bytes(), header + expected_field + b"---" + body)
 
     def test_post_generate_index_scripts_run_after_indexes_are_written(self):
         hook_dir = self.agents_dir / "hooks"

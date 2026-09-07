@@ -125,21 +125,14 @@ def sync_reverse_references(decisions_dir: Path, reverse_refs: dict) -> int:
 
     for agd_file in sorted(decisions_dir.glob(AGD_PATTERN), key=lambda f: get_agd_sort_key(f.name)):
         try:
-            content = agd_file.read_text()
+            with agd_file.open(newline='') as source:
+                content = source.read()
         except IOError:
             continue
 
         refs = reverse_refs.get(agd_file, empty_managed_reverse_refs())
 
-        # Parse current frontmatter
-        frontmatter, _ = parse_frontmatter(content)
-
-        # Extract body (everything after second ---)
-        if content.startswith('---'):
-            parts = content.split('---', 2)
-            body = parts[2] if len(parts) >= 3 else ''
-        else:
-            body = content
+        frontmatter, body = parse_frontmatter(content)
 
         needs_update = False
         for field in REVERSE_REF_FIELDS.values():
@@ -162,6 +155,7 @@ def sync_reverse_references(decisions_dir: Path, reverse_refs: dict) -> int:
 
         with tempfile.NamedTemporaryFile(
             mode='w',
+            newline='',
             dir=agd_file.parent,
             delete=False,
             prefix='.tmp_',
