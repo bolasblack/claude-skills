@@ -67,18 +67,20 @@ npx skills add bolasblack/claude-skills --skill <skill-name>
 
 ## Manual Installation
 
+The installer copies extensions by default. Use `--mode symlink` for relative symlinks during local development; copied installations need reinstalling after source changes. Without `--project`, installation targets detected tools under the home directory; use `--tools` to select explicit targets.
+
 ```bash
 git clone --depth 1 https://github.com/bolasblack/claude-skills.git ~/.c4-skills
 cd ~/.c4-skills
 
 ./scripts/install.sh ALL                    # Install all public extensions of all types
-./scripts/install.sh __ALL                  # Install all public and private extensions
+./scripts/install.sh __ALL                  # Also include supported private entries (see below)
 ./scripts/install.sh skills ALL             # Install all public skills
 ./scripts/install.sh skills __ALL           # Install all skills including private
 ./scripts/install.sh skills guardrails      # Install specific skill
-./scripts/install.sh commands ALL           # Install all commands
+./scripts/install.sh commands ALL           # Install all public commands
 ./scripts/install.sh agents code-reviewer   # Install specific agent
-./scripts/install.sh pi-extensions ALL      # Install all pi extensions
+./scripts/install.sh pi-extensions ALL      # Install all public pi extensions
 ./scripts/install.sh --mode symlink skills guardrails  # Install using relative symlinks
 
 # Install to explicit tools (agents, claude, codex, opencode, pi):
@@ -87,6 +89,8 @@ cd ~/.c4-skills
 # Install to a specific project directory:
 ./scripts/install.sh --project /path/to/myapp --tools agents,claude skills ALL
 ```
+
+`ALL` scans public extensions. For skills, commands, and agents, `<type> __ALL` also scans the matching `private/` directory; private entries can also be installed by name, with public names taking precedence. Top-level `__ALL` only visits types whose public directory exists, and private pi extensions are not supported by these scripts. See [Private Extensions](CLAUDE.md#private-extensions) for details.
 
 ## Compatibility
 
