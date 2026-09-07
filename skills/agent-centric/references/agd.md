@@ -25,6 +25,8 @@ Each AGD should act as a durable reference for why some code, convention, or pro
 
 **Note:** `obsoleted_by` and `updated_by` are fully managed by `generate-index.py` based on reverse references from other AGDs. They are automatically added, normalized, and pruned as forward links change. You only need to specify `updates`, `obsoletes`, and `related` in your new AGD files.
 
+Updating managed fields preserves all text after the closing frontmatter `---`, including its line ending, blank lines, indentation, and the presence or absence of a final newline. Repeated updates preserve the same body; regenerating unchanged references leaves the AGD file unchanged.
+
 ## Relationship Semantics
 
 AGD follows the RFC archival model: existing decision files are preserved, and later AGDs express how decisions evolve.

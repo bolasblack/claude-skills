@@ -216,8 +216,7 @@ Body content here.
         self.assertEqual(fm_new["tags"], "global, skills/test")
 
         # Verify body preserved
-        self.assertIn("## Context", body_new)
-        self.assertIn("Body content here.", body_new)
+        self.assertEqual(body_new, body)
 
     def test_serialize_empty_frontmatter(self):
         """Should handle empty frontmatter dict."""
