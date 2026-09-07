@@ -86,8 +86,8 @@ if [ -f "$TEMPLATE" ]; then
         UPDATED="$UPDATED CLAUDE.md(new)"
     else
         # Update existing file, preserving user content
-        SRC_TEMPLATE=$(sed -n "1,/$USER_MARKER/p" "$TEMPLATE" | head -n -1)
-        TGT_TEMPLATE=$(sed -n "1,/$USER_MARKER/p" "$TARGET_MD" | head -n -1)
+        SRC_TEMPLATE=$(sed -n "1,/$USER_MARKER/p" "$TEMPLATE" | sed '$d')
+        TGT_TEMPLATE=$(sed -n "1,/$USER_MARKER/p" "$TARGET_MD" | sed '$d')
 
         SRC_MD5=$(echo "$SRC_TEMPLATE" | compute_md5_stdin)
         TGT_MD5=$(echo "$TGT_TEMPLATE" | compute_md5_stdin)
