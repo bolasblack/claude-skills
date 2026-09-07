@@ -150,6 +150,8 @@ Observe:
 
 For end-user installation, follow the README flow: paste the install prompt into Claude Code, Codex, OpenCode, or any compatible AI coding agent.
 
+Installation defaults to copies. Use `--mode symlink` for relative symlinks during local development. See [Private Extensions](CLAUDE.md#private-extensions) for source lookup and bulk-install scope.
+
 For local development and testing after creating or importing an extension, run the repository script from the repo root:
 
 ```bash
