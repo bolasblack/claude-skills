@@ -361,6 +361,12 @@ class SkillComposerPackageTest(unittest.TestCase):
         ):
             self.assertIn("asks-before-adding-evals", assertions[case_id])
 
+    def test_only_the_runtime_skill_exposes_a_discoverable_entry_point(self):
+        entries = sorted(
+            str(path.relative_to(PACKAGE)) for path in PACKAGE.rglob("SKILL.md")
+        )
+        self.assertEqual(["SKILL.md"], entries)
+
     def test_trigger_suite_stages_competitors_for_both_labels(self):
         manifest = json.loads(
             PACKAGE.joinpath("evals", "trigger-eval.json").read_text(
@@ -373,7 +379,7 @@ class SkillComposerPackageTest(unittest.TestCase):
             competitors = query.get("additional_skills", [])
             for name in competitors:
                 self.assertTrue(
-                    fixtures.joinpath(name, "SKILL.md").is_file(), name
+                    fixtures.joinpath(name, "SKILL.md.fixture").is_file(), name
                 )
             if competitors:
                 staged[query["should_trigger"]] += 1

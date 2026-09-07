@@ -127,6 +127,14 @@ def validate_additional_skills(value, location, skill_name):
         )
 
 
+def resolve_fixture_source(path):
+    if path.name == "SKILL.md" and not path.exists():
+        template = path.with_name("SKILL.md.fixture")
+        if template.is_file():
+            return template
+    return path
+
+
 def validate_fixture_files(value, location, fixtures_dir):
     if not isinstance(value, list) or any(
         not isinstance(item, str) or not item for item in value
@@ -136,7 +144,7 @@ def validate_fixture_files(value, location, fixtures_dir):
         raise ContractError(f"{location} files must not contain duplicates")
     fixtures_root = fixtures_dir.resolve()
     for item in value:
-        fixture = fixtures_dir.joinpath(item).resolve()
+        fixture = resolve_fixture_source(fixtures_dir / item).resolve()
         try:
             fixture.relative_to(fixtures_root)
         except ValueError as error:
@@ -567,7 +575,7 @@ def stage_request(
         staged_skill = skill_dir
     inputs = []
     for item in case.get("files", []):
-        source = skill_dir / "evals" / "fixtures" / item
+        source = resolve_fixture_source(skill_dir / "evals" / "fixtures" / item)
         destination = workspace / "inputs" / item
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
@@ -609,7 +617,7 @@ def parse_additional_skill_paths(values, evaluated_skill_name):
     return paths
 
 
-def add_package_fixture_skill_paths(paths, skill_dir, cases):
+def add_package_fixture_skill_paths(paths, skill_dir, cases, materialized_root):
     fixture_root = skill_dir / "evals" / "fixtures" / "skills"
     declared = {
         name
@@ -622,6 +630,14 @@ def add_package_fixture_skill_paths(paths, skill_dir, cases):
         candidate = fixture_root / name
         if not candidate.exists():
             continue
+        entry = candidate / "SKILL.md"
+        source = resolve_fixture_source(entry)
+        if source != entry:
+            materialized = materialized_root / name
+            materialized.parent.mkdir(parents=True, exist_ok=True)
+            copy_skill_without_evals(candidate, materialized)
+            (materialized / source.name).rename(materialized / entry.name)
+            candidate = materialized
         skill_path, _ = validate_skill_package(candidate, expected_name=name)
         paths[name] = skill_path
     return paths
@@ -2752,7 +2768,10 @@ def run_evaluations(
         ):
             raise ContractError("additional skill package changed since the recorded run")
         snapshot_additional_skill_paths = add_package_fixture_skill_paths(
-            snapshot_additional_skill_paths, snapshot_skill_dir, cases
+            snapshot_additional_skill_paths,
+            snapshot_skill_dir,
+            cases,
+            snapshot_root / ".fixture-skills",
         )
         artifacts_root = prepare_artifacts_root(artifacts_dir, source_skill_dir)
         counts, case_reports = execute_cases(
