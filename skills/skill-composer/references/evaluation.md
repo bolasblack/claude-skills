@@ -92,6 +92,13 @@ Keep domain truth with the evaluated skill:
   a gate. At least one case must exist across the two manifests; an empty package is
   not a valid eval contract.
 
+Store skill fixture entry points as `SKILL.md.fixture` so installed eval data stays
+outside skill discovery. Case `files` keep their staged `SKILL.md` paths: when that
+source file is absent, the runner reads its sibling `SKILL.md.fixture`. Package-local
+competitors use the same convention. The runner materializes their `SKILL.md` files
+in temporary copies and validates the resulting package identity; source templates
+and the frozen package snapshot stay unchanged.
+
 Every execution validates first and copies the complete evaluated package into one
 frozen package snapshot. The runner verifies that its content hash stayed stable while
 copying, then creates a new temporary workspace for every case and iteration from that

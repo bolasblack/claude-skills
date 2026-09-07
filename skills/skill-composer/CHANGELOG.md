@@ -4,6 +4,11 @@ This file records Skill Composer releases so the history travels with standalone
 
 ## [Unreleased]
 
+### Keep eval fixtures outside skill discovery
+
+- **Changed:** Skill fixture entry points use `SKILL.md.fixture`. The evaluator resolves declared `SKILL.md` inputs from these templates and materializes package-local competitors in temporary copies before validating their identity. Source templates and the frozen package snapshot stay unchanged.
+- **Why:** Recursive skill discovery exposed nested eval samples as selectable skills, producing duplicate entries in the user's Codex menu. Template filenames distinguish test data from installable skill entry points while preserving the files that evaluation targets receive.
+
 ### Keep release history on the published baseline
 
 - **Changed:** Changelog authoring now establishes the last artifact actually published to its audience and records `Unreleased` as the net delta from that artifact. Pre-release revisions fold into the candidate's resulting contract, and a first release describes its resulting capability instead of transitions from unpublished drafts. The existing cross-harness release eval now locks this baseline behavior.

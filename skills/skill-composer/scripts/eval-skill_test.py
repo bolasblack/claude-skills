@@ -192,6 +192,14 @@ record = {
     "other_staged": cwd.joinpath(
         host_directory, "skills", "other-skill", "SKILL.md"
     ).is_file(),
+    "other_skill_text": (
+        cwd.joinpath(host_directory, "skills", "other-skill", "SKILL.md").read_text()
+        if cwd.joinpath(host_directory, "skills", "other-skill", "SKILL.md").is_file()
+        else None
+    ),
+    "other_template_staged": cwd.joinpath(
+        host_directory, "skills", "other-skill", "SKILL.md.fixture"
+    ).exists(),
     "assertion_leaked": (
         "artifact-created" in prompt
         or "The requested artifact exists" in prompt
@@ -1043,6 +1051,52 @@ else:
             "SUMMARY pass=2 fail=0 unknown=0\n",
             result.stdout,
         )
+
+    def test_run_materializes_skill_template_inputs_without_changing_the_source(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            fixture = skill / "evals/fixtures/task/SKILL.md.fixture"
+            fixture.parent.mkdir(parents=True)
+            contents = b"---\nname: task\ndescription: A task fixture.\n---\n\n# Task\n"
+            fixture.write_bytes(contents)
+            path, document = self.read_evals(skill)
+            document["evals"][0]["files"] = ["task/SKILL.md"]
+            path.write_text(json.dumps(document) + "\n", encoding="utf-8")
+            adapter = Path(temp_dir, "template-adapter.py")
+            adapter.write_text(
+                "import json\n"
+                "from pathlib import Path\n"
+                "import sys\n"
+                "request = json.load(sys.stdin)\n"
+                "inputs = request['case']['inputs']\n"
+                "assert [item['name'] for item in inputs] == ['task/SKILL.md']\n"
+                "staged = Path(inputs[0]['path'])\n"
+                "assert staged == Path.cwd() / 'inputs/task/SKILL.md'\n"
+                f"assert staged.read_bytes() == {contents!r}\n"
+                "assert not staged.with_name('SKILL.md.fixture').exists()\n"
+                "json.dump({\n"
+                "    'protocol_version': 1,\n"
+                "    'case_id': request['case']['id'],\n"
+                "    'session_id': 'template-input-session',\n"
+                "    'fresh_session': True,\n"
+                "    'assertions': [{\n"
+                "        'id': 'artifact-created',\n"
+                "        'status': 'pass',\n"
+                "        'evidence': 'task/SKILL.md contains the complete fixture',\n"
+                "    }],\n"
+                "}, sys.stdout)\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_cli(
+                "run-one", skill, "returns-requested-artifact",
+                "--report", Path(temp_dir, "report.json"),
+                "--", sys.executable, adapter,
+            )
+
+            self.assertEqual(0, result.returncode, result.stderr + result.stdout)
+            self.assertEqual(contents, fixture.read_bytes())
+            self.assertFalse(fixture.with_name("SKILL.md").exists())
 
     def test_run_stages_declared_trigger_fixture_files(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1926,6 +1980,63 @@ else:
         self.assertNotIn(
             str(fixture_skill.resolve()), candidate["sandbox_toml"]
         )
+
+    def test_run_materializes_a_template_competitor_without_changing_the_source(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            fixtures = skill / "evals/fixtures/skills"
+            fixtures.mkdir(parents=True)
+            competitor = self.make_auxiliary_skill(fixtures)
+            entry = competitor / "SKILL.md"
+            contents = entry.read_text(encoding="utf-8")
+            template = entry.with_name("SKILL.md.fixture")
+            entry.rename(template)
+            path, document = self.read_evals(skill)
+            document["evals"][0]["category"] = "coexistence"
+            document["evals"][0]["additional_skills"] = ["other-skill"]
+            path.write_text(json.dumps(document) + "\n", encoding="utf-8")
+            log_path = Path(temp_dir, "grok.jsonl")
+            bin_dir = self.make_fake_target(temp_dir, "grok")
+            environment = self.fake_target_environment(bin_dir, log_path)
+
+            result = self.run_cli(
+                "run-one", skill, "returns-requested-artifact",
+                "--report", Path(temp_dir, "report.json"),
+                "--target", "grok", env=environment,
+            )
+
+            self.assertEqual(0, result.returncode, result.stderr + result.stdout)
+            candidate = next(
+                item for item in self.read_target_log(log_path) if not item["grader"]
+            )
+            self.assertEqual(contents, candidate["other_skill_text"])
+            self.assertFalse(candidate["other_template_staged"])
+            self.assertEqual(contents, template.read_text(encoding="utf-8"))
+            self.assertFalse(entry.exists())
+
+    def test_run_rejects_a_template_competitor_with_a_mismatched_identity(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            fixture = skill / "evals/fixtures/skills/other-skill/SKILL.md.fixture"
+            fixture.parent.mkdir(parents=True)
+            fixture.write_text(
+                "---\nname: wrong-skill\ndescription: A mismatched fixture.\n---\n",
+                encoding="utf-8",
+            )
+            path, document = self.read_evals(skill)
+            document["evals"][0]["category"] = "coexistence"
+            document["evals"][0]["additional_skills"] = ["other-skill"]
+            path.write_text(json.dumps(document) + "\n", encoding="utf-8")
+            log_path = Path(temp_dir, "grok.jsonl")
+            bin_dir = self.make_fake_target(temp_dir, "grok")
+            environment = self.fake_target_environment(bin_dir, log_path)
+
+            result = self.run_cli("run", skill, "--target", "grok", env=environment)
+
+            self.assertEqual(2, result.returncode, result.stderr + result.stdout)
+            self.assertIn("does not match directory 'other-skill'", result.stderr)
+            self.assertFalse(log_path.exists())
+            self.assertFalse(fixture.with_name("SKILL.md").exists())
 
     def test_run_keeps_missing_additional_skill_evidence_unknown(self):
         with tempfile.TemporaryDirectory() as temp_dir:
