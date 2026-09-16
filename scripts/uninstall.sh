@@ -70,7 +70,7 @@ uninstall_from_source() {
     echo "[$type/$name]"
 
     local resolved_target tool_name target_dir
-    for resolved_target in "${RESOLVED_TARGETS[@]}"; do
+    for resolved_target in "${RESOLVED_COMPAT_TARGETS[@]}" "${RESOLVED_TARGETS[@]}"; do
         tool_name="${resolved_target%%|*}"
         target_dir="${resolved_target#*|}"
         uninstall_from_target "$tool_name" "$target_dir" "$type" "$name" "$source_path"

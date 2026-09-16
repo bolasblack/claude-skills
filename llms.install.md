@@ -47,14 +47,14 @@ Ask which target tools should receive the extensions:
 
 > Install for which tools?
 > - **Auto-detect** existing tool directories (default)
-> - `agents` — generic `.agents/skills` project-compatible skills directory
+> - `agents` — shared `.agents/skills` directory (home or project)
 > - `claude` — Claude Code
 > - `codex` — Codex skills
 > - `opencode` — OpenCode
 > - `pi` — pi skills, agents, and extensions
 
 If installing to a project directory, recommend explicit tools instead of auto-detect so the installer can create the intended project-local directories. Good defaults:
-- Skills for broad project sharing: `agents,claude,pi`
+- Skills for broad project sharing: `agents,claude`
 - Claude Code only: `claude`
 - Pi extensions: `pi`
 
