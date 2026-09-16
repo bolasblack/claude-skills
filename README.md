@@ -71,6 +71,17 @@ npx skills add bolasblack/claude-skills --skill <skill-name>
 
 The installer copies extensions by default. Use `--mode symlink` for relative symlinks during local development; copied installations need reinstalling after source changes. Without `--project`, installation targets detected tools under the home directory; use `--tools` to select explicit targets.
 
+Skills use the tools' native discovery directories:
+
+| Targets | Home installation | Project installation |
+|---------|-------------------|----------------------|
+| `agents`, [Codex](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills), [OpenCode](https://opencode.ai/docs/skills/#place-files), [pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/skills.md#locations) | `~/.agents/skills` | `.agents/skills` |
+| [Claude Code](https://code.claude.com/docs/en/skills#choose-where-skills-load) | `~/.claude/skills` | `.claude/skills` |
+
+Selecting several targets that share a directory installs each skill once. Skills in the shared directory are available to all tools that read it; uninstalling a shared skill affects all of those tools.
+
+After a successful shared installation, the installer removes matching copies or links managed by this repository from the selected tools' individual skill directories. Uninstall checks both locations. Unmanaged entries are preserved and reported. Commands, agents, and pi extensions use their tool-specific directories.
+
 ```bash
 git clone --depth 1 https://github.com/bolasblack/claude-skills.git ~/.c4-skills
 cd ~/.c4-skills

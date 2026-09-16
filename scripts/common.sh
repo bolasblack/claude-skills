@@ -15,6 +15,7 @@ AVAILABLE_TOOLS=(agents claude codex opencode pi)
 SELECTED_TOOLS=()
 TOOLS_SPECIFIED=false
 RESOLVED_TARGETS=()
+RESOLVED_COMPAT_TARGETS=()
 
 is_project_install() {
     [[ "$BASE_DIR" != "$HOME" ]]
@@ -81,9 +82,15 @@ add_resolved_target() {
     local tool_name="$1"
     local target_dir="$2"
     local detect_path="$3"
+    local compat_dir="${4:-}"
 
     if [[ "$TOOLS_SPECIFIED" != "true" && ! -d "$detect_path" ]]; then
         return 0
+    fi
+
+    # Each selected tool can have its own installed skills even when destinations coincide.
+    if [[ -n "$compat_dir" ]]; then
+        RESOLVED_COMPAT_TARGETS+=("$tool_name|$compat_dir")
     fi
 
     local resolved_target
@@ -99,77 +106,62 @@ add_resolved_target() {
 add_tool_target() {
     local tool_name="$1"
     local type="$2"
-    local detect_path target_dir target_subdir
+    local detect_path target_dir target_subdir compat_dir=""
 
     case "$tool_name" in
-        agents)
+        agents|codex)
             [[ "$type" != "skills" ]] && return 0
-            detect_path="$BASE_DIR/.agents"
-            target_dir="$BASE_DIR/.agents/skills"
+            detect_path="$BASE_DIR/.$tool_name"
             ;;
         claude)
             [[ "$type" == "pi-extensions" ]] && return 0
             detect_path="$BASE_DIR/.claude"
-            target_subdir=$(get_target_subdir "claude" "$type")
-            target_dir="$detect_path/$target_subdir"
-            ;;
-        codex)
-            [[ "$type" != "skills" ]] && return 0
-            if is_project_install; then
-                detect_path="$BASE_DIR/.codex"
-                target_dir="$BASE_DIR/.agents/skills"
-            else
-                detect_path="$BASE_DIR/.codex"
-                target_dir="$BASE_DIR/.codex/skills"
-            fi
             ;;
         opencode)
             [[ "$type" == "pi-extensions" ]] && return 0
-            if is_project_install && [[ "$type" == "skills" ]]; then
+            if is_project_install; then
                 detect_path="$BASE_DIR/.opencode"
-                target_dir="$BASE_DIR/.agents/skills"
             else
-                if is_project_install; then
-                    detect_path="$BASE_DIR/.opencode"
-                else
-                    detect_path="$BASE_DIR/.config/opencode"
-                fi
-                target_subdir=$(get_target_subdir "opencode" "$type")
-                target_dir="$detect_path/$target_subdir"
+                detect_path="$BASE_DIR/.config/opencode"
             fi
             ;;
         pi)
-            case "$type" in
-                skills|agents)
-                    if is_project_install; then
-                        detect_path="$BASE_DIR/.pi"
-                    else
-                        detect_path="$BASE_DIR/.pi/agent"
-                    fi
-                    target_subdir=$(get_target_subdir "pi" "$type")
-                    target_dir="$detect_path/$target_subdir"
-                    ;;
-                pi-extensions)
-                    if is_project_install; then
-                        detect_path="$BASE_DIR/.pi"
-                    else
-                        detect_path="$BASE_DIR/.pi/agent"
-                    fi
-                    target_dir="$detect_path/extensions"
-                    ;;
-                *)
-                    return 0
-                    ;;
-            esac
+            [[ "$type" == "commands" ]] && return 0
+            if is_project_install; then
+                detect_path="$BASE_DIR/.pi"
+            else
+                detect_path="$BASE_DIR/.pi/agent"
+            fi
             ;;
     esac
 
-    add_resolved_target "$tool_name" "$target_dir" "$detect_path"
+    case "$type" in
+        skills)
+            if [[ "$tool_name" == "claude" ]]; then
+                target_dir="$detect_path/skills"
+            else
+                target_dir="$BASE_DIR/.agents/skills"
+            fi
+            if [[ "$target_dir" != "$detect_path/skills" ]]; then
+                compat_dir="$detect_path/skills"
+            fi
+            ;;
+        pi-extensions)
+            target_dir="$detect_path/extensions"
+            ;;
+        *)
+            target_subdir=$(get_target_subdir "$tool_name" "$type")
+            target_dir="$detect_path/$target_subdir"
+            ;;
+    esac
+
+    add_resolved_target "$tool_name" "$target_dir" "$detect_path" "$compat_dir"
 }
 
 resolve_targets() {
     local type="$1"
     RESOLVED_TARGETS=()
+    RESOLVED_COMPAT_TARGETS=()
 
     local tools
     if [[ "$TOOLS_SPECIFIED" == "true" ]]; then
