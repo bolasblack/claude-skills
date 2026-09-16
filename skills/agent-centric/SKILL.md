@@ -123,13 +123,6 @@ Add tags to `.agents/config.json` before using them:
 
 See [references/config.md](references/config.md) for config details.
 
-## Version History
+## Release history
 
-- v1.6.1 (2026-04-13): Fully manage `updated_by`/`obsoleted_by` by syncing and pruning reverse references, skip validation of auto-generated reverse fields
-- v1.6.0 (2026-04-13): Add `related` relationship with RFC-style `see-also` semantics, extend relation index with `-(r)->`, clarify archival relationship model
-- v1.5.0 (2026-01-23): Remove PreToolUse hook (PostToolUse validation sufficient), fix exit codes to use code 2 for blocking errors
-- v1.4.0 (2026-01-22): Add PreToolUse hook to block invalid AGD creation, auto-detect project dir
-- v1.3.0 (2025-01-22): Split references/, renamed validate-agds.py
-- v1.2.0 (2025-01-22): Split to SKILL.md + REFERENCE.md
-- v1.1.0 (2025-01-21): Merged index files, hooks in frontmatter, auto-init
-- v1.0.0 (2025-01-21): Initial version
+See [CHANGELOG.md](CHANGELOG.md) for version history. `VERSION` is the machine-readable version owner.

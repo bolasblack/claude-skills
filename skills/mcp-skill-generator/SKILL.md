@@ -103,3 +103,7 @@ Display: tools/resources/prompts count, save location, locked version, usage ins
 - [Design document](./docs/DESIGN.md) - Architecture, design decisions, and trade-offs
 - [config.toml format](./docs/config-format.md) - Configuration examples and environment variables
 - [templates/](./templates/) - SKILL.md and tool.md templates
+
+## Release history
+
+See [CHANGELOG.md](CHANGELOG.md) for release history. `VERSION` is the skill version owner; server versions in connection configs are separate.
