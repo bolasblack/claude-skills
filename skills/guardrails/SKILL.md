@@ -74,7 +74,6 @@ Before finishing guardrail source work, confirm:
 - `validate` passes.
 - `review-metadata` was run when GRL files changed.
 
-## Version History
+## Release history
 
-- v1.1.0 (2026-07-29): Consolidated enforcement doctrine into `references/schema.md` and CLI semantics into `references/tooling.md`, with pointers replacing the duplicated passages; routed the existing-codebase audit workflow to `references/auditing.md`; added a troubleshooting section to `references/tooling.md`; `render --detail` is accepted in any argument position; hardened the skill-local test suite.
-- v1.0.0 (2026-07-29): Initial public release of the rendered guardrail framework skill.
+See [CHANGELOG.md](CHANGELOG.md) for version history. `VERSION` is the machine-readable version owner.
