@@ -39,6 +39,8 @@ npx skills add bolasblack/claude-skills --skill <skill-name>
 | 🌐 [grill-me](./skills/grill-me/) | Stress-test plans and designs one question at a time, resolving decision dependencies and confirming shared understanding |
 | 🌐 [teach-me](./skills/teach-me/) | Learn an unfamiliar topic through a beginner-friendly HTML explainer with large visuals and concise captions |
 | 🌐 [show-me](./skills/show-me/) | See the current structure, flow, or change through concise diagrams, code sketches, and focused HTML artifacts |
+| 🌐 [create-verification-skill](./skills/create-verification-skill/) | Generate a project-local `verify-<app>` skill that launches, drives, and proves the real app the way a user does, with a seeded feature map. Companion to `maintain-verification-skill` |
+| 🌐 [maintain-verification-skill](./skills/maintain-verification-skill/) | Periodic upkeep pass for a verification skill and its feature map: parallel source readers, one live pass over every feature, at most one PR of proven corrections |
 | [pi-extension-dev](./skills/pi-extension-dev/) | Guide for developing, debugging, and shipping pi-coding-agent extensions and packages |
 | 🌐 [seo-site-audit](./skills/seo-site-audit/) | Website SEO / technical SEO audit with engineering-ready backlog. Covers robots.txt, sitemap, canonical, redirects, meta tags, OG/Twitter, JSON-LD, internal linking, Core Web Vitals |
 | 🌐 [seo-article-optimizer](./skills/seo-article-optimizer/) | Single article/landing page SEO optimization. Includes keyword analysis, readability scoring, heading structure, meta title/description, URL slug, internal links, featured snippet opportunities |
