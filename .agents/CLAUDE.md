@@ -28,7 +28,7 @@ Relationship fields:
 
 ## Writing Decisions
 
-Do not create or edit AGDs unless the `agent-centric` skill is loaded.
+Do not create or edit AGDs unless the `agent-centric` skill is loaded and its required setup check has passed for this project.
 
 When writing AGDs, follow the skill instructions. The skill owns file format, tag validation, relationship semantics, and index regeneration.
 

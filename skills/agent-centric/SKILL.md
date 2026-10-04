@@ -6,14 +6,45 @@ hooks:
     - matcher: "Bash|Write|Edit"
       hooks:
         - type: command
-          command: 'CLAUDE_PROJECT_DIR="$CLAUDE_PROJECT_DIR" "$CLAUDE_PROJECT_DIR/.agents/scripts/validate-agds.py"'
+          command: 'if [ -n "$CLAUDE_PROJECT_DIR" ] && python3 "$CLAUDE_PROJECT_DIR/.agents/scripts/check-setup.py" "$CLAUDE_PROJECT_DIR" >/dev/null 2>&1; then CLAUDE_PROJECT_DIR="$CLAUDE_PROJECT_DIR" "$CLAUDE_PROJECT_DIR/.agents/scripts/validate-agds.py"; fi'
         - type: command
-          command: 'CLAUDE_PROJECT_DIR="$CLAUDE_PROJECT_DIR" "$CLAUDE_PROJECT_DIR/.agents/scripts/generate-index.py"'
+          command: 'if [ -n "$CLAUDE_PROJECT_DIR" ] && python3 "$CLAUDE_PROJECT_DIR/.agents/scripts/check-setup.py" "$CLAUDE_PROJECT_DIR" >/dev/null 2>&1; then CLAUDE_PROJECT_DIR="$CLAUDE_PROJECT_DIR" "$CLAUDE_PROJECT_DIR/.agents/scripts/generate-index.py"; fi'
 ---
 
 # Agent Centric
 
 Framework for agent-centric development. Currently provides AGD (Agent-centric Governance Decision) tracking.
+
+## Required Setup Check
+
+Before using this skill in a project, run the bundled read-only check. Resolve
+`CLAUDE_SKILL_DIR` to the directory containing this `SKILL.md` and
+`CLAUDE_PROJECT_DIR` to the target project root; supply these paths explicitly when
+the host does not provide them.
+
+```bash
+python3 "${CLAUDE_SKILL_DIR}/scripts/check-setup.py" "${CLAUDE_PROJECT_DIR}"
+```
+
+Continue only when the command exits `0`. The check requires AGD configuration,
+the decisions directory, and runtime scripts; an existing `.agents/` directory
+alone is insufficient.
+
+If the check fails or cannot run, **stop using this skill**. Briefly report the
+missing setup and continue the user's task without AGD operations. Do not
+initialize, sync, repair configuration, or create decisions/indexes to bypass the
+check. Setup is a separate action: only follow [Setup](README.md#setup) when the
+user explicitly requests it, then rerun this check.
+
+After a successful check, sync the initialized project's managed files:
+
+```bash
+CLAUDE_PROJECT_DIR="${CLAUDE_PROJECT_DIR}" CLAUDE_SKILL_DIR="${CLAUDE_SKILL_DIR}" bash "${CLAUDE_SKILL_DIR}/scripts/sync-scripts.sh"
+```
+
+The sync respects `disableAutoUpdateScripts`. If files were updated, briefly inform
+the user. Rerun the setup check on each skill load and whenever the target project
+changes.
 
 ## What is AGD?
 
@@ -36,28 +67,25 @@ AGD exists to give the project stable references for important decisions and dur
 - Discussing trade-offs that should be documented
 - Referencing or searching existing decisions
 
-## Setup
-
-On each skill load, sync scripts and initialize if needed:
-
-```bash
-if [ ! -d "$CLAUDE_PROJECT_DIR/.agents" ]; then
-  CLAUDE_PROJECT_DIR="$CLAUDE_PROJECT_DIR" CLAUDE_SKILL_DIR="$CLAUDE_SKILL_DIR" bash "$CLAUDE_SKILL_DIR/scripts/init.sh"
-else
-  CLAUDE_PROJECT_DIR="$CLAUDE_PROJECT_DIR" CLAUDE_SKILL_DIR="$CLAUDE_SKILL_DIR" bash "$CLAUDE_SKILL_DIR/scripts/sync-scripts.sh"
-fi
-```
-
-If scripts were updated, briefly inform the user.
-
 ## Automatic Behaviors
 
-Hooks run automatically when you use Write/Edit/Bash tools on AGD files:
+In Claude Code, the bundled PostToolUse hooks check setup before running AGD
+validation and index generation after Write/Edit/Bash calls:
 
 - **Validates** all AGD files (tags, references)
 - **Regenerates** indexes automatically (silent on success)
 
 If validation fails, you'll see errors and should fix them (e.g., add missing tags to config.json).
+
+If hooks are unavailable, or script auto-update is disabled and the project lacks
+the hook's `check-setup.py` copy, run validation after AGD changes yourself, after
+the required setup check passes:
+
+```bash
+python3 "${CLAUDE_PROJECT_DIR}/.agents/scripts/validate-agds.py" "${CLAUDE_PROJECT_DIR}" </dev/null
+```
+
+Successful validation also regenerates indexes.
 
 ## Creating AGD Files
 

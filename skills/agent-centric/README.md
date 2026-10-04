@@ -32,10 +32,9 @@ Paste this into Claude Code, Codex, OpenCode, or any compatible AI coding agent:
 
 ## Quick Start
 
-1. **Initialize** - The skill auto-initializes on first load, creating:
-   - `.agents/decisions/` - Decision storage
-   - `.agents/scripts/` - Skill scripts
-   - `.agents/config.json` - Configuration file
+1. **Check setup** - Before using the skill, the agent runs `scripts/check-setup.py`
+   against the target project. Missing or incomplete setup stops skill use. To
+   enable AGD tracking in a project, explicitly request [setup](#setup).
 
 2. **Define tags** - Add allowed tags to `.agents/config.json`:
 
@@ -51,16 +50,35 @@ Paste this into Claude Code, Codex, OpenCode, or any compatible AI coding agent:
    .agents/decisions/AGD-001_use-postgresql.md
    ```
 
-4. **Automatic validation** - PostToolUse hooks validate files and regenerate indexes after AGD changes
+4. **Validation** - Claude Code hooks check setup before validating and regenerating
+   indexes. Agents without active hooks run validation as described in `SKILL.md`.
 
 5. **Relationship indexing** - `INDEX-AGD-RELATIONS.md` records:
    - `-(u)->` for updates
    - `-(o)->` for obsoletes
    - `-(r)->` for related/reference-only links
 
+## Setup
+
+Run initialization only when the user explicitly requests project setup. Set the
+project root and installed skill directory first:
+
+```bash
+export CLAUDE_PROJECT_DIR="/absolute/path/to/project"
+export CLAUDE_SKILL_DIR="/absolute/path/to/agent-centric"
+bash "$CLAUDE_SKILL_DIR/scripts/init.sh"
+python3 "$CLAUDE_SKILL_DIR/scripts/check-setup.py" "$CLAUDE_PROJECT_DIR"
+```
+
+Initialization creates `.agents/decisions/`, runtime scripts, configuration,
+indexes, and project instructions. Skill use requires the final check to exit `0`.
+The check itself only reads the project; it does not initialize, sync, validate
+decisions, regenerate indexes, or execute configured project scripts.
+
 ## Script Auto-Update
 
-Scripts in `.agents/scripts/` are automatically synced from the skill directory on each load.
+After setup passes, scripts in `.agents/scripts/` are automatically synced from
+the skill directory on each load.
 
 To disable auto-update for specific scripts:
 

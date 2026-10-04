@@ -105,4 +105,4 @@ To modify these scripts:
 
 3. Review the generated changes. The sync respects `disableAutoUpdateScripts` in `.agents/config.json` and also refreshes the managed `.agents/CLAUDE.md` template and `.agents/.gitignore`.
 
-Installing `agent-centric` updates the skill in agent installation directories; it does not run this project sync. The skill's setup instructions call for this sync when the skill is loaded.
+Installing `agent-centric` updates the skill in agent installation directories; it does not run this project sync. The skill calls for this sync only after its required setup check passes for the target project.

@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Require project setup before skill use
+
+- **Changed:** Skill use begins with a read-only setup check. Missing or incomplete setup stops AGD operations; initialization requires an explicit user request. Automatic hooks use the same check before validation or index generation.
+- **Why:** The agent must establish that the target project has AGD setup before using the skill. A shared `.agents/` directory alone does not establish that prerequisite.
+
 ### Establish independent release ownership
 
 - **Changed:** Added a machine-readable `VERSION` owner initialized to the existing `1.6.1` baseline and moved the recorded version history out of the runtime instructions.
