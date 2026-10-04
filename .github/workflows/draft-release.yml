@@ -69,6 +69,7 @@ jobs:
           python3 -B skills/agent-centric/scripts/simple_yaml.test.py
           python3 -B skills/agent-centric/scripts/generate-index.test.py
           python3 -B skills/agent-centric/scripts/validate-agds.test.py
+          bash skills/agent-centric/scripts/check-setup.test.sh
           bash scripts/install.test.sh
 
   draft-agent-centric:
