@@ -36,6 +36,7 @@ npx skills add bolasblack/claude-skills --skill <skill-name>
 | [dependency-safety-check](./skills/dependency-safety-check/) | Screen third-party dependencies for vulnerabilities and supply-chain risk with a bundled `check-deps.py` gate before installation |
 | [design-md](./skills/design-md/) | Create, update, validate, diff, or export DESIGN.md files following Google's [Stitch DESIGN.md spec](https://stitch.withgoogle.com/docs/design-md/overview) |
 | 🌐 [frontend-design](./skills/frontend-design/) | Create distinctive, production-grade frontend interfaces with high design quality |
+| 🌐 [caveman](./skills/caveman/) | Terse caveman voice: answer first, drop ceremony, keep every technical fact. Stays on until "stop caveman" |
 | 🌐 [grill-me](./skills/grill-me/) | Stress-test plans and designs one question at a time, resolving decision dependencies and confirming shared understanding |
 | 🌐 [teach-me](./skills/teach-me/) | Learn an unfamiliar topic through a beginner-friendly HTML explainer with large visuals and concise captions |
 | 🌐 [show-me](./skills/show-me/) | See the current structure, flow, or change through concise diagrams, code sketches, and focused HTML artifacts |
@@ -149,4 +150,6 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on importing or creating
 
 ## License
 
-Personal use. Individual extensions may have their own licenses.
+Extensions, scripts, and docs written in this repository are under its license: personal use.
+
+Imported extensions keep their own upstream licenses. The license text and attribution live with the imported extension. See [AGD-008](.agents/decisions/AGD-008_repository-and-imported-licenses.md).
