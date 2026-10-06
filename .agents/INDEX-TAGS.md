@@ -10,3 +10,4 @@ decisions/AGD-004_skill-doc-structure.md: #skills/agent-centric
 decisions/AGD-005_script-auto-update.md: #skills/agent-centric
 decisions/AGD-006_related-relationship-semantics.md: #skills/agent-centric
 decisions/AGD-007_agd-system-purpose.md: #skills/agent-centric
+decisions/AGD-008_repository-and-imported-licenses.md: #global
