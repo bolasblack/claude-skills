@@ -19,11 +19,16 @@ Pick one, and say which:
 
 ## Edit scope
 
-Only edit the verification skill's own directory (its SKILL.md, features/, and any harness scripts it owns). Never edit product code during a run: a behavior the map describes that the app no longer does is either doc drift (fix the map) or a product regression (report it, don't paper over it in docs).
+Edits cover the target verification skill's own directory (its SKILL.md and owned
+harness scripts), plus its resolved feature-map index and feature documents within
+the project checkout. Record the skill and map locations before editing; preserve
+unrelated documents and user changes. Never edit product code during a run: a behavior
+the map describes that the app no longer does is either doc drift (fix the map) or a
+product regression (report it, don't paper over it in docs).
 
 ## Pass
 
-0. **Locate the target.** Find the verification skill to maintain: the project-local skill whose body has launch/drive sections and a feature map (usually `.claude/skills/verify-*/`, or `.agents/skills/verify-*/` on Codex and pi). Several candidates → ask which one; none → stop and point at `/create-verification-skill` instead of inventing a target.
+0. **Locate the target.** Find the verification skill to maintain: the project-local skill whose body has launch/drive sections and a linked or bundled feature map (usually `.claude/skills/verify-*/`, or `.agents/skills/verify-*/` on Codex and pi). Several candidates → ask which one; none → stop and point at `/create-verification-skill` instead of inventing a target. Resolve the map index from that skill's pointer, relative to its `SKILL.md`; it may live in project documentation such as `docs/features/`. If an older skill has no pointer but contains `features/README.md`, use that existing map. A declared pointer that is broken or ambiguous is a missing prerequisite: report it before editing. Maintain the map at its declared location.
 
 1. **Index hygiene.** Read the feature map README and glob its sibling files. Fix missing, extra, duplicate, or dead entries. Lightweight; no generated inventory.
 
@@ -35,6 +40,6 @@ Only edit the verification skill's own directory (its SKILL.md, features/, and a
 
 5. **Triage.** Wrong or missing user-POV description → doc drift, fix it. Working behavior the harness can't drive → harness gap, fix it; a harness fix follows the same helpers rule as generation (scripts executable, invocation documented in the skill body). App behavior that's actually broken → product gap; record it for the user, keep it out of this PR.
 
-6. **Ship or stop.** For changed: one PR of proven corrections on a fresh branch, staging only the verification skill's own directory, re-read every changed file first. Where the project has no PR workflow or the agent lacks push rights, one commit on a branch plus the diff in the report counts as shipped. For clean or blocked: no PR, report the outcome and the coverage honestly.
+6. **Ship or stop.** For changed: one PR of proven corrections on a fresh branch. Re-read every changed file, then stage only this run's reviewed changes in the target skill and resolved feature-map documents. Where the project has no PR workflow or the agent lacks push rights, one commit on a branch plus the diff in the report counts as shipped. For clean or blocked: no PR, report the outcome and the coverage honestly.
 
 Keep concise run notes (features covered, unreachable prerequisites, confirmed drift, outcome) in a scratch location; don't commit them, and keep evidence artifacts out of the PR too.

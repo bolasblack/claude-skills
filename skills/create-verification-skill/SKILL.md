@@ -34,7 +34,29 @@ Write `.claude/skills/verify-<app>/SKILL.md` (or the same layout under the proje
 
 ## 3. Seed the feature map
 
-Create `.claude/skills/verify-<app>/features/README.md` plus one file per user-facing feature you can identify (aim for the top 3-5 to start, from routes, commands, menus, or docs). Follow the shape in [`references/feature-map-example/`](references/feature-map-example/), with a README index and one file per feature. Each file answers, from the user's point of view: what the feature is, how to reach it, how to drive it with the harness, and what observable end state proves it works. The four H2s are `Sub-features`, `How to get to it (user POV)`, `Driving it with <harness>`, and `Gotchas`. The map is the repo's maintained verification source; a proof that drives one convenient entry point is incomplete when the map lists others.
+Reuse the project's existing feature map in its documentation. When there is none,
+create `docs/features/README.md` plus one file per user-facing feature you can identify
+(aim for the top 3-5 to start, from routes, commands, menus, or docs). The project owns
+the map so feature investigation, test planning and verification share one source.
+When updating a skill with a bundled map, move that map into project documentation
+and update all affected links in the same change.
+
+For new entries, follow the shape in
+[`references/feature-map-example/`](references/feature-map-example/); retain an existing
+map's structure. Each entry answers, from the user's point of view: what the feature
+is, every user entry point, required state, feature-specific actions and the observable
+end state. New entries use the four H2s `Sub-features`, `How to get to it (user POV)`,
+`Driving it with <harness>`, and `Gotchas`. Shared launch, doctor, evidence and cleanup
+instructions belong in the generated skill.
+
+Add a conditional pointer from the generated `SKILL.md`: before selecting cases, read
+the map index, then only the affected feature documents. Make the link relative to
+`SKILL.md` and verify it resolves to the project's map. If the project has test-planning
+guidance, add a pointer there to the same index. A proof covers every selected entry
+point in the map.
+
+**Done when:** one project-owned index reaches the mapped features, the generated
+skill's pointer resolves, and its workflow uses that map to select cases.
 
 ## 4. Prove the generated skill before handing it over
 
