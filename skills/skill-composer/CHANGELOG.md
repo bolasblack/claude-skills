@@ -4,6 +4,11 @@ This file records Skill Composer releases so the history travels with standalone
 
 ## [Unreleased]
 
+### Default changelogs to dates
+
+- **Changed:** Changelogs have two modes. Date mode, the default, records each change under its date with no version or release bookkeeping. Version mode keeps `Unreleased`, the published baseline, and numbered releases. An existing changelog keeps its mode, an explicit request switches it, and a skill that ships under a version asks before choosing version mode. The release workflow applies its version steps only in version mode.
+- **Why:** The user finds version numbers unnecessary in their way of working and expects the same for many others, while skills that ship versions still need the existing release history.
+
 ### Keep eval fixtures outside skill discovery
 
 - **Changed:** Skill fixture entry points use `SKILL.md.fixture`. The evaluator resolves declared `SKILL.md` inputs from these templates and materializes package-local competitors in temporary copies before validating their identity. Source templates and the frozen package snapshot stay unchanged.

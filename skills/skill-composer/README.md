@@ -34,7 +34,7 @@ Use Skill Composer when a skill must remain maintainable across agent harnesses,
 - One-owner repeatable eval infrastructure with isolated fixtures, built-in Claude/Codex/Grok runs, and an external-adapter seam
 - MCP + Skills integration guidance
 - Cross-harness distribution decisions with exact target paths and behavior researched on demand
-- Portable, evidence-backed skill-local changelogs with optional causal examples for independently distributed releases
+- Portable, evidence-backed skill-local changelogs with optional causal examples, dated by default and versioned when a skill ships under a version
 
 ## Files
 

@@ -1,0 +1,10 @@
+---
+name: date-format
+description: "Format a date into ISO 8601. Use when the user asks to normalize a date string."
+---
+
+# Date Format
+
+Parse the date string the user gives and return it as `YYYY-MM-DD`.
+
+**Done when:** the response contains the one normalized date, or says why the input cannot be parsed.

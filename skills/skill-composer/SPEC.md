@@ -60,6 +60,12 @@ a multi-skill commit, or one platform's version identifier may not travel with t
 skill. An unpublished, single-use skill carries neither an empty changelog nor a release
 record it does not have.
 
+Changelogs default to date mode: each entry sits under the date of its change, with no
+version or release bookkeeping. Version mode is a choice: an existing changelog keeps its
+mode, and a skill that ships under a version asks before choosing it.
+
 **Why:** The user requires maintainer constraints and release rationale to survive when
 a skill is rewritten or leaves its repository, without making ordinary invocations pay
-for maintenance-only context or duplicating the runtime contract.
+for maintenance-only context or duplicating the runtime contract. The user finds version
+numbers unnecessary in their way of working and expects the same for many others, so
+dates are the default and versions are opted into.

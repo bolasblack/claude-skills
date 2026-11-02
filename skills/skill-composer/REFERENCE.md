@@ -366,9 +366,23 @@ If you maintain an MCP server, link to your skills from the MCP documentation:
 
 Use a skill-local `CHANGELOG.md` when a skill has releases of its own or may be distributed without its source repository. Git history is not a sufficient release record: one commit may modify several skills, and an installed or copied skill may have no Git metadata.
 
-Keep the changelog outside `SKILL.md` so historical narration does not consume runtime context. Package it with the skill, update it in the same change as released behavior, and record only changes that matter to a user, integrator, or downstream maintainer. Omit it for unpublished, single-use skills until there is a real release history to preserve.
+Keep the changelog outside `SKILL.md` so historical narration does not consume runtime context. Package it with the skill, update it in the same change as the behavior it records, and record only changes that matter to a user, integrator, or downstream maintainer. Omit it for unpublished, single-use skills until there is a real release history to preserve.
+
+### Changelog modes
+
+[Step 7](SKILL.md#step-7-record-portable-release-history) chooses the mode. The mode decides how entries are grouped and what release bookkeeping applies; the entry fields and the Evidence gate are the same in both.
+
+| | Date mode (default) | Version mode |
+|---|---|---|
+| Section heading | `## 2026-11-02`, the date of the change, newest first | `## [Unreleased]`, then `## [2.0.0] - 2025-11-15` |
+| Revisions | Fold one day's revisions into that day's net change; later days add their own entries | Fold one release cycle's revisions into the net delta from the published baseline |
+| Version metadata | None | Target-owned metadata agrees with the numbered release |
+
+When date mode takes over an `Unreleased` section, put each entry under the day its change landed, using version-control history or file timestamps. When nothing dates an entry, use the conversion date and say so.
 
 ### Published baseline
+
+This section applies to version mode. Date mode needs no published baseline: a dated entry states when a change was made, not that users received it.
 
 Before writing `Unreleased`, identify the last artifact actually published to the
 changelog's audience. `Unreleased` is the net difference between that artifact and the
@@ -403,7 +417,7 @@ De-identification is transformation, not invention. Rename sensitive details whi
 
 If the evidence does not establish a `Why`, preserve the supported facts, report what evidence is missing, and do not claim the new entry is complete. An `Example` is optional: omit it when it would not materially improve understanding or when the evidence cannot support it. When importing legacy entries that lack enough evidence, keep their recorded facts and identify them as legacy history rather than backfilling a plausible story.
 
-Once the evidence gate passes, include for every complete new logical change inside a release:
+Once the evidence gate passes, include for every complete new logical change inside a release or a dated section:
 
 - **Changed** (required): the behavior, rule, contract, or compatibility surface that changed.
 - **Why** (required): the failure mode, missing invariant, or distribution constraint that made the change necessary.
@@ -446,7 +460,7 @@ Examples, when included, are de-identified, evidence-backed reconstructions of t
 - **Migration:** Pass the complete candidate result to the owner.
 ````
 
-Semantic versioning: Major (breaking), Minor (features, backward compatible), Patch (bug fixes).
+In version mode, use semantic versioning: Major (breaking), Minor (features, backward compatible), Patch (bug fixes).
 
 ## Resources and Community
 

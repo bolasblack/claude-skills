@@ -1,0 +1,10 @@
+---
+name: commit-tidy
+description: "Tidy a commit subject. Use when the user asks to clean up a commit message's first line."
+---
+
+# Commit Tidy
+
+Trim surrounding whitespace from the commit subject and capitalize its first word.
+
+**Done when:** the response contains the one tidied subject.

@@ -556,7 +556,7 @@ class SkillComposerPackageTest(unittest.TestCase):
             "candidate validation has a result for every locked pre-install gate",
             skill,
         )
-        self.assertIn("versioned final artifact itself", skill)
+        self.assertIn("the final artifact itself matches the clean-install inventory", skill)
 
     def test_validation_ledger_accounts_for_every_applicable_gate(self):
         skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
@@ -662,6 +662,72 @@ class SkillComposerPackageTest(unittest.TestCase):
         self.assertIn("establish the published baseline", skill)
         self.assertIn("relative to that baseline", skill)
 
+    def test_changelog_mode_defaults_to_dates_and_asks_on_a_version_signal(self):
+        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        step = " ".join(
+            skill.split("### Step 7:", 1)[1].split("### Step 8:", 1)[0].lower().split()
+        )
+
+        for phrase in (
+            "date mode is the default",
+            "an explicit request for a mode wins",
+            "an existing changelog keeps its mode",
+            "without one, use date mode and do not ask",
+            "ask whether to use version mode",
+            "when no one can answer, use date mode and report the signal",
+            "a sibling package's version is not a signal",
+        ):
+            self.assertIn(phrase, step)
+
+    def test_date_mode_carries_no_release_bookkeeping(self):
+        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        reference = PACKAGE.joinpath("REFERENCE.md").read_text(encoding="utf-8")
+        changelog_format = " ".join(
+            reference.split("\n## Portable Changelog Format", 1)[1]
+            .split("\n## Resources and Community", 1)[0]
+            .lower()
+            .split()
+        )
+        release = " ".join(
+            skill.split("### Release Step 1:", 1)[1]
+            .split("\n## Workflow Patterns", 1)[0]
+            .lower()
+            .split()
+        )
+
+        for phrase in (
+            "### changelog modes",
+            "the date of the change",
+            "date mode needs no published baseline",
+            "the entry fields and the evidence gate are the same in both",
+            "when date mode takes over an `unreleased` section",
+        ):
+            self.assertIn(phrase, changelog_format)
+        for phrase in (
+            "in date mode",
+            "no version metadata",
+            "the candidate is the final artifact",
+        ):
+            self.assertIn(phrase, release)
+
+    def test_date_default_is_a_maintainer_requirement_with_eval_coverage(self):
+        spec = " ".join(
+            PACKAGE.joinpath("SPEC.md").read_text(encoding="utf-8").lower().split()
+        )
+        self.assertIn("changelogs default to date mode", spec)
+
+        manifest = json.loads(
+            PACKAGE.joinpath("evals", "evals.json").read_text(encoding="utf-8")
+        )
+        cases = {case["id"]: case for case in manifest["evals"]}
+        self.assertIn("asks-before-version-mode", cases)
+        self.assertIn("keeps-an-existing-version-changelog", cases)
+        history = {
+            item["id"]: item["description"]
+            for item in cases["updates-then-packages-cross-harness"]["assertions"]
+        }["records-evidence-backed-history"]
+        self.assertIn("date mode", history.lower())
+
     def test_script_changes_require_observed_public_seam_red_green_evidence(self):
         skill = " ".join(
             PACKAGE.joinpath("SKILL.md")
@@ -704,7 +770,7 @@ class SkillComposerPackageTest(unittest.TestCase):
             text=True,
         )
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertIn("functional=4 trigger=20", result.stdout)
+        self.assertIn("functional=6 trigger=20", result.stdout)
         self.assertIn(
             "[Evaluation Reference](references/evaluation.md)",
             skill,

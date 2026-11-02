@@ -1,6 +1,6 @@
 # Releasing skills
 
-Each public skill is versioned independently. A shared release process prepares the
+Each public skill that adopts versioned releases is versioned independently. A shared release process prepares the
 selected skills, while `master` remains the stable source for ordinary installations.
 
 The release contract covers `agent-centric`, `skill-composer`, `guardrails`, and
@@ -93,7 +93,7 @@ Explain required downstream action for a breaking change.
 
 Maintain `Unreleased` against the last artifact actually published to that skill's
 audience. Preserve authored explanations of what changed and why; commit subjects
-alone are not release notes. Follow the
+alone are not release notes. Follow version mode in the
 [portable changelog format](../skills/skill-composer/REFERENCE.md#portable-changelog-format).
 
 When adopting this mechanism, establish each skill's existing version and publication

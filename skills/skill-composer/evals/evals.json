@@ -148,7 +148,48 @@
         },
         {
           "id": "records-evidence-backed-history",
-          "description": "Because the fixture declares no released changes, the Unreleased changelog records the candidate's resulting portable cross-harness capability and supported reason as initial-release history; it does not present the fixture's Claude-only implementation as a released transition, removal, compatibility change, or migration."
+          "description": "The package has no version signal and no recorded release, so the changelog moves to date mode without asking and records the resulting portable cross-harness capability and its supported reason under the date of the change. It adds no version metadata and does not present the fixture's Claude-only implementation as a released transition, removal, compatibility change, or migration."
+        }
+      ]
+    },
+    {
+      "id": "asks-before-version-mode",
+      "category": "functional",
+      "prompt": "Update the skill at inputs/date-format so it also accepts Unix timestamps, and record the change in a new changelog for the skill.",
+      "side_effects": "fixture",
+      "files": [
+        "date-format/SKILL.md",
+        "date-format/VERSION"
+      ],
+      "assertions": [
+        {
+          "id": "raises-the-version-signal",
+          "description": "The final response names the skill's VERSION file as a version signal and asks whether to use version mode, or, with no one available to answer, reports that signal."
+        },
+        {
+          "id": "defaults-to-date-mode",
+          "description": "Without an answer choosing version mode, the new changelog records the change under the date of the change, has no Unreleased section, and the VERSION file is unchanged."
+        }
+      ]
+    },
+    {
+      "id": "keeps-an-existing-version-changelog",
+      "category": "functional",
+      "prompt": "Update the skill at inputs/commit-tidy so it also strips trailing periods from commit subjects, and record the change in its changelog.",
+      "side_effects": "fixture",
+      "files": [
+        "commit-tidy/SKILL.md",
+        "commit-tidy/VERSION",
+        "commit-tidy/CHANGELOG.md"
+      ],
+      "assertions": [
+        {
+          "id": "keeps-version-mode-without-asking",
+          "description": "The entry goes under an Unreleased section above the existing numbered release, the numbered release stays as written, and the agent does not ask which changelog mode to use."
+        },
+        {
+          "id": "leaves-the-version-for-release",
+          "description": "No release was requested, so the VERSION file is unchanged and no new numbered section is added."
         }
       ]
     }

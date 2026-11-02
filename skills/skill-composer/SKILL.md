@@ -302,23 +302,43 @@ Pre-Approval](REFERENCE.md#tool-pre-approval).
 ### Step 7: Record Portable Release History
 
 When a skill has releases of its own or independent distribution, update its local
-`CHANGELOG.md` in the same change as released behavior. Before writing, read the
-mandatory [Evidence gate](REFERENCE.md#evidence-gate) and [Portable Changelog
-Format](REFERENCE.md#portable-changelog-format). Establish the published baseline
-defined there, then record each net logical change once with evidence-backed `Changed`
-and `Why`; add `Example` only when its removal would lose material causal understanding,
+`CHANGELOG.md` in the same change as the behavior it records. An unpublished, single-use
+skill does not need an empty changelog. Before writing, read the mandatory [Evidence
+gate](REFERENCE.md#evidence-gate) and [Portable Changelog
+Format](REFERENCE.md#portable-changelog-format).
+
+Choose the changelog mode first. Date mode is the default: entries sit under the date of
+the change, with no version or release bookkeeping. Version mode keeps `Unreleased` and
+numbered releases.
+
+1. An explicit request for a mode wins. Switching leaves earlier sections as written.
+2. An existing changelog keeps its mode, decided by its newest section: a date means
+   date mode; a numbered release, or `Unreleased` beside a numbered release or a version
+   signal, means version mode.
+3. Otherwise look for a version signal: a version this skill ships under, such as its own
+   `VERSION` file, `metadata.version`, or plugin manifest, release tags that name it, or
+   the version of the one package or repository that distributes it. A sibling package's
+   version is not a signal. Without one, use date mode and do not ask. With one, name it
+   and ask whether to use version mode; when no one can answer, use date mode and report
+   the signal.
+
+Then record each logical change once with evidence-backed `Changed` and `Why`; add `Example` only when its removal would lose material causal understanding,
 and `Migration` only when a real downstream user must act because a supported public
 invocation, input, output, installation, or configuration contract changed. An internal
 implementation replacement with unchanged public invocation, inputs, and outputs has no
 Migration entry. A caller's private wrapper around a removed implementation detail does
 not establish a supported migration unless the existing contract or direct evidence
-identifies that wrapper as public. Describe changes relative to that baseline: fold
-revisions made inside one unreleased cycle into the resulting contract instead of
-recording them as separate changes or migrations. Re-test every retained example during
-review, and do not reconstruct missing legacy rationale. An unpublished, single-use
-skill does not need an empty changelog.
+identifies that wrapper as public. Re-test every retained example during review, and do
+not reconstruct missing legacy rationale.
 
-**Done when:** every entry is a net delta from an evidenced published baseline or describes the resulting first-release contract, every retained example adds material understanding, every migration names real downstream action, and runtime instructions contain no duplicate release history.
+- **Date mode:** put each entry under the date of the change. Fold revisions from one day
+  into that day's net change; later days add their own entries and leave earlier sections
+  as written.
+- **Version mode:** establish the published baseline defined in that format. Describe
+  changes relative to that baseline: fold revisions made inside one unreleased cycle into
+  the resulting contract instead of recording them as separate changes or migrations.
+
+**Done when:** the mode follows the rules above and any version signal was asked about or reported, every date-mode entry sits under the date of its change, every version-mode entry is a net delta from an evidenced published baseline or describes the resulting first-release contract, every retained example adds material understanding, every migration names real downstream action, and runtime instructions contain no duplicate release history.
 
 ### Step 8: Validate Behavior and Maintain Admitted Evals
 
@@ -411,10 +431,10 @@ A finding is the complete review record: severity, file and line evidence, impac
 
 ### Release Step 1: Lock the Release Contract
 
-Record the exact skill, proposed version, target harnesses and surfaces, invocation
-policies, distribution forms, and files that belong in the artifact.
+Record the exact skill, the proposed version in version mode, target harnesses and
+surfaces, invocation policies, distribution forms, and files that belong in the artifact.
 
-**Done when:** one release ledger names the exact skill, proposed version, target harnesses and surfaces, invocation policies, distribution forms, artifact files, and every claimed gate before the artifact is built.
+**Done when:** one release ledger names the exact skill, any proposed version, target harnesses and surfaces, invocation policies, distribution forms, artifact files, and every claimed gate before the artifact is built.
 
 ### Release Step 2: Build the Exact Artifact
 
@@ -438,24 +458,31 @@ artifact after testing.
 ### Release Step 4: Prepare Release Records
 
 Apply the [Evidence gate](REFERENCE.md#evidence-gate) and [Portable Changelog
-Format](REFERENCE.md#portable-changelog-format), establish the published baseline, and
-update the skill-local changelog under `Unreleased`. Prepare target-owned version
-metadata and state any compatibility or migration effect without inventing rationale.
-Build and validate a release candidate without presenting it as the completed release.
+Format](REFERENCE.md#portable-changelog-format) in the mode that
+[Step 7](#step-7-record-portable-release-history) selects. State any compatibility or
+migration effect without inventing rationale. Build and validate a release candidate
+without presenting it as the completed release.
 
-**Done when:** the candidate records each net change relative to that baseline, every migration corresponds to real downstream action, all metadata is ready for one proposed version while the changelog remains `Unreleased`, and candidate validation has a result for every locked pre-install gate.
+- **Date mode:** record each change not yet in the changelog under the date of the change.
+  A date-mode skill has no version metadata.
+- **Version mode:** establish the published baseline, update the skill-local changelog
+  under `Unreleased`, and prepare target-owned version metadata.
+
+**Done when:** the changelog records every change in its mode, every migration corresponds to real downstream action, and candidate validation has a result for every locked pre-install gate; in version mode, the candidate also records each net change relative to that baseline, and all metadata is ready for one proposed version while the changelog remains `Unreleased`.
 
 ### Release Step 5: Verify and Promote the Exact Artifact
 
 Install the candidate artifact in a clean instance of each claimed surface and rerun at
 least one representative scenario per real workflow branch. Compare the installed
-inventory with the artifact so repository-only files cannot mask a broken package. If
-the candidate passes, assign the version and date, build the final artifact, and repeat
-the clean-install inventory and representative branch checks on that exact final
-artifact. If promotion or the final checks fail, return the changelog to `Unreleased`
-and do not publish.
+inventory with the artifact so repository-only files cannot mask a broken package.
 
-**Done when:** the versioned final artifact itself matches the clean-install inventory on every claimed surface and exercises every supported branch without source-tree residue; otherwise the changelog is `Unreleased` and no versioned release state remains.
+In date mode the candidate is the final artifact, so publish only a candidate that
+passes. In version mode, if the candidate passes, assign the version and date, build the
+final artifact, and repeat the clean-install inventory and representative branch checks
+on that exact final artifact; if promotion or the final checks fail, return the changelog
+to `Unreleased` and do not publish.
+
+**Done when:** the final artifact itself matches the clean-install inventory on every claimed surface and exercises every supported branch without source-tree residue; otherwise nothing is published, and in version mode the changelog is `Unreleased` and no versioned release state remains.
 
 **Done when:** the exact artifact is self-contained, every claimed target has schema and
 behavior evidence, every unavailable gate is visible, and a clean installation exercises
