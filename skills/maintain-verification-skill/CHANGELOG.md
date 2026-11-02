@@ -1,6 +1,20 @@
 # Changelog
 
-## [Unreleased]
+## 2026-11-02
+
+### Let people and agents invoke it on every host
+
+- **Changed:** Remove `disable-model-invocation: true`. A `changed` run opens a PR only when the user asked for the pass; otherwise one commit on a branch plus the diff counts as shipped.
+- **Why:** The user chose one invocation behavior on every host. OpenCode ignores the field, so explicit-only behavior could not hold everywhere, and the field stops other skills, agents, and session scheduled tasks from invoking the skill. Without the field a run can start without a request, and opening a PR needs one.
+
+## 2026-10-22
+
+### Follow feature maps into project documentation
+
+- **Changed:** Resolve the feature map through the target skill's pointer into the project checkout, with a fallback for older skills containing a map without a pointer. Keep maps at their declared location and include the resolved map in the edit scope. Stage only reviewed skill and map changes for a `changed` PR.
+- **Why:** The user specified project ownership of feature maps with skills pointing to them. The maintenance loop must reach those documents while preserving unrelated work and existing bundled maps.
+
+## 2026-09-17
 
 ### Import the verification-skill maintenance loop
 
