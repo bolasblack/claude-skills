@@ -3,7 +3,7 @@
 Each public skill that adopts versioned releases is versioned independently. A shared release process prepares the
 selected skills, while `master` remains the stable source for ordinary installations.
 
-The release contract covers `agent-centric`, `skill-composer`, `guardrails`, and
+The release contract covers `agent-centric`, `guardrails`, and
 `mcp-skill-generator`. Their independent tags route through one
 [draft workflow](../.github/workflows/draft-release.yml).
 Register other skills individually after confirming their owners and validation.
@@ -94,7 +94,7 @@ Explain required downstream action for a breaking change.
 Maintain `Unreleased` against the last artifact actually published to that skill's
 audience. Preserve authored explanations of what changed and why; commit subjects
 alone are not release notes. Follow version mode in the
-[portable changelog format](../skills/skill-composer/REFERENCE.md#portable-changelog-format).
+[portable changelog format](../skills/skill-composer/references/changelog.md).
 
 When adopting this mechanism, establish each skill's existing version and publication
 baseline independently. Inspect published artifacts, release records, and any
@@ -217,16 +217,18 @@ registered initially; all are source-only releases with no uploaded assets.
 | Component | Initial machine version | Existing history |
 | --- | --- | --- |
 | `agent-centric` | `1.6.1` | [Migrated version history](../skills/agent-centric/CHANGELOG.md) |
-| `skill-composer` | `3.2.1` | [Package changelog](../skills/skill-composer/CHANGELOG.md) |
 | `guardrails` | `1.1.0` | [Migrated version history](../skills/guardrails/CHANGELOG.md) |
 | `mcp-skill-generator` | `0.1.0` | [New version baseline](../skills/mcp-skill-generator/CHANGELOG.md) |
 
-The first three values adopt existing documented versions. `mcp-skill-generator`
+The first two values adopt existing documented versions. `mcp-skill-generator`
 had no skill version history; `0.1.0` is its maintainer-confirmed initial machine
 baseline. The `0.6.2` in its example `config.toml` belongs to the example MCP server,
 not this skill. These values do not assert that matching annotated tags or GitHub
 Releases exist, and setup does not create historical tags. Unreleased work still
 needs a reviewed next version and note before tagging.
+
+`skill-composer` was registered at `3.2.1` and removed on 2026-11-17 before any tag
+was created. It now records changes by date and has no `VERSION` file.
 
 `guardrails` runs its Bun test suite. `mcp-skill-generator` currently has no automated
 functional suite: its configured gate checks all four JavaScript files for syntax,
@@ -276,33 +278,6 @@ components:
           "python-version": "3.13"
     paths:
       - "skills/agent-centric"
-      - "scripts"
-  skill-composer:
-    project: "skill-composer"
-    tag_prefix: "skill-composer-v"
-    test: |-
-      set -eu
-      python3 -B skills/skill-composer/package_test.py
-      python3 -B skills/skill-composer/scripts/fetch-harness-docs_test.py
-      python3 -B skills/skill-composer/scripts/eval-skill_test.py
-      python3 -B skills/skill-composer/scripts/eval-skill.py check skills/skill-composer
-      bash scripts/install.test.sh
-    build: ""
-    install: ""
-    version_files:
-      - "skills/skill-composer/VERSION"
-    asset_dir: null
-    assets: []
-    changelog: "skills/skill-composer/CHANGELOG.md"
-    spec_dirs:
-      - "skills/skill-composer"
-    setup_actions:
-      -
-        uses: "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"
-        with:
-          "python-version": "3.13"
-    paths:
-      - "skills/skill-composer"
       - "scripts"
   guardrails:
     project: "guardrails"

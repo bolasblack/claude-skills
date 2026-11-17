@@ -90,6 +90,10 @@
           "description": "outputs/incident-brief exists, its portable frontmatter name matches the directory, and it contains no unwarranted host-only or maintenance artifacts."
         },
         {
+          "id": "bounds-the-entry-point",
+          "description": "outputs/incident-brief/SKILL.md is at most 15,000 bytes including frontmatter, and the validation ledger reports its measured size as a gate."
+        },
+        {
           "id": "encodes-a-decision-complete-workflow",
           "description": "The skill preserves the requested read-only boundary and gives ordered instructions plus observable completion criteria for impact, events, evidence gaps, and next actions."
         },

@@ -13,6 +13,19 @@ from urllib.parse import unquote
 PACKAGE = Path(__file__).parent
 
 
+def reference(name):
+    return PACKAGE.joinpath("references", name).read_text(encoding="utf-8")
+
+
+def lookup_material():
+    """Every lookup reference: references/*.md except the branch workflows and evals."""
+    return "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted(PACKAGE.joinpath("references").glob("*.md"))
+        if path.name not in {"evaluation.md", "review.md", "release.md"}
+    )
+
+
 def markdown_anchors(text):
     """Return GitHub-style heading anchors for the Markdown used in this package."""
     anchors = set()
@@ -51,6 +64,66 @@ class SkillComposerPackageTest(unittest.TestCase):
             PACKAGE.joinpath(fields["license"]).read_text(encoding="utf-8"),
         )
 
+    def test_skill_entry_point_stays_within_the_byte_cap(self):
+        size = len(PACKAGE.joinpath("SKILL.md").read_bytes())
+        self.assertLessEqual(size, 15000)
+
+    def test_references_are_whole_files_reached_from_the_entry_point(self):
+        self.assertFalse(PACKAGE.joinpath("REFERENCE.md").exists())
+        references = PACKAGE / "references"
+        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        for reference in sorted(references.glob("*.md")):
+            self.assertIn(f"](references/{reference.name})", skill, reference.name)
+
+        failures = []
+        for document in PACKAGE.rglob("*.md"):
+            if "fixtures" in document.relative_to(PACKAGE).parts:
+                continue
+            text = document.read_text(encoding="utf-8")
+            for target in re.findall(r"\[[^]]+\]\(([^)]+)\)", text):
+                path, separator, _ = target.partition("#")
+                if not path or "://" in path or not separator:
+                    continue
+                resolved = document.parent.joinpath(path).resolve()
+                if resolved.parent == references.resolve():
+                    failures.append(f"{document.relative_to(PACKAGE)} -> {target}")
+        self.assertEqual([], failures)
+
+    def test_bounded_entry_point_is_a_leading_standing_rule_with_sources(self):
+        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        spec = " ".join(PACKAGE.joinpath("SPEC.md").read_text(encoding="utf-8").split())
+        leading = " ".join(skill.split("## Choose the Workflow", 1)[0].split())
+        bounded = leading.split("### Bounded Entry Point", 1)[1].split("### ", 1)[0]
+
+        for phrase in (
+            "15,000 UTF-8 bytes",
+            "wc -c SKILL.md",
+            "every standing rule (one that applies across a whole run)",
+            "must-follow gates first",
+            "Point at whole reference files",
+            "read the file in full",
+            "invoke it by name",
+            "(SPEC.md#bounded-entry-point)",
+        ):
+            self.assertIn(phrase, bounded)
+        router = skill.split("## Choose the Workflow", 1)[1].split("\n## ", 1)[0]
+        for reference in ("references/review.md", "references/release.md"):
+            route = router.split(reference, 1)[1].split("\n", 1)[0]
+            self.assertIn("in full", route, reference)
+        self.assertIn("entry-point byte cap", skill.split("### Step 8:", 1)[1])
+
+        self.assertIn("## Bounded Entry Point", spec)
+        for evidence in (
+            "https://agentskills.io/specification",
+            "Instructions (< 5000 tokens recommended)",
+            "https://code.claude.com/docs/en/skills.md#skill-content-lifecycle",
+            "keeping the first 5,000 tokens of each",
+            "combined budget of 25,000 tokens",
+            "2026-11-17",
+        ):
+            self.assertIn(evidence, spec)
+        self.assertNotIn("Reasonable size is a behavioral property", spec)
+
     def test_research_and_automation_contracts_are_reachable(self):
         skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
         spec = PACKAGE.joinpath("SPEC.md").read_text(encoding="utf-8")
@@ -81,7 +154,7 @@ class SkillComposerPackageTest(unittest.TestCase):
 
     def test_spec_invariants_own_their_reasons_without_a_second_ledger(self):
         spec = PACKAGE.joinpath("SPEC.md").read_text(encoding="utf-8")
-        reference = PACKAGE.joinpath("REFERENCE.md").read_text(encoding="utf-8")
+        lookup = lookup_material()
         sections = re.findall(
             r"^## ([^\n]+)\n(.*?)(?=^## |\Z)",
             spec,
@@ -91,19 +164,26 @@ class SkillComposerPackageTest(unittest.TestCase):
         self.assertGreater(len(sections), 0)
         for heading, body in sections:
             self.assertIn("**Why:**", body, heading)
-        self.assertNotIn("### Skill Composer Admission Ledger", reference)
+        self.assertNotIn("### Skill Composer Admission Ledger", lookup)
 
     def test_every_instruction_step_has_a_local_completion_criterion(self):
-        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        workflow = "\n".join(
+            PACKAGE.joinpath(*name).read_text(encoding="utf-8")
+            for name in (
+                ("SKILL.md",),
+                ("references", "review.md"),
+                ("references", "release.md"),
+            )
+        )
         fenced_blocks = re.findall(
             r"^```[^\n]*\n(.*?)^```$",
-            skill,
+            reference("authoring-examples.md"),
             flags=re.MULTILINE | re.DOTALL,
         )
         runtime = re.sub(
             r"^```[^\n]*\n.*?^```$",
             "",
-            skill,
+            workflow,
             flags=re.MULTILINE | re.DOTALL,
         )
         runtime_steps = re.findall(
@@ -123,19 +203,24 @@ class SkillComposerPackageTest(unittest.TestCase):
             )
 
         self.assertGreaterEqual(len(runtime_steps), 18)
-        self.assertGreaterEqual(len(example_steps), 4)
+        self.assertGreaterEqual(len(example_steps), 2)
         for heading, body in runtime_steps + example_steps:
             self.assertIn("**Done when:**", body, heading)
 
     def test_contract_lock_steps_finish_with_every_declared_input(self):
-        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        review = PACKAGE.joinpath("references", "review.md").read_text(
+            encoding="utf-8"
+        )
+        release = PACKAGE.joinpath("references", "release.md").read_text(
+            encoding="utf-8"
+        )
         research = PACKAGE.joinpath("HARNESS-RESEARCH.md").read_text(
             encoding="utf-8"
         )
 
         checks = {
             "Review Step 1: Lock the Contract": (
-                skill,
+                review,
                 (
                     "review scope",
                     "repository rules",
@@ -151,7 +236,7 @@ class SkillComposerPackageTest(unittest.TestCase):
                 ),
             ),
             "Release Step 1: Lock the Release Contract": (
-                skill,
+                release,
                 (
                     "exact skill",
                     "proposed version",
@@ -183,7 +268,7 @@ class SkillComposerPackageTest(unittest.TestCase):
 
     def test_lookup_rules_have_one_owner(self):
         skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
-        reference = PACKAGE.joinpath("REFERENCE.md").read_text(encoding="utf-8")
+        lookup = lookup_material()
 
         for duplicate in (
             "**Portable required fields**",
@@ -192,17 +277,18 @@ class SkillComposerPackageTest(unittest.TestCase):
             "### Pattern 1: Sequential Orchestration",
         ):
             self.assertNotIn(duplicate, skill)
-        self.assertNotIn("### Pattern 1: Sequential Orchestration", reference)
-        self.assertNotIn("**Portable core:**", reference)
-        self.assertIn("## YAML Frontmatter Specification", reference)
-        self.assertIn("## Directory Structure Patterns", reference)
-        self.assertIn("## Workflow Patterns", reference)
-        self.assertIn("exactly `SKILL.md`", reference)
-        self.assertIn("parent directory", reference)
+        self.assertNotIn("### Pattern 1: Sequential Orchestration", lookup)
+        self.assertNotIn("**Portable core:**", lookup)
+        self.assertIn("## YAML Frontmatter Specification", reference("frontmatter.md"))
+        layout = reference("package-layout.md")
+        self.assertIn("## Directory Structure Patterns", layout)
+        self.assertIn("# Workflow Patterns", reference("workflow-patterns.md"))
+        layout_contract = " ".join(layout.split())
+        self.assertIn("exactly `SKILL.md`", layout_contract)
+        self.assertIn("parent directory", layout_contract)
 
     def test_invocation_and_evaluation_boundaries_are_decision_complete(self):
         skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
-        reference = PACKAGE.joinpath("REFERENCE.md").read_text(encoding="utf-8")
         for phrase in (
             "context load",
             "cognitive load",
@@ -211,13 +297,12 @@ class SkillComposerPackageTest(unittest.TestCase):
             "disposable fixture",
         ):
             self.assertIn(phrase, skill.lower())
-        self.assertNotIn("## Invocation Modes", reference)
+        self.assertNotIn("## Invocation Modes", lookup_material())
 
     def test_review_findings_keep_the_complete_record_when_changes_are_forbidden(self):
-        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
-        review = skill.split("## Reviewing an Existing Skill", 1)[1].split(
-            "## Packaging and Releasing a Skill", 1
-        )[0]
+        review = PACKAGE.joinpath("references", "review.md").read_text(
+            encoding="utf-8"
+        )
 
         self.assertIn("A finding is the complete review record", review)
         self.assertIn("only findings and evidence", review)
@@ -386,10 +471,22 @@ class SkillComposerPackageTest(unittest.TestCase):
         self.assertGreaterEqual(staged[True], 3)
         self.assertGreaterEqual(staged[False], 3)
 
-    def test_unreleased_history_records_net_changes_only(self):
+    def test_history_is_in_date_mode_and_records_net_changes_only(self):
         changelog = PACKAGE.joinpath("CHANGELOG.md").read_text(encoding="utf-8")
 
-        self.assertIn("## [Unreleased]", changelog)
+        self.assertNotIn("## [Unreleased]", changelog)
+        sections = re.findall(r"^## (.+)$", changelog, flags=re.MULTILINE)
+        first_numbered = next(
+            i for i, heading in enumerate(sections) if heading.startswith("[")
+        )
+        dates = sections[:first_numbered]
+        self.assertGreater(len(dates), 0)
+        for heading in dates:
+            self.assertRegex(heading, r"^\d{4}-\d{2}-\d{2}$")
+        self.assertEqual(sorted(dates, reverse=True), dates)
+        self.assertEqual(len(set(dates)), len(dates))
+        for heading in sections[first_numbered:]:
+            self.assertRegex(heading, r"^\[\d+\.\d+\.\d+\] - \d{4}-\d{2}-\d{2}$")
         for residue in (
             "### Make transport trust explicit",
             "### State publication cleanup limits honestly",
@@ -444,8 +541,8 @@ class SkillComposerPackageTest(unittest.TestCase):
         expected_routes = {
             "Create": "#creating-or-updating-a-skill",
             "Update": "#planning-before-creating-or-updating",
-            "Review": "#reviewing-an-existing-skill",
-            "Package or release": "#packaging-and-releasing-a-skill",
+            "Review": "(references/review.md)",
+            "Package or release": "(references/release.md)",
         }
         for intent in (
             "create a new agent skill",
@@ -462,23 +559,22 @@ class SkillComposerPackageTest(unittest.TestCase):
             )
             self.assertIsNotNone(route, f"missing {label} workflow route")
             self.assertIn(anchor, route.group(1))
-        self.assertIn("## Packaging and Releasing a Skill", skill)
-        self.assertIn("clean instance", skill)
-        self.assertIn("portable fallback", skill)
-        self.assertIn("isolation", skill)
-        self.assertIn("coexistence", skill)
+        release = PACKAGE.joinpath("references", "release.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("# Packaging and Releasing a Skill", release)
+        for gate in ("clean instance", "portable fallback", "isolation", "coexistence"):
+            self.assertIn(gate, release)
 
     def test_dynamic_harness_facts_have_one_research_owner(self):
         skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
         skill_contract = " ".join(skill.split())
-        reference = PACKAGE.joinpath("REFERENCE.md").read_text(encoding="utf-8")
+        lookup = lookup_material()
         research = PACKAGE.joinpath("HARNESS-RESEARCH.md").read_text(encoding="utf-8")
-        distribution = reference.split("## Distribution\n", 1)[1].split(
-            "\n## Portable Changelog Format", 1
-        )[0]
+        distribution = reference("distribution.md")
 
         self.assertIn("[HARNESS-RESEARCH.md](HARNESS-RESEARCH.md)", skill)
-        self.assertIn("[HARNESS-RESEARCH.md](HARNESS-RESEARCH.md)", reference)
+        self.assertIn("(../HARNESS-RESEARCH.md)", distribution)
         for decision in (
             "Scope",
             "Delivery",
@@ -499,7 +595,7 @@ class SkillComposerPackageTest(unittest.TestCase):
             skill_contract,
         )
 
-        current_guidance = skill + reference
+        current_guidance = skill + lookup
         for cached_fact in (
             ".claude/skills/",
             ".agents/skills/",
@@ -523,9 +619,9 @@ class SkillComposerPackageTest(unittest.TestCase):
         for name in (
             "SKILL.md",
             "README.md",
-            "REFERENCE.md",
             "SPEC.md",
             "HARNESS-RESEARCH.md",
+            *(f"references/{path.name}" for path in PACKAGE.joinpath("references").glob("*.md")),
         ):
             text = PACKAGE.joinpath(name).read_text(encoding="utf-8").lower()
             self.assertNotIn("examples/", text, name)
@@ -552,11 +648,16 @@ class SkillComposerPackageTest(unittest.TestCase):
             "`unknown`",
         ):
             self.assertIn(gate, evaluation)
+        release = PACKAGE.joinpath("references", "release.md").read_text(
+            encoding="utf-8"
+        )
         self.assertIn(
             "candidate validation has a result for every locked pre-install gate",
-            skill,
+            release,
         )
-        self.assertIn("the final artifact itself matches the clean-install inventory", skill)
+        self.assertIn(
+            "the final artifact itself matches the clean-install inventory", release
+        )
 
     def test_validation_ledger_accounts_for_every_applicable_gate(self):
         skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
@@ -629,27 +730,21 @@ class SkillComposerPackageTest(unittest.TestCase):
             self.assertIn(phrase, contract)
 
     def test_changelog_migrations_require_a_changed_public_contract(self):
-        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
-        reference = PACKAGE.joinpath("REFERENCE.md").read_text(encoding="utf-8")
-
-        for document in (skill, reference):
-            contract = " ".join(document.lower().split())
-            self.assertIn(
-                "an internal implementation replacement with unchanged public "
-                "invocation, inputs, and outputs has no migration entry",
-                contract,
-            )
+        rule = (
+            "an internal implementation replacement with unchanged public "
+            "invocation, inputs, and outputs has no migration entry"
+        )
+        skill = " ".join(
+            PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8").lower().split()
+        )
+        self.assertIn(rule, " ".join(reference("changelog.md").lower().split()))
+        self.assertNotIn(rule, skill)
 
     def test_changelog_history_uses_the_published_artifact_as_its_baseline(self):
         skill = " ".join(
             PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8").lower().split()
         )
-        reference = " ".join(
-            PACKAGE.joinpath("REFERENCE.md")
-            .read_text(encoding="utf-8")
-            .lower()
-            .split()
-        )
+        changelog = " ".join(reference("changelog.md").lower().split())
 
         for phrase in (
             "last artifact actually published to the changelog's audience",
@@ -657,15 +752,21 @@ class SkillComposerPackageTest(unittest.TestCase):
             "does not prove that users received it",
             "resulting first-release contract",
         ):
-            self.assertIn(phrase, reference)
+            self.assertIn(phrase, changelog)
 
-        self.assertIn("establish the published baseline", skill)
-        self.assertIn("relative to that baseline", skill)
+        self.assertIn("establish the published baseline", changelog)
+        self.assertIn("relative to that baseline", changelog)
+        self.assertNotIn("relative to that baseline", skill)
 
     def test_changelog_mode_defaults_to_dates_and_asks_on_a_version_signal(self):
         skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        route = skill.split("### Step 7:", 1)[1].split("### Step 8:", 1)[0]
+        self.assertIn("(references/changelog.md) in full", route)
         step = " ".join(
-            skill.split("### Step 7:", 1)[1].split("### Step 8:", 1)[0].lower().split()
+            reference("changelog.md").split("### Changelog modes", 1)[1]
+            .split("\n### ", 1)[0]
+            .lower()
+            .split()
         )
 
         for phrase in (
@@ -680,17 +781,11 @@ class SkillComposerPackageTest(unittest.TestCase):
             self.assertIn(phrase, step)
 
     def test_date_mode_carries_no_release_bookkeeping(self):
-        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
-        reference = PACKAGE.joinpath("REFERENCE.md").read_text(encoding="utf-8")
-        changelog_format = " ".join(
-            reference.split("\n## Portable Changelog Format", 1)[1]
-            .split("\n## Resources and Community", 1)[0]
-            .lower()
-            .split()
-        )
+        changelog_format = " ".join(reference("changelog.md").lower().split())
         release = " ".join(
-            skill.split("### Release Step 1:", 1)[1]
-            .split("\n## Workflow Patterns", 1)[0]
+            PACKAGE.joinpath("references", "release.md")
+            .read_text(encoding="utf-8")
+            .split("### Release Step 1:", 1)[1]
             .lower()
             .split()
         )
@@ -735,19 +830,14 @@ class SkillComposerPackageTest(unittest.TestCase):
             .lower()
             .split()
         )
-        reference = " ".join(
-            PACKAGE.joinpath("REFERENCE.md")
-            .read_text(encoding="utf-8")
-            .lower()
-            .split()
-        )
+        layout = " ".join(reference("package-layout.md").lower().split())
 
         expected = (
             "run the public-seam test and preserve its observed failure before "
             "writing the implementation"
         )
         self.assertIn(expected, skill)
-        self.assertIn(expected, reference)
+        self.assertIn(expected, layout)
 
     def test_repeatable_eval_infrastructure_is_package_local_and_reachable(self):
         script = PACKAGE / "scripts" / "eval-skill.py"
@@ -801,7 +891,7 @@ class SkillComposerPackageTest(unittest.TestCase):
         self.assertTrue(evaluation_path.is_file())
 
         skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
-        reference = PACKAGE.joinpath("REFERENCE.md").read_text(encoding="utf-8")
+        lookup = lookup_material()
         readme = PACKAGE.joinpath("README.md").read_text(encoding="utf-8")
         evaluation = evaluation_path.read_text(encoding="utf-8")
         evaluation_step = skill.split("### Step 8:", 1)[1].split("\n## ", 1)[0]
@@ -818,9 +908,6 @@ class SkillComposerPackageTest(unittest.TestCase):
             "[evaluation reference](references/evaluation.md)", routed_contract
         )
         self.assertIn(
-            "[evaluation reference](references/evaluation.md)", reference.lower()
-        )
-        self.assertIn(
             "[evaluation reference](references/evaluation.md)", readme.lower()
         )
 
@@ -830,7 +917,7 @@ class SkillComposerPackageTest(unittest.TestCase):
             "## Testing Methodology",
         ):
             self.assertIn(heading, evaluation)
-            self.assertNotIn(heading, reference)
+            self.assertNotIn(heading, lookup)
 
         for disclosed_detail in (
             "branch-to-case coverage table",

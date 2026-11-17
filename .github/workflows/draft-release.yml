@@ -7,7 +7,6 @@ on:
   push:
     tags:
       - "agent-centric-v*"
-      - "skill-composer-v*"
       - "guardrails-v*"
       - "mcp-skill-generator-v*"
   workflow_dispatch:
@@ -37,7 +36,6 @@ jobs:
           set -eu
           case "$TAG" in
             agent-centric-v*) printf '%s\n' 'component=agent-centric' >> "$GITHUB_OUTPUT" ;;
-            skill-composer-v*) printf '%s\n' 'component=skill-composer' >> "$GITHUB_OUTPUT" ;;
             guardrails-v*) printf '%s\n' 'component=guardrails' >> "$GITHUB_OUTPUT" ;;
             mcp-skill-generator-v*) printf '%s\n' 'component=mcp-skill-generator' >> "$GITHUB_OUTPUT" ;;
             *) echo "tag does not select a release component" >&2; exit 1 ;;
@@ -90,77 +88,6 @@ jobs:
           PROJECT: "agent-centric"
           TAG: ${{ inputs.tag || github.ref_name }}
           TAG_PREFIX: "agent-centric-v"
-        run: |-
-          set -eu
-          version=${TAG#"$TAG_PREFIX"}
-          version_without_build=${version%%+*}
-          prerelease=false
-          case "$version_without_build" in *-*) prerelease=true ;; esac
-          if state=$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null); then
-            [ "$state" = "true" ] || { echo "release $TAG is already published; refusing to mutate it" >&2; exit 1; }
-          else
-            set --
-            [ "$prerelease" = "false" ] || set -- --prerelease
-            gh release create "$TAG" --verify-tag --draft "$@" --title "$PROJECT $TAG" --notes-file "docs/releases/$TAG.md"
-          fi
-          expected_body=$(cat "docs/releases/$TAG.md")
-          actual_body=$(gh release view "$TAG" --json body --jq .body)
-          [ "$actual_body" = "$expected_body" ] || { echo "draft body differs from the reviewed release note" >&2; exit 1; }
-          actual_title=$(gh release view "$TAG" --json name --jq .name)
-          [ "$actual_title" = "$PROJECT $TAG" ] || { echo "draft title differs from the release contract" >&2; exit 1; }
-          actual_prerelease=$(gh release view "$TAG" --json isPrerelease --jq .isPrerelease)
-          [ "$actual_prerelease" = "$prerelease" ] || { echo "draft prerelease state differs from SemVer" >&2; exit 1; }
-          actual=$(gh release view "$TAG" --json assets --jq ".assets[].name")
-          [ -z "$actual" ] || { printf "source-only draft unexpectedly has assets:\n%s\n" "$actual" >&2; exit 1; }
-
-  verify-skill-composer:
-    needs: select-component
-    if: needs.select-component.outputs.component == 'skill-composer'
-    permissions:
-      contents: read
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-          ref: refs/tags/${{ inputs.tag || github.ref_name }}
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
-        with:
-          "python-version": "3.13"
-      - name: Verify release identity
-        env:
-          TAG: ${{ inputs.tag || github.ref_name }}
-        run: |-
-          python3 .github/release/check.py --tagged --tag-prefix skill-composer-v --version-file skills/skill-composer/VERSION --branch-ref refs/remotes/origin/master "$TAG"
-      - name: Test
-        run: |-
-          set -eu
-          python3 -B skills/skill-composer/package_test.py
-          python3 -B skills/skill-composer/scripts/fetch-harness-docs_test.py
-          python3 -B skills/skill-composer/scripts/eval-skill_test.py
-          python3 -B skills/skill-composer/scripts/eval-skill.py check skills/skill-composer
-          bash scripts/install.test.sh
-
-  draft-skill-composer:
-    needs: verify-skill-composer
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-          ref: refs/tags/${{ inputs.tag || github.ref_name }}
-      - name: Create a complete unpublished draft
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PROJECT: "skill-composer"
-          TAG: ${{ inputs.tag || github.ref_name }}
-          TAG_PREFIX: "skill-composer-v"
         run: |-
           set -eu
           version=${TAG#"$TAG_PREFIX"}

@@ -19,7 +19,7 @@ load vendor manuals.
   authoritative.
 - Exact current paths, commands, UI steps, schema extensions, and host behavior are
   target-specific evidence. Retrieve them through this branch instead of caching them
-  in `SKILL.md` or `REFERENCE.md`.
+  in `SKILL.md` or `references/`.
 - This SOP owns source selection rules, interpretation, conflicts, fallbacks, and the
   evidence ledger.
 - The optional fetcher owns HTTPS transport, content validation, and byte-level

@@ -13,22 +13,39 @@ requirement and makes no broader compatibility claim.
 a convenient host enhancement can silently become the sole owner of required behavior
 while the package still appears portable.
 
-## Proportionate Context Footprint
+## Bounded Entry Point
 
-A skill sizes both the text exposed for discovery and the instructions loaded after
-invocation in proportion to the behavior they enable. Discovery text gives each
-distinct invocation branch one discriminating trigger. `SKILL.md` keeps shared
-instructions and branch-critical process state in place. Branch-only lookup material
-moves behind an explicit read condition only when the context reduction justifies the
-added navigation.
+Every `SKILL.md`, Skill Composer's own included, is at most 15,000 UTF-8 bytes with its
+frontmatter. It holds every standing rule (one that applies across a whole run),
+must-follow gates first. A reference is a whole file holding one branch's workflow or lookup material, named
+with its read condition and read in full; a pointer never targets a section anchor. One skill points to another by asking the agent
+to invoke it by name, not by linking its files. Discovery text gives each invocation
+branch one discriminating trigger, and within the cap every passage still earns its
+place.
 
-Reasonable size is a behavioral property rather than a universal line or token limit.
-Every retained passage materially improves invocation or execution; pruning preserves
-every required branch, invariant, and completion criterion.
+**Why:** On 2026-11-17 the user replaced the earlier rule that size was "a behavioral
+property rather than a universal line or token limit". Text past a host's cap is lost
+without warning, and only the start of a skill survives:
 
-**Why:** Discovery and invoked text compete for finite context, but mandatory splitting
-can hide branch state and add navigation. The user requires measured context cost
-without sacrificing behavior to a universal size cap.
+- The [Agent Skills specification](https://agentskills.io/specification) recommends
+  "Instructions (< 5000 tokens recommended)" and "Keep your main `SKILL.md` under 500
+  lines."
+- Claude Code's [skill content lifecycle](https://code.claude.com/docs/en/skills.md#skill-content-lifecycle)
+  states: "Claude Code re-attaches the most recent invocation of each skill after the
+  summary, keeping the first 5,000 tokens of each. Re-attached skills share a combined
+  budget of 25,000 tokens." Its [compaction table](https://code.claude.com/docs/en/context-window.md#what-survives-compaction)
+  re-reads only up to five recently read files and gives a file over 5,000 tokens back
+  as a path only, so a standing rule kept in a reference can disappear.
+- In four scheduled cloud runs, agents reached a skill through a Markdown link to a
+  section of its `SKILL.md` and read it with `head`, `sed`, or `grep` in place of
+  invoking it. The 2026-11-17 run read only `/^## Step 1/,/^## Step 3/`, never saw the
+  instruction written above Step 1, and marked a pull request ready without the check
+  the skill requires before that step.
+
+Both documents were read in full on 2026-11-17, with Claude Code 2.1.326 installed. The
+cap is in bytes because no local tokenizer is available. English prose runs about 3.5 to
+4.5 bytes per token, so 15,000 bytes stays under 5,000 tokens. Text that is mostly CJK
+may use more tokens per byte, and its margin has not been measured.
 
 ## Environment-Native Automation
 

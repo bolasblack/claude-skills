@@ -13,13 +13,14 @@ Skill Composer owns the whole skill package, not merely the generation of a plau
 | Evidence | Treat plausible instructions or schema validation as completion | Separate schema from behavior, maintain a validation ledger, and leave unsupported target claims `unknown` |
 | Evals | Outside the scaffolding task | Provide opt-in manifests and fixtures plus a shared runner for repeatable functional, activation, isolation, and coexistence checks |
 | Maintenance | Hand off the generated files | Own the package references, tested automation, and evidence-backed release history |
-| Context | Add guidance until the prompt looks complete | Keep runtime context proportional and move only branch-specific material behind explicit read conditions |
+| Context | Add guidance until the prompt looks complete | Cap `SKILL.md` at 15,000 bytes with standing rules first, and move only one branch's workflow or lookup material behind explicit read conditions |
 
 Use Skill Composer when a skill must remain maintainable across agent harnesses, future updates, independent review, and standalone distribution. Use a scaffolding helper alone when a one-off first draft is the whole job.
 
 ## Features
 
 - Three-level progressive disclosure model (frontmatter > body > linked files)
+- A 15,000-byte `SKILL.md` cap with standing rules first, references read in full, and cross-skill pointers that invoke by name, so a skill survives hosts that keep only its start after context compaction
 - On-demand primary-source research for target-specific harness claims, with a portable SOP and optional provenance-bearing fetcher
 - Environment-native automation that scripts repeatable mechanics with public-seam TDD and context-appropriate runtimes and dependencies
 - Exceptional `SPEC.md` convention for stable maintainer-only requirements, with Skill Composer itself as a qualifying case
@@ -38,10 +39,11 @@ Use Skill Composer when a skill must remain maintainable across agent harnesses,
 
 ## Files
 
-- `SKILL.md` - Main skill definition and create/update/review/package workflows
+- `SKILL.md` - Main skill definition, standing rules, workflow router, and create/update workflow
+- [references/review.md](references/review.md) and [references/release.md](references/release.md) - Review and package/release workflows, read in full when their branch is selected
 - `SPEC.md` - Skill Composer's rare maintainer-only contract; generated skills omit it unless they pass the admission test
 - [HARNESS-RESEARCH.md](HARNESS-RESEARCH.md) - On-demand primary-source research SOP and portable fallback for target-specific claims
-- `REFERENCE.md` - Portable schemas, branch-only authoring decisions, review ledger, troubleshooting, and durable distribution guidance
+- `references/frontmatter.md`, `package-layout.md`, `portability.md`, `distribution.md`, `workflow-patterns.md`, `authoring-examples.md`, `changelog.md`, and `troubleshooting.md` - Portable lookup material, one file per concern, each read in full when its `SKILL.md` pointer fires
 - [references/evaluation.md](references/evaluation.md) - Conditionally loaded eval-suite contract, target evidence boundaries, and tuning methodology
 - `CHANGELOG.md` - Portable release history for Skill Composer
 - `LICENSE.md` - Package-local copy of the repository's applicable use notice
@@ -82,3 +84,36 @@ not been verified. This package therefore does not infer upstream redistribution
 rights. Its applicable repository notice travels in [LICENSE.md](LICENSE.md). v3.0.0
 was rewritten using Anthropic's official guide; current work tracks the open
 specification and researches target-specific facts on demand.
+
+## Resources and Community
+
+If you're building your first skill, start with the portable rules in this package. Use [Harness Research](HARNESS-RESEARCH.md) to locate fresh target guidance only when a target-specific branch requires it.
+
+### Current Documentation
+
+Use the trust anchors and source-selection procedure in [Harness
+Research](HARNESS-RESEARCH.md). This reference deliberately does not cache current
+target instructions or remembered vendor URLs.
+
+### Background
+
+- [Equipping agents for the real world with Agent Skills](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills) — the original architecture discussion and later open-standard update
+
+### Public Skills Repository
+
+GitHub: [anthropics/skills](https://github.com/anthropics/skills) — Contains Anthropic-created skills you can browse and customize. Use these as reference implementations when building your own.
+
+### Auxiliary Skill-Authoring Helpers
+
+A harness may inject `skill-creator` or an analogous helper. Use a helper for capabilities tied to that harness, such as scaffolding, schema validation, or isolated evaluation. Treat its general authoring advice as advisory and apply the [Authoring Authority](SKILL.md#authoring-authority) rule before accepting it.
+
+In particular, do not let a helper's generic packaging preference erase an explicit portable-release requirement. Verify which statements are real target-platform constraints; keep the rest subordinate to Skill Composer's design policy.
+
+### Getting Support
+
+**For technical questions:**
+- Community forums at the [Claude Developers Discord](https://discord.gg/claudedev) — general questions, best practices, sharing skills
+
+**For bug reports:**
+- GitHub Issues: [anthropics/skills/issues](https://github.com/anthropics/skills/issues)
+- Include: skill name, error message, steps to reproduce

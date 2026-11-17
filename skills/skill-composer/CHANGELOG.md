@@ -1,23 +1,36 @@
 # Changelog
 
-This file records Skill Composer releases so the history travels with standalone distributions that do not include the source repository's Git history.
+This file records Skill Composer changes so the history travels with standalone distributions that do not include the source repository's Git history. Entries since 3.2.1 are dated; the numbered sections below are earlier releases, kept as written.
 
-## [Unreleased]
+## 2026-11-17
+
+### Cap every SKILL.md at 15,000 bytes and split references by concern
+
+- **Changed:** Every `SKILL.md`, Skill Composer's own included, must be at most 15,000 UTF-8 bytes with frontmatter, measured with `wc -c` and recorded as a validation-ledger gate. The new Bounded Entry Point rules also keep standing rules (rules that apply across a whole run) in `SKILL.md` with must-follow gates first, point only at whole reference files that are read in full, and point to another skill by asking the agent to invoke it by name. To follow these rules, Skill Composer replaced `REFERENCE.md` with one file per concern under `references/` (`frontmatter.md`, `package-layout.md`, `portability.md`, `distribution.md`, `workflow-patterns.md`, `authoring-examples.md`, `changelog.md`, `troubleshooting.md`), moved its Review and Package or release workflows to `references/review.md` and `references/release.md` with the review checklist beside them, moved Resources and Community to `README.md`, and trimmed the authoring examples to one of each kind. `SPEC.md` replaces the earlier rule that size was not a universal limit. The changelog now records changes by date, and `VERSION` is removed.
+- **Why:** The user replaced the size rule on 2026-11-17. The Agent Skills specification recommends instructions under 5,000 tokens. After compaction, Claude Code re-attaches only the first 5,000 tokens of each invoked skill, within a 25,000-token total, and re-reads only a few recent files, so text past the cap and rules kept only in a reference can vanish in a long session. In scheduled runs, agents followed a link to one section of a `SKILL.md`, read only that range, and missed an instruction written above it; the user chose whole files so that "read in full" has an unambiguous boundary. The byte bound needs no tokenizer and keeps English prose under 5,000 tokens. The user switched this changelog to date mode on the same day.
+
+## 2026-11-02
 
 ### Default changelogs to dates
 
 - **Changed:** Changelogs have two modes. Date mode, the default, records each change under its date with no version or release bookkeeping. Version mode keeps `Unreleased`, the published baseline, and numbered releases. An existing changelog keeps its mode, an explicit request switches it, and a skill that ships under a version asks before choosing version mode. The release workflow applies its version steps only in version mode.
 - **Why:** The user finds version numbers unnecessary in their way of working and expects the same for many others, while skills that ship versions still need the existing release history.
 
+## 2026-09-07
+
 ### Keep eval fixtures outside skill discovery
 
 - **Changed:** Skill fixture entry points use `SKILL.md.fixture`. The evaluator resolves declared `SKILL.md` inputs from these templates and materializes package-local competitors in temporary copies before validating their identity. Source templates and the frozen package snapshot stay unchanged.
 - **Why:** Recursive skill discovery exposed nested eval samples as selectable skills, producing duplicate entries in the user's Codex menu. Template filenames distinguish test data from installable skill entry points while preserving the files that evaluation targets receive.
 
+## 2026-08-28
+
 ### Keep release history on the published baseline
 
 - **Changed:** Changelog authoring now establishes the last artifact actually published to its audience and records `Unreleased` as the net delta from that artifact. Pre-release revisions fold into the candidate's resulting contract, and a first release describes its resulting capability instead of transitions from unpublished drafts. The existing cross-harness release eval now locks this baseline behavior.
 - **Why:** An unreleased skill draft briefly required a local tool before the first release finalized that tool as optional. Recording the draft-to-final correction as release history would tell users that a published requirement changed even though no artifact they received ever imposed it.
+
+## 2026-08-26
 
 ### Make focused eval debugging runner-owned
 
@@ -46,6 +59,8 @@ This file records Skill Composer releases so the history travels with standalone
 - **Changed:** Distinguished the shared eval runner's documented public CLI from its maintainer-only implementation and from Skill Composer's own manifests, fixtures, and package tests. The update router now opens the Evaluation Reference before target edits only when inventory finds `evals/evals.json` or `evals/trigger-eval.json`, or the user explicitly requests eval work; other update branches keep it closed and neither search nor invoke the reference or runner as a generic schema validator. An admitted branch invokes the validator from the installed Skill Composer package instead of searching the target for a runner copy. Package-contract regressions lock the public boundary, observable admission inputs, disclosure location, and runner ownership.
 - **Why:** A Claude Sonnet 5 high update eval read the evaluation reference and found the shared runner, but the always-loaded introduction classified the entire runner as maintainer evidence and told the agent not to use it. After that ownership conflict was removed, the same live case listed the reference without reading it and searched only the target package for a copied runner; moving a direct reference link into the introduction fixed that case but then caused a no-eval update to open branch-only guidance merely while looking for validators. A later no-suite run still treated `eval-skill.py check` as a possible package validator and loaded the reference to learn its CLI. The final inventory-driven router satisfies both sides of Step 8: admitted suites reach `eval-skill.py check`, while absent and unrequested suites use their actual package and target validators without spending context on eval infrastructure.
 
+## 2026-08-19
+
 ### Keep Claude live evals strict under root
 
 - **Changed:** Pass an empty MCP set to Claude with its current `{"mcpServers":{}}` configuration shape. On Linux root runs, launch only a writable Claude candidate through a `bwrap` user-namespace identity translation so Claude starts as non-root while its own fail-closed filesystem, network, and Unix-socket sandbox remains enabled. Black-box tests lock both the MCP shape and the candidate/grader identity boundary.
@@ -60,6 +75,8 @@ This file records Skill Composer releases so the history travels with standalone
 
 - **Changed:** Consolidated eval manifests, shared-runner behavior, target evidence limits, observability, acceptance gates, tuning, and testing methodology in `references/evaluation.md`. Step 8 retains the opt-in admission decision, universal validation ledger, live-effect authorization boundary, and one conditional pointer; the README now provides only the local validation quick start and that pointer. The evaluation reference explicitly attributes the portions of its case-design and iteration method adapted from the official Agent Skills evaluation guide.
 - **Why:** Eval maintenance is a real but infrequent branch. Keeping its full runner and methodology contract in the always-loaded authoring reference and repeating operational details in the README spent context on skills without evals and created multiple places where the same behavior could drift.
+
+## 2026-08-18
 
 ### Align evaluation iteration with the official method
 
@@ -85,6 +102,8 @@ This file records Skill Composer releases so the history travels with standalone
 
 - **Changed:** Added a shared standard-library eval helper with separate `check` and `run` contracts. It validates non-empty package-local functional and trigger manifests, rejects schema drift, symlinks, unsafe side-effect declarations, and escaping fixtures, stages an eval-free skill snapshot per case, and supports repeatable affected-case selection. `run` now offers built-in Claude, Codex, and Grok execution as well as the external JSON-adapter seam: functional cases keep the rubric away from the candidate and grade afterward in a second fresh session, while activation passes only on attributable target events. The runner has one repository owner, sibling skills own only their eval cases, and a standalone distribution vendors a pinned runner only with its black-box tests and provenance. Claude sessions load only project-scoped settings, skills, and commands, so the staged copy is the only one a candidate can activate; the harness ledger records that evidence. Skill Composer dogfoods the contract with four functional scenarios spanning create, update, review, and package workflows, each assertion checking one behavior, plus twenty balanced trigger-boundary queries in which both labels stage realistic competing skills.
 - **Why:** The user observed that evaluation guidance and case files alone do not ensure tests run after a skill changes, then asked for one reusable facility that can exercise Claude, Codex, and Grok without copying an independently drifting runner into every skill. A structural validator alone could turn a green schema check into a false behavior claim, while model self-grading or inferred activation could leak expected answers and manufacture passes. The split contract makes deterministic validation available after every edit and fresh target behavior repeatable; unavailable sandboxes, missing skills, malformed output, reused sessions, unobservable activation, and uncontrolled isolation remain `unknown`. Bundled multi-clause assertions hid which behavior regressed behind one verdict, and positive queries that never faced a competitor could not show the description winning a real boundary.
+
+## 2026-08-15
 
 ### Research harness facts on demand
 
