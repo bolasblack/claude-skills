@@ -31,7 +31,7 @@ These rules apply to every skill you create, update, or review:
 - `SKILL.md` is at most **15,000 UTF-8 bytes**, frontmatter included. Measure it with `wc -c SKILL.md`; a larger file fails validation. Hosts may keep only the start of an invoked skill once context is compacted ([why](SPEC.md#bounded-entry-point)).
 - Keep every standing rule (one that applies across a whole run) in `SKILL.md`, must-follow gates first. A reference holds one branch's workflow or lookup material and can drop out of context.
 - Point at whole reference files, each with its read condition, and tell the agent to read the file in full. Split a reference that would need a section anchor.
-- Point to another skill by telling the agent to invoke it by name.
+- Point to another skill by telling the agent to **invoke it by name through the host's skill mechanism** (in Claude Code, the Skill tool). **Reading its `SKILL.md` with a file tool is not invocation**: an agent reading the file tends to take only the part that looks relevant (a `head`, `sed` range, or `grep` hit) and misses gates written elsewhere in it, and what it read is not re-attached after compaction.
 
 Within the cap, every passage still earns its place.
 

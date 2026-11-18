@@ -35,7 +35,10 @@ without warning, and only the start of a skill survives:
   summary, keeping the first 5,000 tokens of each. Re-attached skills share a combined
   budget of 25,000 tokens." Its [compaction table](https://code.claude.com/docs/en/context-window.md#what-survives-compaction)
   re-reads only up to five recently read files and gives a file over 5,000 tokens back
-  as a path only, so a standing rule kept in a reference can disappear.
+  as a path only, so a standing rule kept in a reference can disappear. Claude Code
+  records only Skill tool and slash-command invocations for re-attachment (verified in
+  the 2.1.326 binary), so a skill reached by reading its `SKILL.md` as a file is not
+  re-attached after compaction.
 - In four scheduled cloud runs, agents reached a skill through a Markdown link to a
   section of its `SKILL.md` and read it with `head`, `sed`, or `grep` in place of
   invoking it. The 2026-11-17 run read only `/^## Step 1/,/^## Step 3/`, never saw the

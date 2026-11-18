@@ -2,6 +2,13 @@
 
 This file records Skill Composer changes so the history travels with standalone distributions that do not include the source repository's Git history. Entries since 3.2.1 are dated; the numbered sections below are earlier releases, kept as written.
 
+## 2026-11-18
+
+### Require cross-skill pointers to invoke, not read
+
+- **Changed:** A pointer to another skill must tell the agent to invoke it by name through the host's skill mechanism (in Claude Code, the Skill tool). `SKILL.md` states in bold that reading the other skill's `SKILL.md` with a file tool is not invocation, and the review checklist flags any cross-skill pointer that relies on a file read.
+- **Why:** The earlier rule said "invoke it by name" without saying that a file read does not count. A read can stop partway, as in the scheduled runs that read only one section and skipped a check above it. Claude Code also records only Skill tool and slash-command invocations for re-attachment after compaction, so a skill that was only read is lost in a long session. The user asked for this rule to be stated and emphasized.
+
 ## 2026-11-17
 
 ### Cap every SKILL.md at 15,000 bytes and split references by concern

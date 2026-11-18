@@ -124,6 +124,30 @@ class SkillComposerPackageTest(unittest.TestCase):
             self.assertIn(evidence, spec)
         self.assertNotIn("Reasonable size is a behavioral property", spec)
 
+    def test_cross_skill_pointers_require_invocation_not_file_reads(self):
+        skill = " ".join(PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8").split())
+        spec = " ".join(PACKAGE.joinpath("SPEC.md").read_text(encoding="utf-8").split())
+        review = " ".join(reference("review.md").split())
+        bounded = skill.split("### Bounded Entry Point", 1)[1].split("### ", 1)[0]
+
+        for phrase in (
+            "**invoke it by name through the host's skill mechanism**",
+            "the Skill tool",
+            "**Reading its `SKILL.md` with a file tool is not invocation**",
+            "tends to take only the part that looks relevant",
+            "misses gates written elsewhere in it",
+            "not re-attached after compaction",
+        ):
+            self.assertIn(phrase, bounded)
+        self.assertIn(
+            "records only Skill tool and slash-command invocations for re-attachment",
+            spec,
+        )
+        self.assertIn(
+            "invoke by name through the host's skill mechanism, never by file read",
+            review,
+        )
+
     def test_research_and_automation_contracts_are_reachable(self):
         skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
         spec = PACKAGE.joinpath("SPEC.md").read_text(encoding="utf-8")
