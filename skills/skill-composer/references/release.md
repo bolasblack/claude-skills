@@ -19,8 +19,7 @@ temporary research bundles, caches, secrets, and unrelated repository files.
 
 ### Release Step 3: Validate Schema and Behavior
 
-Run the portable schema validator, every claimed target validator, bundled tests, and
-local link checks. Then use the evaluation side-effect boundary from [Step 8](../SKILL.md#step-8-validate-behavior-and-maintain-admitted-evals) and run
+Run the package check from [Step 7](../SKILL.md#step-7-validate-behavior-and-maintain-admitted-evals), the portable schema validator, every claimed target validator, and bundled tests. Then use the evaluation side-effect boundary from [Planning](../SKILL.md#planning-before-creating-or-updating) and run
 fresh-context activation and functional scenarios on every claimed target, including
 portable fallback, isolation, and coexistence where those claims apply. Record an
 unavailable gate as `unknown`; do not convert it to a pass or silently narrow the
@@ -31,7 +30,7 @@ artifact after testing.
 ### Release Step 4: Prepare Release Records
 
 Apply [references/changelog.md](changelog.md), including its Evidence gate, in the mode that
-[Step 7](../SKILL.md#step-7-record-portable-release-history) selects. State any compatibility or
+[Step 6](../SKILL.md#step-6-record-portable-release-history) selects. State any compatibility or
 migration effect without inventing rationale. Build and validate a release candidate
 without presenting it as the completed release.
 

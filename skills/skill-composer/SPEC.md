@@ -21,7 +21,10 @@ must-follow gates first. A reference is a whole file holding one branch's workfl
 with its read condition and read in full; a pointer never targets a section anchor. One skill points to another by asking the agent
 to invoke it by name, not by linking its files. Discovery text gives each invocation
 branch one discriminating trigger, and within the cap every passage still earns its
-place.
+place. What a script can check is scripted and not restated in prose. The rest is stated
+once as a terse requirement, with at most the core reason where knowing it changes what
+the agent does; detailed explanation, evidence, and history sit in a reference or
+`SPEC.md` behind a link.
 
 **Why:** On 2026-11-17 the user replaced the earlier rule that size was "a behavioral
 property rather than a universal line or token limit". Text past a host's cap is lost
@@ -45,6 +48,12 @@ without warning, and only the start of a skill survives:
   instruction written above Step 1, and marked a pull request ready without the check
   the skill requires before that step.
 
+The user stated the scripting and terseness rule on 2026-11-18 after finding Skill
+Composer's own `SKILL.md` wordy. Mechanical rules restated in prose cost context on
+every invocation and were still not followed: the package check, on its first runs,
+found about ten real violations across two repositories that the prose rules had not
+prevented.
+
 Both documents were read in full on 2026-11-17, with Claude Code 2.1.326 installed. The
 cap is in bytes because no local tokenizer is available. English prose runs about 3.5 to
 4.5 bytes per token, so 15,000 bytes stays under 5,000 tokens. Text that is mostly CJK
@@ -61,9 +70,31 @@ installation, implementation, maintenance, and supply-chain cost. Portability is
 defined by one language or zero dependencies; this preserves deterministic behavior
 without making environment-specific skills less compatible or more complex.
 
+Skill Composer ships one mechanical package check, `scripts/check-skill.py`, and runs it
+on every skill it creates, updates, reviews, or releases. A rule it sets that a script
+can check is enforced there, from one copy inside Skill Composer, not as tests copied
+into each skill and not as prose alone.
+
 **Why:** Manual reinterpretation lets stable mechanics drift, while a universal Python
 or zero-dependency rule can add more machinery than it removes. The user requires the
-automation decision to follow the actual environment and public behavior seam.
+automation decision to follow the actual environment and public behavior seam. On
+2026-11-18 the user asked for the rules Skill Composer sets to be verified automatically
+on every skill it maintains, so a rule added later that a script can check belongs in
+the check.
+
+## Bundled Core Rules
+
+Skill Composer carries its own core writing rules (`references/writing.md`) and
+red-green loop (`references/package-layout.md`), so the quality of what it writes
+does not depend on a sibling skill being installed or staying unchanged. When the
+fuller sibling skill (`writing-for-agents`, `tdd`) is available, it replaces the bundled
+rules instead of adding to them, so context is not spent twice. The bundled rules stay a
+short core, not a copy of the sibling.
+
+**Why:** On 2026-11-18 the user decided that a third-party skill must not carry Skill
+Composer's writing quality: most installations lack `writing-for-agents`, the earlier
+fallback was half a sentence, and third-party skill content is outside Skill Composer's
+control.
 
 ## Package-Local Maintenance Context
 

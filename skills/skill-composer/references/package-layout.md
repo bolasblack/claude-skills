@@ -67,11 +67,11 @@ Maximum organization. Assets for templates, fonts, icons used in output.
 
 Apply [Environment-Native Automation](../SKILL.md#environment-native-automation) before these low-level packaging checks.
 
-- Keep scripts self-contained or document every dependency and supported environment.
+- Keep scripts self-contained or document every dependency and supported environment; add a dependency only when it removes more than it costs.
 - Include helpful error messages, validate inputs, and handle expected edge cases.
 - Use portable forward-slash paths in instructions and code unless the target is explicitly platform-specific.
 - Add executable permissions and a shebang when the script is meant to run directly; neither is required for every bundled source file.
-- Run the public-seam test and preserve its observed failure before writing the implementation; then make the minimum implementation change and rerun the same test to green. Writing the test and implementation together and calling the first green run red-green evidence does not count.
+- Red-green loop, replaced by the `tdd` skill when available: run the public-seam test and preserve its observed failure before writing the implementation; then make the minimum implementation change and rerun the same test to green. Writing the test and implementation together and calling the first green run red-green evidence does not count.
 - When every claimed environment provides Python and no native runtime is already selected, Python's standard library is a reasonable default for a standalone portable helper; a target-specific skill prefers its environment's runtime. When the claimed environments share no runtime, keep a portable manual path or provide tested environment adapters.
 - Retain public-seam tests with the script and run them on every environment the skill claims to support.
 - When a script is a harness enhancement rather than a declared requirement, provide and test a portable manual fallback for the core behavior.

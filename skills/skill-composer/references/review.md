@@ -24,7 +24,7 @@ Map each usage branch to its invocation control, description pointer, ordered st
 
 ### Review Step 4: Validate Real Behavior
 
-Run the portable schema validator plus the named target's validator; neither replaces behavior testing. Execute representative activation and functional scenarios, then test isolation and coexistence where the harness supports them. Run bundled scripts in a safe environment and verify their outputs and failure paths. Record every test not run and why.
+Run the package check, `python3 <Skill Composer's directory>/scripts/check-skill.py <target-skill-dir>`, and report each finding. Run the portable schema validator plus the named target's validator; none of these replaces behavior testing. Execute representative activation and functional scenarios, then test isolation and coexistence where the harness supports them. Run bundled scripts in a safe environment and verify their outputs and failure paths. Record every test not run and why.
 
 **Done when:** each supported branch has behavior evidence, applicable portable and target validators and script failure paths have results, and every unrun validation, activation, fallback, isolation, or coexistence gate remains visible.
 

@@ -6,7 +6,7 @@ Keep the changelog outside `SKILL.md` so historical narration does not consume r
 
 ### Changelog modes
 
-[Step 7](../SKILL.md#step-7-record-portable-release-history) reads this section before writing. Choose the mode first. Date mode is the default: entries sit under the date of the change, with no version or release bookkeeping. Version mode keeps `Unreleased` and numbered releases.
+[Step 6](../SKILL.md#step-6-record-portable-release-history) reads this section before writing. Choose the mode first. Date mode is the default: entries sit under the date of the change, with no version or release bookkeeping. Version mode keeps `Unreleased` and numbered releases.
 
 1. An explicit request for a mode wins. Switching leaves earlier sections as written.
 2. An existing changelog keeps its mode, decided by its newest section: a date means

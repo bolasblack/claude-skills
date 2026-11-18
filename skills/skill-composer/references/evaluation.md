@@ -2,7 +2,7 @@
 
 This branch-only reference owns admitted eval-suite design, execution, observability,
 and tuning. Reach it through the conditional pointer in
-[Step 8](../SKILL.md#step-8-validate-behavior-and-maintain-admitted-evals); validation
+[Step 7](../SKILL.md#step-7-validate-behavior-and-maintain-admitted-evals); validation
 for a skill without an admitted suite does not load it.
 
 The case-design and iteration methodology adapts parts of the official Agent Skills
@@ -37,7 +37,7 @@ slice behaves as intended.
 
 ## Repeatable Evaluation Contract
 
-The admission decision lives in [Step 8](../SKILL.md#step-8-validate-behavior-and-maintain-admitted-evals).
+The admission decision lives in [Step 7](../SKILL.md#step-7-validate-behavior-and-maintain-admitted-evals).
 Use the bundled standard-library helper as a package-local evaluation seam when the
 target owns an admitted suite. A package without evals is valid when neither admission
 condition applies:
@@ -211,8 +211,8 @@ Built-in target support deliberately stops where the current structured evidence
   non-activation from an intermediate assistant event, because the model may read or
   search first and invoke the skill on a later turn. The session loads only
   project-scoped settings, skills, and commands, so the staged copy is the only one the
-  catalog can advertise or the `Skill` call can name; the [harness
-  ledger](../HARNESS-RESEARCH.md#current-eval-target-evidence) records that evidence.
+  catalog can advertise or the `Skill` call can name; the Current Eval
+  Target Evidence ledger in [HARNESS-RESEARCH.md](../HARNESS-RESEARCH.md) records that evidence.
   Fixture-writing functional runs require Claude's native sandbox to start in strict
   fail-closed mode. When the Linux process is UID 0 and `bwrap` is available, the runner
   starts only the writable candidate through a user namespace that maps it to a non-root
@@ -263,7 +263,7 @@ working directory is contamination control, not authority to use credentials, qu
 paid tokens, networks, or real external side effects. Built-in mode adds the target's
 native filesystem and tool restrictions where supported, but the target process still
 needs its own authentication. Keep live target calls and effects on the authorization
-path from Step 8; when a verified mode is unavailable, run the same cases manually or
+path from Step 7; when a verified mode is unavailable, run the same cases manually or
 through an external adapter and leave the gate `unknown` until evidence exists.
 
 ## Evaluation Tuning Loop
@@ -325,7 +325,7 @@ The portable specification supplies no built-in evaluation runner. The official 
 Skills guide on [evaluating output
 quality](https://agentskills.io/skill-creation/evaluating-skills) supplies the iteration
 method; the package-local contract above makes the parts Skill Composer currently owns
-repeatable. Keep evals opt-in under Step 8, keep a manual target-host path for every
+repeatable. Keep evals opt-in under Step 7, keep a manual target-host path for every
 skill, and test every deployed model and surface that the release claims.
 
 Local package and eval-contract suites are necessary, not sufficient evidence of target

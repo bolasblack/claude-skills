@@ -91,7 +91,11 @@
         },
         {
           "id": "bounds-the-entry-point",
-          "description": "outputs/incident-brief/SKILL.md is at most 15,000 bytes including frontmatter, and the validation ledger reports its measured size as a gate."
+          "description": "outputs/incident-brief/SKILL.md is at most 15,000 bytes including frontmatter."
+        },
+        {
+          "id": "runs-the-package-check",
+          "description": "The agent runs Skill Composer's scripts/check-skill.py against outputs/incident-brief, fixes every finding, and reports the final OK result in the validation ledger."
         },
         {
           "id": "encodes-a-decision-complete-workflow",

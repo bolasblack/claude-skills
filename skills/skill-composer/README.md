@@ -19,15 +19,16 @@ Use Skill Composer when a skill must remain maintainable across agent harnesses,
 
 ## Features
 
-- Three-level progressive disclosure model (frontmatter > body > linked files)
 - A 15,000-byte `SKILL.md` cap with standing rules first, references read in full, and cross-skill pointers that invoke by name, so a skill survives hosts that keep only its start after context compaction
+- Terse `SKILL.md` requirements: what a script can check is left to the package check, and detailed reasons sit in a reference or `SPEC.md` behind a link
 - On-demand primary-source research for target-specific harness claims, with a portable SOP and optional provenance-bearing fetcher
 - Environment-native automation that scripts repeatable mechanics with public-seam TDD and context-appropriate runtimes and dependencies
 - Exceptional `SPEC.md` convention for stable maintainer-only requirements, with Skill Composer itself as a qualifying case
 - Explicit authority over harness-injected authoring helpers such as `skill-creator`
 - Portable-core plus harness-enhancement architecture for cross-agent skills
 - Explicit create, update, review, and package/release workflows
-- Optional composition with Matt Pocock's [writing-for-agents](https://github.com/mattpocock/skills/tree/main/skills/productivity/writing-for-agents)
+- Bundled core writing rules in `references/writing.md`, drawing on Matt Pocock's [writing-for-agents](https://github.com/mattpocock/skills/tree/main/skills/productivity/writing-for-agents), which replaces them when installed
+- A bundled package check, `scripts/check-skill.py`, run on every skill Skill Composer creates, updates, or reviews
 - Five workflow patterns (sequential, multi-MCP, iterative, context-aware, domain-specific)
 - Automatic- and explicit-invocation guidance balancing context load, cognitive load, and side-effect safety
 - Portable frontmatter and durable decision guidance for target-specific validation and tool pre-approval
@@ -43,14 +44,15 @@ Use Skill Composer when a skill must remain maintainable across agent harnesses,
 - [references/review.md](references/review.md) and [references/release.md](references/release.md) - Review and package/release workflows, read in full when their branch is selected
 - `SPEC.md` - Skill Composer's rare maintainer-only contract; generated skills omit it unless they pass the admission test
 - [HARNESS-RESEARCH.md](HARNESS-RESEARCH.md) - On-demand primary-source research SOP and portable fallback for target-specific claims
-- `references/frontmatter.md`, `package-layout.md`, `portability.md`, `distribution.md`, `workflow-patterns.md`, `authoring-examples.md`, `changelog.md`, and `troubleshooting.md` - Portable lookup material, one file per concern, each read in full when its `SKILL.md` pointer fires
+- `references/frontmatter.md`, `package-layout.md`, `portability.md`, `distribution.md`, `workflow-patterns.md`, `authoring-examples.md`, `writing.md`, `changelog.md`, and `troubleshooting.md` - Portable lookup material, one file per concern, each read in full when its `SKILL.md` pointer fires
 - [references/evaluation.md](references/evaluation.md) - Conditionally loaded eval-suite contract, target evidence boundaries, and tuning methodology
 - `CHANGELOG.md` - Portable release history for Skill Composer
 - `LICENSE.md` - Package-local copy of the repository's applicable use notice
 - `scripts/fetch-harness-docs.py` - Optional standard-library fetcher for validated, provenance-bearing temporary evidence bundles
+- `scripts/check-skill.py` - Shared standard-library package check: entry-point byte cap, frontmatter, local links, whole-file pointers, cross-skill links and URLs, nested entry points, reachable references, and the `SPEC.md` pointer
 - `scripts/eval-skill.py` - Shared standard-library eval checker and Claude/Codex/Grok or external-adapter runner
 - `evals/evals.json` and `evals/trigger-eval.json` - Skill Composer's functional and activation regression cases
-- `package_test.py`, `scripts/eval-skill_test.py`, and `scripts/fetch-harness-docs_test.py` - Package-contract and black-box helper tests
+- `package_test.py`, `scripts/check-skill_test.py`, `scripts/eval-skill_test.py`, and `scripts/fetch-harness-docs_test.py` - Package-contract and black-box helper tests
 
 ## Validation
 
@@ -58,6 +60,8 @@ Run the bundled local suites from the Skill Composer directory:
 
 ```bash
 python3 package_test.py
+python3 scripts/check-skill_test.py
+python3 scripts/check-skill.py .
 python3 scripts/eval-skill_test.py
 python3 scripts/eval-skill.py check .
 python3 scripts/fetch-harness-docs_test.py
