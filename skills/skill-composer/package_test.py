@@ -686,6 +686,17 @@ class SkillComposerPackageTest(unittest.TestCase):
             "the final artifact itself matches the clean-install inventory", release
         )
 
+    def test_release_publishes_only_with_explicit_user_authorization(self):
+        release = " ".join(reference("release.md").split())
+        promote = release.split("### Release Step 5:", 1)[1]
+        self.assertIn(
+            "publish only when the user explicitly asked for or authorized publication",
+            promote,
+        )
+        self.assertLess(
+            promote.index("authorized publication"), promote.index("In date mode")
+        )
+
     def test_validation_ledger_accounts_for_every_applicable_gate(self):
         skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
         evaluation_step = re.search(
@@ -827,7 +838,8 @@ class SkillComposerPackageTest(unittest.TestCase):
             self.assertIn(phrase, changelog_format)
         for phrase in (
             "in date mode",
-            "no version metadata",
+            "date mode adds no version bookkeeping",
+            "leave any target-owned version metadata",
             "the candidate is the final artifact",
         ):
             self.assertIn(phrase, release)

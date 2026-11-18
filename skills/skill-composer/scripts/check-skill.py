@@ -2,9 +2,9 @@
 """Check one skill package against Skill Composer's mechanical package rules.
 
 Checks: entry-point (SKILL.md exists), entry-point-size (at most 15,000 UTF-8
-bytes), frontmatter (name and description per the Agent Skills specification,
-name equal to the directory), local-links (every local Markdown link and anchor
-resolves inside the skill), whole-file-pointers (no section anchor into a Markdown file other than SKILL.md
+bytes), frontmatter (name and description are YAML strings per the Agent Skills
+specification, name equal to the directory), local-links (every local Markdown
+link, inline or a reference definition, and anchor resolves inside the skill), whole-file-pointers (no section anchor into a Markdown file other than SKILL.md
 or the linking file), cross-skill-links (no link or URL to another skill's
 SKILL.md in a file the agent reads), nested-entry-points (no SKILL.md below the
 skill root),
@@ -40,6 +40,8 @@ CHECK_COUNT = 9
 NAME_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 SKIPPED_PARTS = {".git", "node_modules", "__pycache__"}
 LINK_PATTERN = re.compile(r"!?\[[^\]]*\]\(\s*(<[^>]*>|[^)\s]+)(?:\s+\"[^\"]*\")?\s*\)")
+# A link reference definition, "[label]: destination"; a footnote label starts with ^.
+LINK_DEFINITION_PATTERN = re.compile(r"^ {0,3}\[(?!\^)[^\]]+\]:[ \t]*(<[^>]*>|\S+)", re.MULTILINE)
 SCHEME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
 FENCE_PATTERN = re.compile(r"^\s*(`{3,}|~{3,})")
 REASONS = {
@@ -75,6 +77,15 @@ GUIDE = Path(__file__).resolve().parent.parent / "references" / "package-check.m
 HEADING_PATTERN = re.compile(r"^#{1,6}\s+\S")
 INLINE_CODE_PATTERN = re.compile(r"(`+).*?\1")
 CODE_SPAN_PATTERN = re.compile(r"(`+)\s*([^`\s]+?)\s*\1")
+QUOTED_PATTERNS = {"'": re.compile(r"'((?:[^']|'')*)'"), '"': re.compile(r'"((?:[^"\\]|\\.)*)"')}
+COMMENT_PATTERN = re.compile(r"(?:\s+#.*)?\s*")
+# YAML 1.2 core-schema plain scalars that decode to null, a boolean, or a number.
+NON_STRING_PATTERN = re.compile(
+    r"null|Null|NULL|~|true|True|TRUE|false|False|FALSE"
+    r"|[-+]?[0-9]+|0o[0-7]+|0x[0-9a-fA-F]+"
+    r"|[-+]?(?:\.[0-9]+|[0-9]+(?:\.[0-9]*)?)(?:[eE][-+]?[0-9]+)?"
+    r"|[-+]?\.(?:inf|Inf|INF)|\.(?:nan|NaN|NAN)"
+)
 
 
 def package_files(root, pattern):
@@ -102,16 +113,26 @@ def parse_frontmatter(text):
             fields[key] = [match.group(2).strip()]
         elif key is not None:
             fields[key].append(line.strip())
-    return {name: scalar(parts) for name, parts in fields.items()}
+    return fields
 
 
 def scalar(parts):
+    """Decode a field's source lines as a YAML string; raise ValueError naming the problem."""
     first, rest = parts[0], [part for part in parts[1:] if part]
     if first[:1] in (">", "|"):
         return " ".join(rest)
-    value = " ".join([first] + rest).strip()
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
-        value = value[1:-1]
+    if first[:1] in ("'", '"'):
+        source = " ".join([first] + rest)
+        quoted = QUOTED_PATTERNS[first[0]].match(source)
+        if not quoted or not COMMENT_PATTERN.fullmatch(source[quoted.end():]):
+            raise ValueError("is not valid YAML")
+        return quoted.group(1).replace("''", "'") if first[0] == "'" else quoted.group(1)
+    lines = (re.split(r"(?:^|\s)#", line, maxsplit=1)[0].strip() for line in [first] + rest)
+    value = " ".join(line for line in lines if line)
+    if ": " in value or value.endswith(":"):
+        raise ValueError("is not valid YAML; quote the value")
+    if NON_STRING_PATTERN.fullmatch(value):
+        raise ValueError("must be a string; quote the value")
     return value
 
 
@@ -121,10 +142,18 @@ def check_frontmatter(root, text):
         return ["SKILL.md must start with --- and close its frontmatter with ---"]
 
     findings = []
-    name = fields.get("name", "")
-    if not name:
+    values = {}
+    for field in ("name", "description"):
+        try:
+            values[field] = scalar(fields[field]) if field in fields else ""
+        except ValueError as problem:
+            findings.append(f"{field} {problem}")
+            values[field] = None
+
+    name = values["name"]
+    if name == "":
         findings.append("name is missing")
-    else:
+    elif name is not None:
         if not NAME_PATTERN.fullmatch(name) or len(name) > MAX_NAME_LENGTH:
             findings.append(
                 f"name '{name}' must be lowercase letters, digits, and single "
@@ -133,10 +162,10 @@ def check_frontmatter(root, text):
         if name != root.name:
             findings.append(f"name '{name}' does not match directory '{root.name}'")
 
-    description = fields.get("description", "")
-    if not description:
+    description = values["description"]
+    if description == "":
         findings.append("description is missing")
-    elif len(description) > MAX_DESCRIPTION_LENGTH:
+    elif description is not None and len(description) > MAX_DESCRIPTION_LENGTH:
         findings.append(
             f"description is {len(description)} characters; "
             f"the limit is {MAX_DESCRIPTION_LENGTH}"
@@ -148,8 +177,7 @@ def heading_anchors(text):
     """GitHub-style heading anchors."""
     anchors = set()
     seen = {}
-    for heading in re.findall(r"^#{1,6}\s+(.+?)\s*#*\s*$", strip_code(text), re.MULTILINE):
-        heading = re.sub(r"`([^`]*)`", r"\1", heading)
+    for heading in re.findall(r"^#{1,6}\s+(.+?)\s*#*\s*$", strip_fences(text), re.MULTILINE):
         heading = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", heading)
         slug = re.sub(r"[^\w\- ]", "", heading.lower()).replace(" ", "-")
         count = seen.get(slug, 0)
@@ -158,20 +186,27 @@ def heading_anchors(text):
     return anchors
 
 
-def strip_fences(text):
-    kept = []
+def fenced(lines):
+    """Yield (line, inside) pairs, inside being True for fence lines and their contents.
+
+    A fence closes only on a line of the same character, at least as long as
+    the opening fence, with nothing after it."""
     fence = None
-    for line in text.splitlines():
+    for line in lines:
         match = FENCE_PATTERN.match(line)
-        if fence is None and match:
-            fence = match.group(1)[0] * 3
+        if fence is None:
+            if match:
+                fence = match.group(1)
+            yield line, fence is not None
             continue
-        if fence is not None:
-            if line.strip().startswith(fence):
-                fence = None
-            continue
-        kept.append(line)
-    return "\n".join(kept)
+        if match and match.group(1)[0] == fence[0] and len(match.group(1)) >= len(fence) \
+                and not line.strip().lstrip(fence[0]):
+            fence = None
+        yield line, True
+
+
+def strip_fences(text):
+    return "\n".join(line for line, inside in fenced(text.splitlines()) if not inside)
 
 
 def strip_code(text):
@@ -181,14 +216,8 @@ def strip_code(text):
 def largest_sections(text, count=3):
     """The largest heading-delimited sections of a Markdown file, by UTF-8 bytes."""
     sections = [["(frontmatter and text before the first heading)", 0]]
-    fence = None
-    for line in text.splitlines(keepends=True):
-        match = FENCE_PATTERN.match(line)
-        if fence is None and match:
-            fence = match.group(1)[0] * 3
-        elif fence is not None and line.strip().startswith(fence):
-            fence = None
-        elif fence is None and HEADING_PATTERN.match(line):
+    for line, inside in fenced(text.splitlines(keepends=True)):
+        if not inside and HEADING_PATTERN.match(line):
             sections.append([line.strip(), 0])
         sections[-1][1] += len(line.encode("utf-8"))
     return sorted(sections, key=lambda section: -section[1])[:count]
@@ -217,7 +246,8 @@ def check_links(root, entry_point):
         source = document.relative_to(root).as_posix()
         text = document.read_text(encoding="utf-8")
         targets = links.setdefault(document.resolve(), set())
-        for raw in LINK_PATTERN.findall(strip_code(text)):
+        prose = strip_code(text)
+        for raw in LINK_PATTERN.findall(prose) + LINK_DEFINITION_PATTERN.findall(prose):
             target = raw[1:-1] if raw.startswith("<") else raw
             if SCHEME_PATTERN.match(target):
                 url = urlsplit(target)

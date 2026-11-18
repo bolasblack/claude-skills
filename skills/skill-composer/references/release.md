@@ -35,7 +35,8 @@ migration effect without inventing rationale. Build and validate a release candi
 without presenting it as the completed release.
 
 - **Date mode:** record each change not yet in the changelog under the date of the change.
-  A date-mode skill has no version metadata.
+  Date mode adds no version bookkeeping; leave any target-owned version metadata, such
+  as a plugin manifest version, as it is.
 - **Version mode:** establish the published baseline, update the skill-local changelog
   under `Unreleased`, and prepare target-owned version metadata.
 
@@ -47,14 +48,12 @@ Install the candidate artifact in a clean instance of each claimed surface and r
 least one representative scenario per real workflow branch. Compare the installed
 inventory with the artifact so repository-only files cannot mask a broken package.
 
+Publishing is an external effect: publish only when the user explicitly asked for or
+authorized publication; otherwise stop at the validated artifact and report it ready.
 In date mode the candidate is the final artifact, so publish only a candidate that
 passes. In version mode, if the candidate passes, assign the version and date, build the
 final artifact, and repeat the clean-install inventory and representative branch checks
 on that exact final artifact; if promotion or the final checks fail, return the changelog
 to `Unreleased` and do not publish.
 
-**Done when:** the final artifact itself matches the clean-install inventory on every claimed surface and exercises every supported branch without source-tree residue; otherwise nothing is published, and in version mode the changelog is `Unreleased` and no versioned release state remains.
-
-**Done when:** the exact artifact is self-contained, every claimed target has schema and
-behavior evidence, every unavailable gate is visible, and a clean installation exercises
-all supported branches without relying on source-tree residue.
+**Done when:** the final artifact itself matches the clean-install inventory on every claimed surface and is self-contained, every claimed target has schema and behavior evidence, every unavailable gate is visible, and a clean installation exercises every supported branch without relying on source-tree residue; it is published only with the user's explicit authorization, and otherwise stops at the validated artifact, reported ready. If any check fails, nothing is published, and in version mode the changelog is `Unreleased` and no versioned release state remains.

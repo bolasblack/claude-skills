@@ -96,6 +96,16 @@ arguments = sys.argv[1:]
 cwd = Path.cwd()
 schema_grader = "--json-schema" in arguments or "--output-schema" in arguments
 
+if os.environ.get("FAKE_PARTIAL_EVENT_ON_TERM"):
+    import signal
+
+    def write_partial_event(signum, frame):
+        sys.stdout.write('{"type": "assistant", "session_id": "trunc')
+        sys.stdout.flush()
+        os._exit(143)
+
+    signal.signal(signal.SIGTERM, write_partial_event)
+
 child_marker = os.environ.get("FAKE_CHILD_MARKER")
 if child_marker:
     if os.environ.get("FAKE_PARTIAL_ARTIFACT"):
@@ -527,6 +537,30 @@ else:
         )
         self.assertEqual("", result.stderr)
 
+    def test_check_accepts_a_yaml_comment_after_the_skill_name(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            entry = skill / "SKILL.md"
+            entry.write_text(
+                entry.read_text(encoding="utf-8").replace(
+                    "name: sample-skill\n", "name: sample-skill # public name\n"
+                ),
+                encoding="utf-8",
+            )
+            commented = self.run_cli("check", skill)
+
+            entry.write_text(
+                entry.read_text(encoding="utf-8").replace(
+                    "name: sample-skill # public name\n", "name: sample-skill#x\n"
+                ),
+                encoding="utf-8",
+            )
+            unseparated = self.run_cli("check", skill)
+
+        self.assertEqual(0, commented.returncode, commented.stderr)
+        self.assertIn("OK sample-skill:", commented.stdout)
+        self.assertEqual(2, unseparated.returncode, unseparated.stdout)
+
     def test_list_reports_case_ids_without_starting_a_target(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             skill = self.make_skill(temp_dir)
@@ -710,6 +744,51 @@ else:
         self.assertEqual(2, result.returncode)
         self.assertIn("invalid report case results", result.stderr)
         self.assertNotIn("Traceback", result.stderr)
+
+    def test_run_rejects_a_non_finite_timeout_without_a_traceback(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            log_path = Path(temp_dir, "claude.jsonl")
+            bin_dir = self.make_fake_target(temp_dir, "claude")
+            environment = self.fake_target_environment(bin_dir, log_path)
+            results = [
+                self.run_cli(
+                    "run", skill, "--target", "claude", "--timeout", value,
+                    env=environment,
+                )
+                for value in ("nan", "inf")
+            ]
+
+        for result in results:
+            self.assertEqual(2, result.returncode, result.stderr + result.stdout)
+            self.assertIn("--timeout must be", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+
+    def test_inspect_rejects_a_non_finite_report_timeout(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            log_path = Path(temp_dir, "grok.jsonl")
+            bin_dir = self.make_fake_target(temp_dir, "grok")
+            environment = self.fake_target_environment(bin_dir, log_path)
+            result = self.run_cli(
+                "run-one",
+                skill,
+                "returns-requested-artifact",
+                "--target",
+                "grok",
+                env=environment,
+            )
+            report_path = self.report_path_from(result)
+            self.addCleanup(report_path.unlink, missing_ok=True)
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            report["run"]["timeout_seconds"] = float("nan")
+            report_path.write_text(json.dumps(report) + "\n", encoding="utf-8")
+
+            inspected = self.run_cli("inspect", report_path)
+
+        self.assertEqual(0, result.returncode, result.stderr + result.stdout)
+        self.assertEqual(2, inspected.returncode, inspected.stdout)
+        self.assertIn("invalid report timeout", inspected.stderr)
 
     def test_run_all_uses_one_frozen_skill_snapshot(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -943,6 +1022,28 @@ else:
         self.assertEqual(0, valid.returncode, valid.stderr)
         self.assertEqual(2, escaped.returncode)
         self.assertIn("fixture path must stay inside evals/fixtures", escaped.stderr)
+
+    def test_check_rejects_a_fixture_path_that_leaves_and_reenters_the_fixtures(self):
+        # The staged copy reuses the spelling under the workspace's inputs/,
+        # where these spellings would land outside the workspace.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            fixtures = skill / "evals" / "fixtures"
+            fixtures.mkdir()
+            fixtures.joinpath("input.txt").write_text("fixture\n", encoding="utf-8")
+            path, document = self.read_evals(skill)
+            results = []
+            for spelling in (
+                "../../evals/fixtures/input.txt",
+                str(fixtures.resolve() / "input.txt"),
+            ):
+                document["evals"][0]["files"] = [spelling]
+                path.write_text(json.dumps(document) + "\n", encoding="utf-8")
+                results.append(self.run_cli("check", skill))
+
+        for result in results:
+            self.assertEqual(2, result.returncode, result.stdout)
+            self.assertIn("fixture path must stay inside evals/fixtures", result.stderr)
 
     @unittest.skipUnless(hasattr(os, "symlink"), "symbolic links unavailable")
     def test_check_rejects_symlinks_before_staging_the_skill(self):
@@ -2161,6 +2262,34 @@ else:
         self.assertIn("PASS create-a-skill", result.stdout)
         self.assertIn("phase=candidate status=observed", result.stderr)
         self.assertLess(elapsed, 2.0, result.stdout + result.stderr)
+
+    def test_run_keeps_the_accepted_activation_when_the_stopped_target_writes_a_partial_event(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill = self.make_skill(temp_dir)
+            path, document = self.read_evals(skill)
+            document["evals"] = []
+            path.write_text(json.dumps(document) + "\n", encoding="utf-8")
+            self.write_trigger_evals(skill)
+            log_path = Path(temp_dir, "claude.jsonl")
+            bin_dir = self.make_fake_target(temp_dir, "claude")
+            environment = self.fake_target_environment(bin_dir, log_path)
+            environment["FAKE_SLEEP_AFTER_CLAUDE_ACTIVATION"] = "30"
+            environment["FAKE_PARTIAL_EVENT_ON_TERM"] = "1"
+
+            result = self.run_cli(
+                "run",
+                skill,
+                "--target",
+                "claude",
+                "--case",
+                "create-a-skill",
+                "--timeout",
+                "0.2",
+                env=environment,
+            )
+
+        self.assertEqual(0, result.returncode, result.stderr + result.stdout)
+        self.assertIn("PASS create-a-skill", result.stdout)
 
     def test_run_waits_for_claude_to_finish_before_judging_nonactivation(self):
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -131,6 +131,26 @@ class CheckSkillTest(unittest.TestCase):
         )
         self.assert_passes()
 
+    def test_yaml_comments_are_not_part_of_the_value(self):
+        self.write_skill(
+            frontmatter=(
+                "---\nname: demo # public name\n"
+                'description: "Use when testing # inside quotes." # note\n---\n'
+            )
+        )
+        self.assert_passes()
+
+    def test_name_and_description_must_be_yaml_strings(self):
+        self.write_skill(frontmatter="---\nname: demo\ndescription: false\n---\n")
+        self.assert_fails("frontmatter", "description must be a string")
+
+        self.write_skill(frontmatter="---\nname: demo\ndescription: '123'\n---\n")
+        self.assert_passes()
+
+    def test_an_unquoted_value_with_a_colon_is_invalid_yaml(self):
+        self.write_skill(frontmatter="---\nname: demo\ndescription: Use when: testing\n---\n")
+        self.assert_fails("frontmatter", "description is not valid YAML")
+
     def test_description_over_1024_characters_fails(self):
         self.write_skill(frontmatter=f"---\nname: demo\ndescription: {'d' * 1025}\n---\n")
         self.assert_fails("frontmatter", "1025 characters")
@@ -143,9 +163,42 @@ class CheckSkillTest(unittest.TestCase):
         self.write_skill("Read [out](../outside.md).\n")
         self.assert_fails("local-links", "outside the skill")
 
+    def test_reference_style_links_are_checked_and_reach_references(self):
+        self.write("references/guide.md", "# Guide\n")
+        self.write_skill("Read the [guide][g] in full.\n\n[g]: references/guide.md\n")
+        self.assert_passes()
+
+        self.write_skill("Read the [guide][g] in full.\n\n[g]: references/missing.md\n")
+        self.assert_fails("local-links", "SKILL.md -> references/missing.md: not found")
+
     def test_links_to_missing_anchors_fail(self):
         self.write_skill("See [later](#later).\n")
         self.assert_fails("local-links", "#later")
+
+    def test_a_shorter_fence_inside_a_longer_one_does_not_close_it(self):
+        self.write_skill(
+            "# Demo\n\n````markdown\n```\n[example](inside-example.md)\n````\n\n"
+            "Read [broken](missing.md).\n"
+        )
+        result = self.assert_fails("local-links", "SKILL.md -> missing.md: not found")
+        self.assertNotIn("inside-example.md", result.stdout)
+
+    def test_section_sizes_ignore_headings_inside_a_longer_fence(self):
+        self.write_skill(
+            "## Big\n\n````markdown\n```\n## Example heading\n" + "b" * 15000
+            + "\n````\n\n## Small\n\nx\n"
+        )
+        result = run(self.skill)
+        info = [line for line in result.stdout.splitlines() if line.startswith("INFO ")]
+        self.assertIn("## Big", info[0], result.stdout)
+        self.assertNotIn("Example heading", result.stdout)
+
+    def test_heading_anchors_keep_inline_code_text(self):
+        self.write_skill(
+            "# Demo\n\n## The `check` command\n\n## `run`\n\n"
+            "See [check](#the-check-command) and [run](#run).\n"
+        )
+        self.assert_passes()
 
     def test_urls_and_code_are_not_links(self):
         self.write_skill(

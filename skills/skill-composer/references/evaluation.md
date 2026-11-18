@@ -74,8 +74,8 @@ Keep domain truth with the evaluated skill:
 - `evals/evals.json` owns functional, baseline, isolation, and coexistence cases. Each
   case declares a hyphen-case `id`, `category`, realistic `prompt`, `side_effects` as
   `none` or `fixture`, and one or more independently checkable `assertions`. Optional
-  `files` resolve beneath `evals/fixtures`; `skill_mode` is `enabled` or `disabled`;
-  `additional_skills` contains unique skill names. Baseline cases disable the evaluated
+  `files` are relative paths beneath `evals/fixtures`, without `..`; `skill_mode` is
+  `enabled` or `disabled`; `additional_skills` contains unique skill names. Baseline cases disable the evaluated
   skill, other categories keep it enabled, coexistence names at least one additional
   skill, and isolation names none.
 - `evals/trigger-eval.json` owns model-invocation boundaries. Each query declares an

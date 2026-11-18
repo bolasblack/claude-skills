@@ -4,6 +4,17 @@ This file records Skill Composer changes so the history travels with standalone 
 
 ## 2026-11-18
 
+### Publish a release only on the user's explicit request, and keep version metadata in date mode
+
+- **Changed:** Release Step 5 publishes only when the user explicitly asked for or authorized publication; otherwise it stops at the validated artifact and reports it ready. Its two completion criteria are merged into one that carries this condition. Release Step 4 and the changelog modes table now say that date mode adds no version bookkeeping and leaves any target-owned version metadata, such as a plugin manifest version, as it is.
+- **Why:** Publication is an external effect, and Skill Composer's authorization rule for external effects covered only evaluation runs, so a user who asked only to prepare a release could have it published. The changelog rules let a skill that ships under a plugin version use date mode, while the release step said a date-mode skill has no version metadata, which could lead an agent to drop the manifest version.
+
+### Harden the eval runner's inputs and early stop
+
+- **Changed:** `scripts/eval-skill.py` accepts a YAML comment after the `name` value, rejects a fixture path in `files` that is absolute or contains `..`, and rejects a `--timeout` or report timeout that is not a finite number with a contract error. A trigger run stopped early on an attributable activation is judged on the output that triggered the stop, not on what the target wrote while being terminated.
+- **Why:** `name: demo # public name` is valid YAML but stopped every command. A path such as `../../evals/fixtures/input.txt` resolved inside the fixtures for validation, but the runner staged it at the same spelling under the workspace's `inputs/`, outside the workspace, and left the copy behind. `--timeout nan` passed the positivity check and then crashed with a traceback. A target that wrote a partial event while being stopped turned a passing activation into `unknown`.
+- **Migration:** Spell each `files` entry as a relative path below `evals/fixtures`, without `..`.
+
 ### State why each package check exists and where its fixes are explained
 
 - **Changed:** `scripts/check-skill.py` prints one block per check that fired, separated by blank lines: its `FAIL` findings, any `INFO` facts, and one `WHY` line with the rule's reason. A whole-file-pointers finding states the target file's size, and an entry-point-size finding lists the three largest sections of `SKILL.md`. After the blocks, one `FIX` line points to the new `references/package-check.md`, which says how to choose the fix for each check; Step 7 reads it in full when the check reports a finding, and `references/package-layout.md` defers to it for the split-or-link choice. Findings no longer carry fix text, and `references/package-layout.md` asks the same of any checking script an authored skill ships: decide only what it can decide exactly, print the facts the author needs, give one reason per finding kind, and point to the fix instead of listing fixes. The run ends with `RESULT <skill>: <n> findings`, so `FAIL` lines count findings only. `SKILL.md` gives the anchor reason in half a sentence. Passing runs and exit codes are unchanged.
@@ -21,8 +32,8 @@ This file records Skill Composer changes so the history travels with standalone 
 
 ### Run a bundled package check
 
-- **Changed:** Skill Composer now ships `scripts/check-skill.py`, a standard-library check that the validation step runs on every skill it creates or updates and the review and release workflows run too. It reports the entry-point byte cap, frontmatter `name` and `description`, broken or escaping local links and anchors, section anchors into reference files, links to another skill's `SKILL.md`, and nested `SKILL.md` files. Skill Composer's own package tests now call it in place of their copies of those rules, and two of Skill Composer's own pointers that targeted a section now link the whole file.
-- **Why:** The user wanted the rules Skill Composer sets to be checked mechanically on every skill it maintains, from one copy inside Skill Composer instead of tests copied into each skill.
+- **Changed:** Skill Composer now ships `scripts/check-skill.py`, a standard-library check that the validation step runs on every skill it creates or updates and the review and release workflows run too. It reports the entry-point byte cap, frontmatter `name` and `description` that are not valid YAML strings, broken or escaping local links (inline links and link reference definitions) and anchors, section anchors into reference files, links to another skill's `SKILL.md`, and nested `SKILL.md` files. Skill Composer's own package tests now call it in place of their copies of those rules, and two of Skill Composer's own pointers that targeted a section now link the whole file.
+- **Why:** The user wanted the rules Skill Composer sets to be checked mechanically on every skill it maintains, from one copy inside Skill Composer instead of tests copied into each skill. A review of a copy of the check found that it rejected valid YAML such as `name: demo # public name` and accepted `description: false`, and that a reference-style link to a missing file passed unchecked.
 
 ### Require cross-skill pointers to invoke, not read
 

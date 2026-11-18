@@ -34,7 +34,7 @@ The mode decides how entries are grouped and what release bookkeeping applies; t
 |---|---|---|
 | Section heading | `## 2026-11-02`, the date of the change, newest first | `## [Unreleased]`, then `## [2.0.0] - 2025-11-15` |
 | Revisions | Fold one day's revisions into that day's net change; later days add their own entries | Fold one release cycle's revisions into the net delta from the published baseline |
-| Version metadata | None | Target-owned metadata agrees with the numbered release |
+| Version metadata | None added; existing target-owned metadata stays as it is | Target-owned metadata agrees with the numbered release |
 
 When date mode takes over an `Unreleased` section, put each entry under the day its change landed, using version-control history or file timestamps. When nothing dates an entry, use the conversion date and say so.
 

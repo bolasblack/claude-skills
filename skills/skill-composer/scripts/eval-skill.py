@@ -4,6 +4,7 @@
 import argparse
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -144,13 +145,19 @@ def validate_fixture_files(value, location, fixtures_dir):
         raise ContractError(f"{location} files must not contain duplicates")
     fixtures_root = fixtures_dir.resolve()
     for item in value:
+        # The runner stages each file at this same spelling under the
+        # workspace's inputs/, so the spelling itself must stay inside.
+        outside = ContractError(
+            f"{location} fixture path must stay inside evals/fixtures, "
+            f"relative and without '..': {item}"
+        )
+        if Path(item).is_absolute() or ".." in Path(item).parts:
+            raise outside
         fixture = resolve_fixture_source(fixtures_dir / item).resolve()
         try:
             fixture.relative_to(fixtures_root)
         except ValueError as error:
-            raise ContractError(
-                f"{location} fixture path must stay inside evals/fixtures: {item}"
-            ) from error
+            raise outside from error
         if not fixture.is_file():
             raise ContractError(f"{location} fixture file not found: {item}")
 
@@ -172,7 +179,7 @@ def read_skill_name(skill_dir):
     if frontmatter is None:
         raise ContractError(f"{skill_md}: missing YAML frontmatter")
     name = re.search(
-        r"^name:\s*(?:\"([^\"]+)\"|'([^']+)'|([^\s#]+))\s*$",
+        r"^name:\s*(?:\"([^\"]+)\"|'([^']+)'|(\S+?))(?:\s+#.*)?\s*$",
         frontmatter.group(1),
         re.MULTILINE,
     )
@@ -1173,9 +1180,8 @@ def run_target_process(
                         error.stderr or "",
                         time.monotonic(),
                     )
-                if stop_when is not None and stop_when(
-                    error.stdout or "", error.stderr or ""
-                ):
+                accepted = (error.stdout or "", error.stderr or "")
+                if stop_when is not None and stop_when(*accepted):
                     stopped_early = True
                     break
                 if time.monotonic() >= deadline:
@@ -1226,7 +1232,15 @@ def run_target_process(
                         process.wait(timeout=TARGET_TERMINATION_GRACE)
                     except subprocess.TimeoutExpired:
                         pass
-            if not stopped_early:
+            if stopped_early:
+                # Judge the output stop_when accepted, not what the target
+                # wrote while it was being terminated.
+                stdout, stderr = (
+                    text.decode("utf-8", errors="replace")
+                    if isinstance(text, bytes) else text
+                    for text in accepted
+                )
+            else:
                 if observe is not None:
                     observe(stdout, stderr, time.monotonic())
                 summary = target_output_summary(stdout, stderr, workspace)
@@ -1916,7 +1930,7 @@ def load_run_report(value):
         raise ContractError(f"{path}: invalid report repeat")
     if not isinstance(run.get("timeout_seconds"), (int, float)) or isinstance(
         run["timeout_seconds"], bool
-    ) or run["timeout_seconds"] <= 0:
+    ) or not math.isfinite(run["timeout_seconds"]) or run["timeout_seconds"] <= 0:
         raise ContractError(f"{path}: invalid report timeout")
     selected = run.get("selected_case_ids")
     if selected is not None and (
@@ -2727,8 +2741,8 @@ def run_evaluations(
     )
     if repeat < 1:
         raise ContractError("--repeat must be at least 1")
-    if timeout <= 0:
-        raise ContractError("--timeout must be greater than 0")
+    if not math.isfinite(timeout) or timeout <= 0:
+        raise ContractError("--timeout must be a finite number greater than 0")
     report_destination = validate_report_destination(report_path, source_skill_dir)
     with tempfile.TemporaryDirectory(prefix="skill-eval-snapshot-") as temp_dir:
         snapshot_root = Path(temp_dir)
