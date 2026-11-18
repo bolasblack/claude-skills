@@ -20,7 +20,7 @@ These rules apply to every skill you create, update, or review:
 
 - `SKILL.md` stays within **15,000 bytes** ([why](SPEC.md)).
 - Keep every standing rule (one that applies across a whole run) in `SKILL.md`, must-follow gates first. A reference holds one branch's workflow or lookup material.
-- Point at whole reference files, each with its read condition, and tell the agent to read the file in full.
+- Point at whole reference files, each with its read condition, and tell the agent to read the file in full; a file tool cannot jump to an anchor, so a section pointer gets a fragment read.
 - Point to another skill by telling the agent to **invoke it by name through the host's skill mechanism** (in Claude Code, the Skill tool). **Reading its `SKILL.md` with a file tool is not invocation**: an agent reading the file tends to take only part of it and miss gates written elsewhere ([why](SPEC.md)).
 - Script what a script can check; state the rest once as a terse requirement with at most its core reason; put detailed explanation in a reference or `SPEC.md` behind a link.
 
@@ -105,7 +105,7 @@ Packaged evals are opt-in:
 
 In that last branch, do not search, grep, or open the Evaluation Reference, and do not inspect or invoke `eval-skill.py`. Before creating, updating, running, tuning, or maintaining an admitted eval suite, read the [Evaluation Reference](references/evaluation.md) in full.
 
-Run the **package check** on every target you create or update: `python3 <this skill's directory>/scripts/check-skill.py <target-skill-dir>`. Fix every finding and rerun it to `OK`. Without Python, apply the checks its docstring lists by hand, recording any left unchecked as `unknown`.
+Run the **package check** on every target you create or update: `python3 <this skill's directory>/scripts/check-skill.py <target-skill-dir>`. When it reports a finding, read [references/package-check.md](references/package-check.md) in full, then fix every finding and rerun it to `OK`. Without Python, apply the checks its docstring lists by hand, recording any left unchecked as `unknown`.
 
 Keep one **validation ledger** listing every applicable gate: the package check, package and target schema, bundled tests, fresh-session behavior, the portable fallback, clean installation when packaging, and the eval contract when admitted. Derive its rows from the locked package inventory, accounting for every discovered test entry point and executable script, with its baseline result before editing and final evidence whether retained, replaced, or removed; keep unrun baseline behavior as `unknown`. Each row is `pass`, `fail`, or `unknown` with evidence; add gates found later.
 

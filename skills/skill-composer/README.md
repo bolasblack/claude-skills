@@ -49,6 +49,7 @@ Use Skill Composer when a skill must remain maintainable across agent harnesses,
 - `CHANGELOG.md` - Portable release history for Skill Composer
 - `LICENSE.md` - Package-local copy of the repository's applicable use notice
 - `scripts/fetch-harness-docs.py` - Optional standard-library fetcher for validated, provenance-bearing temporary evidence bundles
+- `references/package-check.md` - How to choose the fix for each package-check finding, read in full when the check reports one
 - `scripts/check-skill.py` - Shared standard-library package check: entry-point byte cap, frontmatter, local links, whole-file pointers, cross-skill links and URLs, nested entry points, reachable references, and the `SPEC.md` pointer
 - `scripts/eval-skill.py` - Shared standard-library eval checker and Claude/Codex/Grok or external-adapter runner
 - `evals/evals.json` and `evals/trigger-eval.json` - Skill Composer's functional and activation regression cases

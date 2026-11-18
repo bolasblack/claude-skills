@@ -42,7 +42,9 @@ without warning, and only the start of a skill survives:
   records only Skill tool and slash-command invocations for re-attachment (verified in
   the 2.1.326 binary), so a skill reached by reading its `SKILL.md` as a file is not
   re-attached after compaction.
-- In four scheduled cloud runs, agents reached a skill through a Markdown link to a
+- A file tool cannot jump to a Markdown anchor, so an agent that follows a section
+  pointer searches or slices the file and reads one fragment, missing the
+  prerequisites and gates around it. In four scheduled cloud runs, agents reached a skill through a Markdown link to a
   section of its `SKILL.md` and read it with `head`, `sed`, or `grep` in place of
   invoking it. The 2026-11-17 run read only `/^## Step 1/,/^## Step 3/`, never saw the
   instruction written above Step 1, and marked a pull request ready without the check
@@ -70,17 +72,42 @@ installation, implementation, maintenance, and supply-chain cost. Portability is
 defined by one language or zero dependencies; this preserves deterministic behavior
 without making environment-specific skills less compatible or more complex.
 
-Skill Composer ships one mechanical package check, `scripts/check-skill.py`, and runs it
-on every skill it creates, updates, reviews, or releases. A rule it sets that a script
-can check is enforced there, from one copy inside Skill Composer, not as tests copied
-into each skill and not as prose alone.
-
 **Why:** Manual reinterpretation lets stable mechanics drift, while a universal Python
 or zero-dependency rule can add more machinery than it removes. The user requires the
-automation decision to follow the actual environment and public behavior seam. On
-2026-11-18 the user asked for the rules Skill Composer sets to be verified automatically
-on every skill it maintains, so a rule added later that a script can check belongs in
-the check.
+automation decision to follow the actual environment and public behavior seam.
+
+## Package Check Design
+
+Skill Composer ships one package check, `scripts/check-skill.py`, and runs it on every
+skill it creates, updates, reviews, or releases. A rule Skill Composer sets that a script
+can check is enforced there, not as prose alone. The check satisfies the Script
+Requirements in [references/package-layout.md](references/package-layout.md), read in
+full, which include the rules for every checking script; its fix guide is
+`references/package-check.md`. It also follows its own rules:
+
+1. A finding fails hard, with no exemption or override. The author chooses the fix,
+   never whether to comply.
+2. One copy lives in Skill Composer; it is never copied into the skills it checks.
+3. A false positive is a bug. A new or changed check runs against every real skill in
+   the repositories at hand before it ships, and each new finding is judged real or
+   false.
+4. Line prefixes and exit codes are stable, so the output can be filtered and scripted.
+5. Standard library only; every behavior is driven by a black-box test seen failing
+   first.
+
+**Why:** On 2026-11-18 the user asked for the rules Skill Composer sets to be verified
+automatically on every skill it maintains. The same day's evidence shaped these rules
+and the general script requirements. The first runs found about ten real violations
+that prose rules had not prevented. A check for the phrase "in full" was rejected
+because it would reward the phrase, not the behavior, so checks decide only what is
+exact. An agent fixing a finding had to guess the rule's reason, and misread `SPEC.md`
+from a partial read, so output gives one reason per finding kind. Another agent took
+the inline "link the whole file" fix mechanically and turned pointers to about 1 KB
+sections into 16 to 19 KB reads, where moving the shared prerequisite into `SKILL.md`
+was the right fix, so output points to a guide instead of listing fixes and prints the
+facts the choice needs, such as file sizes. The first scan over real repositories
+surfaced two false-positive classes, references named in code spans and upstream links
+in READMEs, which were fixed before shipping.
 
 ## Bundled Core Rules
 

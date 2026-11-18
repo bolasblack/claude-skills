@@ -11,6 +11,7 @@ import unittest
 
 sys.dont_write_bytecode = True
 SCRIPT = Path(__file__).with_name("check-skill.py")
+GUIDE = Path(__file__).resolve().parent.parent / "references" / "package-check.md"
 FRONTMATTER = '---\nname: demo\ndescription: "Use when testing the checker."\n---\n'
 
 
@@ -67,7 +68,23 @@ class CheckSkillTest(unittest.TestCase):
         self.assert_passes()
 
         self.write_skill("# Demo\n" + "x" * (padding + 1))
-        self.assert_fails("entry-point-size", "15001 bytes")
+        self.assert_fails("entry-point-size", "15,001 bytes; the cap is 15,000")
+
+    def test_an_oversized_entry_point_lists_its_three_largest_sections(self):
+        self.write_skill(
+            "Intro.\n\n## Small\n\nx\n\n## Big\n\n" + "b" * 9000
+            + "\n\n## Medium\n\n" + "m" * 6000
+            + "\n\n### Tail\n\n" + "t" * 500 + "\n"
+        )
+        result = run(self.skill)
+        block = result.stdout.split("\n\n", 1)[0].splitlines()
+        self.assertTrue(block[0].startswith("FAIL entry-point-size: SKILL.md is "), block)
+        info = block[1:4]
+        self.assertTrue(all(line.startswith("INFO entry-point-size: ") for line in info), block)
+        for line, heading in zip(info, ("## Big", "## Medium", "### Tail")):
+            self.assertIn(heading, line)
+        self.assertIn("9,0", info[0])
+        self.assertTrue(block[4].startswith("WHY entry-point-size: "), block)
 
     def test_entry_point_size_counts_utf8_bytes(self):
         skill = self.write_skill()
@@ -144,11 +161,56 @@ class CheckSkillTest(unittest.TestCase):
         )
         self.assert_passes()
 
-    def test_reference_pointers_target_whole_files(self):
-        self.write("references/guide.md", "# Guide\n\n## Part\n")
+    def test_reference_pointers_target_whole_files_and_state_the_target_size(self):
+        guide = self.write("references/guide.md", "# Guide\n\n## Part\n" + "g" * 1200 + "\n")
         self.write_skill("Read [guide](references/guide.md#part) in full.\n")
-        result = self.assert_fails("whole-file-pointers", "references/guide.md#part")
-        self.assertIn("or split the reference", result.stdout)
+        size = f"{len(guide.read_bytes()):,}"
+        self.assert_fails(
+            "whole-file-pointers",
+            f"references/guide.md#part: points at a section (references/guide.md is {size} bytes)",
+        )
+
+    def test_each_check_kind_is_one_block_then_one_pointer_to_the_fix_guide(self):
+        self.write("references/guide.md", "# Guide\n\n## Part\n\n## Other\n")
+        self.write_skill(
+            "Read [guide](references/guide.md#part) and [more](references/guide.md#other).\n"
+            "See [missing](nope.md).\n"
+        )
+        result = run(self.skill)
+        self.assertEqual(1, result.returncode, result.stdout)
+        self.assertFalse(result.stdout.endswith("\n\n"), repr(result.stdout))
+        lines = result.stdout.splitlines()
+        self.assertEqual(3, len([line for line in lines if line.startswith("FAIL")]))
+        blocks = [block.splitlines() for block in result.stdout.rstrip("\n").split("\n\n")]
+        self.assertEqual(4, len(blocks), result.stdout)
+        whole_file, local_links, fix, summary = blocks
+        self.assertEqual(
+            ["FAIL whole-file-pointers:", "FAIL whole-file-pointers:", "WHY whole-file-pointers:"],
+            [" ".join(line.split(" ", 2)[:2]) for line in whole_file],
+        )
+        self.assertIn("anchor", whole_file[2])
+        self.assertEqual(
+            ["FAIL local-links:", "WHY local-links:"],
+            [" ".join(line.split(" ", 2)[:2]) for line in local_links],
+        )
+        self.assertEqual(
+            [f"FIX: read {GUIDE} in full before changing anything; "
+             "it says how to choose the fix for each check."],
+            fix,
+        )
+        self.assertTrue(GUIDE.is_file())
+        self.assertEqual(["RESULT demo: 3 findings"], summary)
+
+    def test_a_missing_entry_point_states_its_reason(self):
+        self.write("README.md", "# Demo\n")
+        result = self.assert_fails("entry-point", "SKILL.md")
+        self.assertIn("WHY entry-point:", result.stdout)
+
+    def test_a_passing_run_prints_no_reasons(self):
+        self.write_skill()
+        stdout = self.assert_passes().stdout
+        self.assertEqual(1, len(stdout.splitlines()), stdout)
+        self.assertTrue(stdout.startswith("OK demo: 9 checks passed"), stdout)
 
     def test_anchors_into_skill_md_and_the_same_file_are_allowed(self):
         self.write("references/guide.md", "Back to [the router](../SKILL.md#route).\n")
@@ -165,14 +227,15 @@ class CheckSkillTest(unittest.TestCase):
         )
         self.write_skill("Follow [other](../other/SKILL.md).\n")
         result = self.assert_fails("cross-skill-links", "../other/SKILL.md")
-        self.assertIn("invoke", result.stdout)
+        fail = next(line for line in result.stdout.splitlines() if line.startswith("FAIL cross"))
+        self.assertNotIn("invoke", fail)
 
     def test_urls_to_another_skill_entry_point_fail(self):
         self.write_skill(
             "Follow [other](https://github.com/o/r/blob/main/skills/other/SKILL.md#x).\n"
         )
         result = self.assert_fails("cross-skill-links", "skills/other/SKILL.md")
-        self.assertIn("invoke", result.stdout)
+        self.assertIn("FIX: read", result.stdout)
 
     def test_references_must_be_reachable_from_the_entry_point(self):
         self.write("references/guide.md", "# Guide\n\nThen read [deep](deep.md).\n")
@@ -214,10 +277,11 @@ class CheckSkillTest(unittest.TestCase):
         self.write_skill("See [the README](README.md).\n")
         self.assert_fails("cross-skill-links", "README.md -> https://github.com/o/r")
 
-    def test_a_relative_cross_skill_link_in_an_unread_file_still_escapes_the_skill(self):
-        self.write("README.md", "See [other](../other/SKILL.md).\n")
+    def test_links_leaving_the_skill_fail_in_every_file_without_a_cross_skill_finding(self):
+        self.write("README.md", "See [other](../other/SKILL.md) and [sibling](../sibling/).\n")
         self.write_skill()
-        result = self.assert_fails("local-links", "README.md -> ../other/SKILL.md: outside")
+        result = self.assert_fails("local-links", "README.md -> ../other/SKILL.md: outside the skill")
+        self.assertIn("README.md -> ../sibling/: outside the skill", result.stdout)
         self.assertNotIn("cross-skill-links", result.stdout)
 
     def test_a_maintainer_spec_needs_a_pointer_from_the_entry_point(self):
@@ -242,7 +306,7 @@ class CheckSkillTest(unittest.TestCase):
         self.assertEqual(1, result.returncode)
         for rule in ("entry-point-size", "frontmatter", "local-links"):
             self.assertIn(f"FAIL {rule}:", result.stdout)
-        self.assertIn("FAIL demo: 3 findings", result.stdout)
+        self.assertIn("RESULT demo: 3 findings", result.stdout)
 
     def test_a_missing_directory_is_a_usage_error(self):
         result = run(self.root / "absent")

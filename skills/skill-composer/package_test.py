@@ -61,12 +61,44 @@ class SkillComposerPackageTest(unittest.TestCase):
             step7,
         )
         self.assertIn("rerun it to `OK`", step7)
+        self.assertIn(
+            "read [references/package-check.md](references/package-check.md) in full",
+            step7,
+        )
+        guide = " ".join(reference("package-check.md").split())
+        self.assertLessEqual(len(reference("package-check.md").encode("utf-8")), 3000)
+        self.assertIn("Read this file in full when the package check reports a finding", guide)
+        self.assertIn("you choose the fix, not whether to comply", guide)
+        for check_name in (
+            "whole-file-pointers",
+            "entry-point-size",
+            "reachable-references",
+            "cross-skill-links",
+            "local-links",
+        ):
+            self.assertIn(f"## {check_name}", reference("package-check.md"))
+        self.assertIn("Move it into `SKILL.md`", guide)
+        self.assertIn("references/package-check.md", PACKAGE.joinpath("README.md").read_text(encoding="utf-8"))
         self.assertIn("the package check, package and target schema", step7)
         self.assertIn("scripts/check-skill.py <target-skill-dir>", " ".join(reference("review.md").split()))
         self.assertIn("Run the package check from [Step 7]", " ".join(reference("release.md").split()))
         spec = " ".join(PACKAGE.joinpath("SPEC.md").read_text(encoding="utf-8").split())
-        self.assertIn("ships one mechanical package check", spec)
-        self.assertIn("not as tests copied into each skill and not as prose alone", spec)
+        self.assertIn("## Package Check Design", spec)
+        design = spec.split("## Package Check Design", 1)[1].split(" ## ", 1)[0]
+        for rule in (
+            "satisfies the Script Requirements in "
+            "[references/package-layout.md](references/package-layout.md)",
+            "A finding fails hard",
+            "never copied into the skills it checks",
+            "A false positive is a bug",
+            "Line prefixes and exit codes are stable",
+            "Standard library only",
+            "seen failing first",
+            "**Why:**",
+        ):
+            self.assertIn(rule, design)
+        for general_rule in ("can decide exactly", "list fixes inline", "prints it"):
+            self.assertNotIn(general_rule, design.split("**Why:**", 1)[0])
 
     def test_references_are_whole_files_reached_from_the_entry_point(self):
         self.assertFalse(PACKAGE.joinpath("REFERENCE.md").exists())
@@ -86,7 +118,7 @@ class SkillComposerPackageTest(unittest.TestCase):
             "every standing rule (one that applies across a whole run)",
             "must-follow gates first",
             "Point at whole reference files",
-            "read the file in full",
+            "read the file in full; a file tool cannot jump to an anchor",
             "invoke it by name",
             "([why](SPEC.md))",
             "Script what a script can check",
@@ -116,10 +148,20 @@ class SkillComposerPackageTest(unittest.TestCase):
             "combined budget of 25,000 tokens",
             "2026-11-17",
             "What a script can check is scripted",
+            "A file tool cannot jump to a Markdown anchor",
             "2026-11-18",
         ):
             self.assertIn(evidence, spec)
         self.assertNotIn("Reasonable size is a behavioral property", spec)
+        layout = " ".join(reference("package-layout.md").split())
+        self.assertIn("[package-check.md](package-check.md) in full", layout)
+        self.assertNotIn("split that section into its own reference", layout)
+        for rule in (
+            "checks only what it can decide exactly",
+            "does not list fixes inline",
+            "the output prints it",
+        ):
+            self.assertIn(rule, layout)
 
     def test_cross_skill_pointers_require_invocation_not_file_reads(self):
         skill = " ".join(PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8").split())

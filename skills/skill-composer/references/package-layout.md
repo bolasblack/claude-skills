@@ -31,6 +31,8 @@ skill-name/
 
 Core workflow in SKILL.md. Technical details and examples in references/.
 
+When a branch needs only one section of a reference, read [package-check.md](package-check.md) in full and apply its whole-file-pointers choices.
+
 ### With Scripts
 
 ```
@@ -73,6 +75,8 @@ Apply [Environment-Native Automation](../SKILL.md#environment-native-automation)
 - Add executable permissions and a shebang when the script is meant to run directly; neither is required for every bundled source file.
 - Red-green loop, replaced by the `tdd` skill when available: run the public-seam test and preserve its observed failure before writing the implementation; then make the minimum implementation change and rerun the same test to green. Writing the test and implementation together and calling the first green run red-green evidence does not count.
 - When every claimed environment provides Python and no native runtime is already selected, Python's standard library is a reasonable default for a standalone portable helper; a target-specific skill prefers its environment's runtime. When the claimed environments share no runtime, keep a portable manual path or provide tested environment adapters.
+- A script that checks or validates something checks only what it can decide exactly; a rule that needs judgment, or could be checked only by matching wording, stays in the instructions.
+- Its output carries this run's facts, one core reason per kind of finding, and a pointer to where the fix is explained. It does not list fixes inline, because an agent takes the first one mechanically. When the author's judgment needs a fact the script can compute, the output prints it.
 - Retain public-seam tests with the script and run them on every environment the skill claims to support.
 - When a script is a harness enhancement rather than a declared requirement, provide and test a portable manual fallback for the core behavior.
 

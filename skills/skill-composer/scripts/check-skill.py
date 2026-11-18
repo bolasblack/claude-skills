@@ -4,10 +4,10 @@
 Checks: entry-point (SKILL.md exists), entry-point-size (at most 15,000 UTF-8
 bytes), frontmatter (name and description per the Agent Skills specification,
 name equal to the directory), local-links (every local Markdown link and anchor
-resolves inside the skill), whole-file-pointers (no section anchor into a
-Markdown file other than SKILL.md or the linking file), cross-skill-links (no
-link or URL to another skill's SKILL.md in a file the agent reads; invoke that
-skill by name instead), nested-entry-points (no SKILL.md below the skill root),
+resolves inside the skill), whole-file-pointers (no section anchor into a Markdown file other than SKILL.md
+or the linking file), cross-skill-links (no link or URL to another skill's
+SKILL.md in a file the agent reads), nested-entry-points (no SKILL.md below the
+skill root),
 reachable-references (every Markdown file under references/ is linked from
 SKILL.md, directly or through a linked file), and spec-pointer (a root SPEC.md
 is linked from SKILL.md).
@@ -17,7 +17,12 @@ linked file. For reachability, an inline code span that names an existing file
 by its path from the linking file or the skill root also links it, and a
 Markdown link to a directory links every file below it.
 
-Prints one "FAIL <check>: <detail>" line per finding and a summary line.
+Prints one block per check that fired, in order of its first finding: a
+"FAIL <check>: <detail>" line per finding, any "INFO <check>: <fact>" lines,
+and one "WHY <check>: <reason>" line. Then one "FIX:" line names the guide
+that says how to choose each fix, and a "RESULT <skill>: <n> findings" line
+ends the run. Blocks are separated by one blank line. A passing run prints only
+"OK <skill>: 9 checks passed".
 Exit status: 0 when every check passes, 1 on findings, 2 on a usage error.
 """
 
@@ -37,6 +42,37 @@ SKIPPED_PARTS = {".git", "node_modules", "__pycache__"}
 LINK_PATTERN = re.compile(r"!?\[[^\]]*\]\(\s*(<[^>]*>|[^)\s]+)(?:\s+\"[^\"]*\")?\s*\)")
 SCHEME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
 FENCE_PATTERN = re.compile(r"^\s*(`{3,}|~{3,})")
+REASONS = {
+    "entry-point": "hosts discover a skill by the SKILL.md at its root.",
+    "entry-point-size": (
+        "after compaction a host may keep only the start of a skill (Claude Code "
+        "keeps the first 5,000 tokens), so text past the cap can be lost without warning."
+    ),
+    "frontmatter": (
+        "hosts route by name and description, and a host may skip a skill whose "
+        "fields are invalid or whose name differs from its directory."
+    ),
+    "local-links": (
+        "a broken link, or one that leaves the skill, points at nothing once the "
+        "skill is installed on its own."
+    ),
+    "whole-file-pointers": (
+        "a file tool cannot jump to an anchor, so the agent searches, reads one "
+        "fragment, and misses the prerequisites and gates around it."
+    ),
+    "cross-skill-links": (
+        "an agent reading another skill's file tends to take only part of it, and a "
+        "file read is not re-attached after compaction; invoking the skill loads it whole."
+    ),
+    "nested-entry-points": (
+        "discovery can match any file named SKILL.md, so a nested one can be "
+        "published as a separate skill."
+    ),
+    "reachable-references": "a reference that no pointer reaches is never read.",
+    "spec-pointer": "an unlinked SPEC.md is never read by the agent maintaining the skill.",
+}
+GUIDE = Path(__file__).resolve().parent.parent / "references" / "package-check.md"
+HEADING_PATTERN = re.compile(r"^#{1,6}\s+\S")
 INLINE_CODE_PATTERN = re.compile(r"(`+).*?\1")
 CODE_SPAN_PATTERN = re.compile(r"(`+)\s*([^`\s]+?)\s*\1")
 
@@ -142,10 +178,20 @@ def strip_code(text):
     return INLINE_CODE_PATTERN.sub("", strip_fences(text))
 
 
-CROSS_SKILL_HINT = (
-    "invoke that skill by name through the host's skill mechanism instead of "
-    "linking its file"
-)
+def largest_sections(text, count=3):
+    """The largest heading-delimited sections of a Markdown file, by UTF-8 bytes."""
+    sections = [["(frontmatter and text before the first heading)", 0]]
+    fence = None
+    for line in text.splitlines(keepends=True):
+        match = FENCE_PATTERN.match(line)
+        if fence is None and match:
+            fence = match.group(1)[0] * 3
+        elif fence is not None and line.strip().startswith(fence):
+            fence = None
+        elif fence is None and HEADING_PATTERN.match(line):
+            sections.append([line.strip(), 0])
+        sections[-1][1] += len(line.encode("utf-8"))
+    return sorted(sections, key=lambda section: -section[1])[:count]
 
 
 def code_span_files(root, document, text):
@@ -161,11 +207,10 @@ def code_span_files(root, document, text):
 
 def check_links(root, entry_point):
     """Return link findings, each document's resolved link targets, and
-    cross-skill findings as (document, finding, finding if the agent never
-    reads that document)."""
+    (document, finding, finding if the agent never reads that document)."""
     findings = []
     links = {}
-    cross_skill = []
+    agent_read = []
     package = root.resolve()
     entry = entry_point.resolve()
     for document in package_files(root, "*.md"):
@@ -177,9 +222,9 @@ def check_links(root, entry_point):
             if SCHEME_PATTERN.match(target):
                 url = urlsplit(target)
                 if url.scheme in ("http", "https") and url.path.endswith("/SKILL.md"):
-                    cross_skill.append((
+                    agent_read.append((
                         document.resolve(),
-                        ("cross-skill-links", f"{source} -> {target}: {CROSS_SKILL_HINT}"),
+                        ("cross-skill-links", f"{source} -> {target}: links another skill's SKILL.md"),
                         None,
                     ))
                 continue
@@ -191,9 +236,9 @@ def check_links(root, entry_point):
             outside = ("local-links", f"{source} -> {target}: outside the skill")
             inside = resolved == package or package in resolved.parents
             if resolved.name == "SKILL.md" and resolved != entry:
-                cross_skill.append((
+                agent_read.append((
                     document.resolve(),
-                    ("cross-skill-links", f"{source} -> {target}: {CROSS_SKILL_HINT}"),
+                    ("cross-skill-links", f"{source} -> {target}: links another skill's SKILL.md"),
                     None if inside else outside,
                 ))
                 continue
@@ -211,15 +256,15 @@ def check_links(root, entry_point):
             if path and resolved not in (entry, document.resolve()):
                 findings.append((
                     "whole-file-pointers",
-                    f"{source} -> {target}: points at a section; link the whole "
-                    "file and have the agent read it in full, or split the reference",
+                    f"{source} -> {target}: points at a section ({unquote(path)} is "
+                    f"{len(resolved.read_bytes()):,} bytes)",
                 ))
                 continue
             anchors = heading_anchors(resolved.read_text(encoding="utf-8"))
             if unquote(fragment).lower() not in anchors:
                 findings.append(("local-links", f"{source} -> {target}: missing anchor"))
         targets.update(code_span_files(root, document, text))
-    return findings, links, cross_skill
+    return findings, links, agent_read
 
 
 def reachable(entry, links):
@@ -234,24 +279,30 @@ def reachable(entry, links):
 
 
 def check(root):
+    """Return (check, detail) findings and {check: [fact, ...]} extra facts."""
     entry_point = root / "SKILL.md"
     if not entry_point.is_file():
-        return [("entry-point", "SKILL.md not found")]
+        return [("entry-point", "SKILL.md not found")], {}
 
     findings = []
+    info = {}
     size = len(entry_point.read_bytes())
+    text = entry_point.read_text(encoding="utf-8")
     if size > MAX_ENTRY_POINT_BYTES:
         findings.append((
             "entry-point-size",
-            f"SKILL.md is {size} bytes; the cap is {MAX_ENTRY_POINT_BYTES}",
+            f"SKILL.md is {size:,} bytes; the cap is {MAX_ENTRY_POINT_BYTES:,}",
         ))
-    text = entry_point.read_text(encoding="utf-8")
+        info["entry-point-size"] = [
+            f'section "{heading}" is {length:,} bytes'
+            for heading, length in largest_sections(text)
+        ]
     findings.extend(("frontmatter", detail) for detail in check_frontmatter(root, text))
-    link_findings, links, cross_skill = check_links(root, entry_point)
+    link_findings, links, agent_read = check_links(root, entry_point)
     findings.extend(link_findings)
     entry = entry_point.resolve()
     linked = reachable(entry, links)
-    for document, finding, unread_finding in cross_skill:
+    for document, finding, unread_finding in agent_read:
         if document in linked:
             findings.append(finding)
         elif unread_finding:
@@ -260,8 +311,7 @@ def check(root):
         if nested != entry_point:
             findings.append((
                 "nested-entry-points",
-                f"{nested.relative_to(root).as_posix()} would be discovered as a "
-                "separate skill",
+                f"{nested.relative_to(root).as_posix()} is below the skill root",
             ))
     references = root / "references"
     if references.is_dir():
@@ -276,10 +326,9 @@ def check(root):
     if spec.is_file() and spec.resolve() not in links.get(entry, ()):
         findings.append((
             "spec-pointer",
-            "SPEC.md exists but SKILL.md does not link it; add a pointer that "
-            "loads it before modifying or reviewing the skill",
+            "SPEC.md exists but SKILL.md does not link it",
         ))
-    return findings
+    return findings, info
 
 
 def main(argv=None):
@@ -294,12 +343,23 @@ def main(argv=None):
         print(f"check-skill.py: {args.skill_dir} is not a directory", file=sys.stderr)
         return 2
 
-    findings = check(root)
-    for check_name, detail in findings:
-        print(f"FAIL {check_name}: {detail}")
+    findings, info = check(root)
+    for check_name in dict.fromkeys(check_name for check_name, _ in findings):
+        for kind, detail in findings:
+            if kind == check_name:
+                print(f"FAIL {check_name}: {detail}")
+        for fact in info.get(check_name, ()):
+            print(f"INFO {check_name}: {fact}")
+        print(f"WHY {check_name}: {REASONS[check_name]}")
+        print()
     if findings:
+        print(
+            f"FIX: read {GUIDE} in full before changing anything; "
+            "it says how to choose the fix for each check."
+        )
+        print()
         noun = "finding" if len(findings) == 1 else "findings"
-        print(f"FAIL {root.name}: {len(findings)} {noun}")
+        print(f"RESULT {root.name}: {len(findings)} {noun}")
         return 1
     print(f"OK {root.name}: {CHECK_COUNT} checks passed")
     return 0
