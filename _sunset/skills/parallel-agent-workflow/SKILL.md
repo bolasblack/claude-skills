@@ -1,7 +1,9 @@
 ---
 name: parallel-agent-workflow
-description: "Coordinate multiple agents working in parallel using git worktrees to avoid file conflicts. Use when needing concurrent agents to modify different files/components with worktree isolation, or when asked to use worktrees for parallel agent work."
+description: "[SUNSET — use Claude Code's built-in worktree isolation instead] Coordinate multiple agents working in parallel using git worktrees to avoid file conflicts. Use when needing concurrent agents to modify different files/components with worktree isolation, or when asked to use worktrees for parallel agent work."
 ---
+
+> **Sunset:** this skill is no longer installable from this repository and will be removed in the future. Claude Code now runs subagents in their own git worktrees (`isolation: "worktree"`) and orchestrates them with Workflows, so a hand-rolled worktree workflow adds little. Use those built-in features instead.
 
 # Parallel Agent Workflow
 

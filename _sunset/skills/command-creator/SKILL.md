@@ -1,7 +1,9 @@
 ---
 name: command-creator
-description: Guide for creating Claude Code slash commands. Use when the user wants to create a new slash command, custom prompt shortcut, or workflow automation command for Claude Code. Helps define command structure, frontmatter, arguments, and best practices.
+description: "[SUNSET — use skill-composer instead] Guide for creating Claude Code slash commands. Use when the user wants to create a new slash command, custom prompt shortcut, or workflow automation command for Claude Code. Helps define command structure, frontmatter, arguments, and best practices."
 ---
+
+> **Sunset:** this skill is no longer installable from this repository and will be removed in the future. Claude Code merged custom slash commands into the skill system, so new commands should be written as skills. Use `skill-composer` instead.
 
 # Command Creator
 

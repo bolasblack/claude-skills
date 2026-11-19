@@ -56,8 +56,7 @@ Follow the guidelines in `<project-root>/CONTRIBUTING.md`
 
 - **Agent 1 - review files**
 
-      - for skills: use `skill-composer` skill (apply its reviewing checklist)
-      - for commands: use `command-creator` skill
+      - for skills and commands: use `skill-composer` skill (apply its reviewing checklist; Claude Code merged custom commands into skills)
 
 - **Agent 2 - security-auditor**: Analyze for information security risks, code/configuration security, third-party risks, data privacy. Report by severity.
 

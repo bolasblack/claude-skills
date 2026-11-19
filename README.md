@@ -52,8 +52,6 @@ npx skills add bolasblack/claude-skills --skill <skill-name>
 | [mcp-deepwiki](./skills/mcp-deepwiki/) | Access and query GitHub repository documentation using DeepWiki's AI-powered knowledge base |
 | [mcp-fetch](./skills/mcp-fetch/) | Web content fetching and conversion to markdown for efficient LLM consumption |
 | [mcp-grep](./skills/mcp-grep/) | Search GitHub repositories for real-world code examples using grep.app |
-| 🌐 [parallel-agent-workflow](./skills/parallel-agent-workflow/) | Coordinate multiple agents working in parallel using git worktrees to avoid file conflicts. Use for multi-component refactoring or parallel feature development |
-| [command-creator](./skills/command-creator/) | Guide for creating Claude Code slash commands. Helps define command structure, frontmatter, arguments, and best practices |
 | [playwright](./skills/playwright/) | Complete browser automation with Playwright. Auto-detects dev servers, writes test scripts, takes screenshots, validates web functionality |
 
 ## Agents
@@ -154,6 +152,8 @@ Sunset extensions are no longer installable and will be removed in the future. T
 
 | Extension | Why | Use instead |
 |-----------|-----|-------------|
+| [command-creator](./_sunset/skills/command-creator/) | Claude Code merged custom slash commands into the skill system, so new commands should be written as skills | [skill-composer](./skills/skill-composer/) |
+| 🌐 [parallel-agent-workflow](./_sunset/skills/parallel-agent-workflow/) | Claude Code now runs subagents in their own git worktrees (`isolation: "worktree"`) and orchestrates them with Workflows, so a hand-rolled worktree workflow adds little | Claude Code's built-in worktree isolation and Workflows |
 
 ## Contributing
 
