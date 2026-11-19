@@ -25,9 +25,7 @@ If the user specified a type in their original message (e.g. "install skills"), 
 > A) playwright — You already use Playwright; this automates browser testing with AI
 > B) frontend-design — React project, helps create production-grade UI
 > C) skill-composer — Useful if you want to create custom skills for this project
->
-> **Agents:**
-> D) code-reviewer — Principled code reviewer in Uncle Bob's tradition
+> D) dependency-safety-check — npm project; screens new packages for known vulnerabilities and supply-chain risk before installing them
 
 **If in a home directory or non-project directory** — show at least 10 generally useful extensions across all types with brief descriptions.
 
@@ -62,7 +60,7 @@ If installing to a project directory, recommend explicit tools instead of auto-d
 
 Tell the user:
 
-> Pick extensions by letter or name (e.g. "A, C, D" or "playwright, code-reviewer").
+> Pick extensions by letter or name (e.g. "A, C, D" or "playwright, dependency-safety-check").
 > Pick tools by name or say "auto" (e.g. "install A and D to this project for agents,claude").
 > Say **"show all"** to see the complete list, or **"all"** / **"__all"** to install everything.
 

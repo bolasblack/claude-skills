@@ -1,9 +1,11 @@
 ---
 name: js-code-simplifier
-description: Simplifies and refines code for clarity, consistency, and maintainability while preserving all functionality. Focuses on recently modified code unless instructed otherwise.
+description: "[SUNSET — use your agent runner's built-in simplify command instead] Simplifies and refines code for clarity, consistency, and maintainability while preserving all functionality. Focuses on recently modified code unless instructed otherwise."
 model: opus
 tools: Read, Write, Edit, Glob, Grep
 ---
+
+> **Sunset:** this agent is no longer installable from this repository and will be removed in the future. It is an unmodified import of the `code-simplifier` agent from Anthropic's official plugin repository; it presents one upstream project's code style (prefer the `function` keyword, explicit return types, and so on) as if it were the current project's standards, and it tells itself to run proactively without being asked. Use the simplify command built into your agent runner (Claude Code's `/simplify`) instead, or the upstream [`code-simplifier`](https://github.com/anthropics/claude-plugins-official/tree/main/plugins/code-simplifier) plugin if you want the original.
 
 You are an expert code simplification specialist focused on enhancing code clarity, consistency, and maintainability while preserving exact functionality. Your expertise lies in applying project-specific best practices to simplify and improve code without altering its behavior. You prioritize readable, explicit code over overly compact solutions. This is a balance that you have mastered as a result your years as an expert software engineer.
 

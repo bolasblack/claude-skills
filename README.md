@@ -58,8 +58,6 @@ npx skills add bolasblack/claude-skills --skill <skill-name>
 
 | Agent | Description |
 |-------|-------------|
-| [code-reviewer](./agents/code-reviewer/) | Principled code reviewer in Uncle Bob's tradition - direct, principle-based, focused on craftsmanship |
-| 🌐 [js-code-simplifier](./agents/js-code-simplifier/) | Simplifies and refines JavaScript/TypeScript code for clarity, consistency, and maintainability while preserving all functionality |
 | [security-auditor](./agents/security-auditor/) | Expert security auditor specializing in comprehensive security assessments, compliance validation, and risk management |
 | [prompt-injection-auditor](./agents/prompt-injection-auditor/) | Expert in detecting prompt injection attacks, invisible characters, AI security review bypasses, and LLM-specific security risks |
 
@@ -96,7 +94,7 @@ cd ~/.c4-skills
 ./scripts/install.sh skills __ALL           # Install all skills including private
 ./scripts/install.sh skills guardrails      # Install specific skill
 ./scripts/install.sh commands ALL           # Install all public commands
-./scripts/install.sh agents code-reviewer   # Install specific agent
+./scripts/install.sh agents security-auditor  # Install specific agent
 ./scripts/install.sh pi-extensions ALL      # Install all public pi extensions
 ./scripts/install.sh --mode symlink skills guardrails  # Install using relative symlinks
 
@@ -131,7 +129,7 @@ cd ~/.c4-skills
 │   └── <command-name>/
 │       └── COMMAND.md
 ├── agents/
-│   ├── code-reviewer/
+│   ├── security-auditor/
 │   │   └── AGENT.md
 │   └── ...
 ├── pi-extensions/
@@ -154,6 +152,8 @@ Sunset extensions are no longer installable and will be removed in the future. T
 |-----------|-----|-------------|
 | [command-creator](./_sunset/skills/command-creator/) | Claude Code merged custom slash commands into the skill system, so new commands should be written as skills | [skill-composer](./skills/skill-composer/) |
 | 🌐 [parallel-agent-workflow](./_sunset/skills/parallel-agent-workflow/) | Claude Code now runs subagents in their own git worktrees (`isolation: "worktree"`) and orchestrates them with Workflows, so a hand-rolled worktree workflow adds little | Claude Code's built-in worktree isolation and Workflows |
+| [code-reviewer](./_sunset/agents/code-reviewer/) | A persona-style reviewer with no change scope, no spec, no requirement to verify findings, and no rule for what happens to a finding, so its reviews mostly produce nitpicks and design suggestions nobody needs | The code review built into your agent runner (Claude Code's `/code-review`, Codex's `codex review`, and the like) |
+| 🌐 [js-code-simplifier](./_sunset/agents/js-code-simplifier/) | An unmodified import of Anthropic's official `code-simplifier` agent that presents one upstream project's code style (prefer the `function` keyword, explicit return types, and so on) as if it were the current project's standards, and tells itself to run proactively without being asked | The simplify command built into your agent runner (Claude Code's `/simplify`), or the upstream [`code-simplifier`](https://github.com/anthropics/claude-plugins-official/tree/main/plugins/code-simplifier) plugin for the original |
 
 ## Contributing
 

@@ -12,8 +12,6 @@
     "skills/seo-article-optimizer",
     "skills/seo-site-audit",
     "skills/skill-composer",
-    "agents/code-reviewer",
-    "agents/js-code-simplifier",
     "agents/prompt-injection-auditor",
     "agents/security-auditor"
   ],

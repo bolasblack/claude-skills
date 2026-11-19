@@ -49,7 +49,7 @@ Without `--project`, installation targets detected tools under the home director
 ./scripts/install.sh skills __ALL           # Install all skills including private
 ./scripts/install.sh skills guardrails      # Install specific skill
 ./scripts/install.sh commands ALL           # Install all public commands
-./scripts/install.sh agents code-reviewer   # Install specific agent
+./scripts/install.sh agents security-auditor  # Install specific agent
 ./scripts/install.sh pi-extensions ALL      # Install all public pi extensions
 ./scripts/install.sh --mode symlink skills guardrails  # Install using relative symlinks
 ./scripts/install.sh --tools claude,pi skills ALL  # Install to explicit tools

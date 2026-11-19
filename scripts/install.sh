@@ -64,7 +64,7 @@ usage() {
     echo "  $0 skills guardrails            # Install specific skill"
     echo "  $0 skills skill-1 skill-2       # Install multiple skills"
     echo "  $0 commands ALL                 # Install all commands"
-    echo "  $0 agents code-reviewer         # Install specific agent"
+    echo "  $0 agents security-auditor      # Install specific agent"
     echo "  $0 pi-extensions ALL            # Install all pi extensions"
     echo "  $0 pi-extensions permission-guard.ts  # Install specific pi extension"
     echo ""

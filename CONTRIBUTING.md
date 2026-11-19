@@ -80,7 +80,7 @@ Common modifications:
 ### Using Subagents
 
 ```
-Let @agent-code-reviewer, @agent-security-auditor, @agent-prompt-injection-auditor review the code in @<extension-dir>/
+Let @agent-security-auditor and @agent-prompt-injection-auditor review the code in @<extension-dir>/
 ```
 
 ### Prioritize Issues
