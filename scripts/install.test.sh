@@ -379,4 +379,101 @@ for args in "skills retired" "skills ALL" "ALL"; do
 done
 [[ -f "$TEST_ROOT/claude-skills/_sunset/skills/retired/SKILL.md" ]]
 
+echo "Uninstall ALL removes sunset extensions of a type with no public directory"
+mkdir -p "$TEST_ROOT/sunset-only/scripts" "$TEST_ROOT/sunset-only/_sunset/skills/retired" \
+    "$TEST_ROOT/sunset-only-project/.claude/skills/retired"
+cp "$SCRIPT_DIR/install.sh" "$SCRIPT_DIR/uninstall.sh" "$SCRIPT_DIR/common.sh" "$TEST_ROOT/sunset-only/scripts/"
+printf '# Retired\n' > "$TEST_ROOT/sunset-only/_sunset/skills/retired/SKILL.md"
+target="$TEST_ROOT/sunset-only-project/.claude/skills/retired"
+printf '# Installed copy\n' > "$target/SKILL.md"
+printf 'bolasblack/claude-skills\n' > "$target/.managed-by"
+output=$("$TEST_ROOT/sunset-only/scripts/uninstall.sh" --project "$TEST_ROOT/sunset-only-project" \
+    --tools claude ALL)
+[[ ! -e "$target" ]]
+[[ "$output" == *"1 removed, 0 skipped"* ]]
+
+echo "Uninstall ALL removes private extensions of a type with no public directory"
+mkdir -p "$TEST_ROOT/private-only/scripts" "$TEST_ROOT/private-only/private/skills/secret" \
+    "$TEST_ROOT/private-only-project"
+cp "$SCRIPT_DIR/install.sh" "$SCRIPT_DIR/uninstall.sh" "$SCRIPT_DIR/common.sh" "$TEST_ROOT/private-only/scripts/"
+printf '# Secret\n' > "$TEST_ROOT/private-only/private/skills/secret/SKILL.md"
+"$TEST_ROOT/private-only/scripts/install.sh" --project "$TEST_ROOT/private-only-project" \
+    --tools claude skills secret >/dev/null
+target="$TEST_ROOT/private-only-project/.claude/skills/secret"
+[[ -f "$target/.managed-by" ]]
+output=$("$TEST_ROOT/private-only/scripts/uninstall.sh" --project "$TEST_ROOT/private-only-project" \
+    --tools claude ALL)
+[[ ! -e "$target" ]]
+[[ "$output" == *"1 removed, 0 skipped"* ]]
+
+echo "Uninstall removes symlink installs of sunset agents and commands by name and by ALL"
+link_project="$TEST_ROOT/sunset-link-project"
+mkdir -p "$link_project"
+for uninstall_runs in "agents retiring|commands retiring" "agents ALL|commands ALL" "ALL"; do
+    mkdir -p "$TEST_ROOT/claude-skills/agents/retiring" "$TEST_ROOT/claude-skills/commands/retiring" \
+        "$TEST_ROOT/claude-skills/_sunset/agents" "$TEST_ROOT/claude-skills/_sunset/commands"
+    printf '# Retiring\n' > "$TEST_ROOT/claude-skills/agents/retiring/AGENT.md"
+    printf '# Retiring\n' > "$TEST_ROOT/claude-skills/commands/retiring/COMMAND.md"
+    for type in agents commands; do
+        "$TEST_ROOT/claude-skills/scripts/install.sh" --mode symlink --project "$link_project" \
+            --tools claude "$type" retiring >/dev/null
+        "$TEST_ROOT/claude-skills/scripts/install.sh" --mode copy --project "$link_project" \
+            --tools opencode "$type" retiring >/dev/null
+        mv "$TEST_ROOT/claude-skills/$type/retiring" "$TEST_ROOT/claude-skills/_sunset/$type/retiring"
+    done
+    [[ -L "$link_project/.claude/agents/retiring.md" && ! -e "$link_project/.claude/agents/retiring.md" ]]
+    output=""
+    IFS='|' read -r -a runs <<< "$uninstall_runs"
+    for run in "${runs[@]}"; do
+        # shellcheck disable=SC2086
+        output+=$("$TEST_ROOT/claude-skills/scripts/uninstall.sh" --project "$link_project" \
+            --tools claude,opencode $run)
+    done
+    [[ "$output" != *"Skipped"* ]]
+    for path in .claude/agents/retiring.md .claude/commands/retiring.md \
+        .opencode/agent/retiring.md .opencode/command/retiring.md; do
+        [[ ! -e "$link_project/$path" && ! -L "$link_project/$path" ]]
+    done
+    rm -rf "$TEST_ROOT/claude-skills/_sunset/agents/retiring" "$TEST_ROOT/claude-skills/_sunset/commands/retiring"
+done
+
+echo "Uninstall keeps foreign symlinks that share a sunset extension's name"
+foreign_project="$TEST_ROOT/foreign-link-project"
+mkdir -p "$foreign_project/.claude/agents" "$foreign_project/.claude/commands" \
+    "$TEST_ROOT/claude-skills/_sunset/agents/retiring" "$TEST_ROOT/claude-skills/_sunset/commands/retiring"
+printf '# Retiring\n' > "$TEST_ROOT/claude-skills/_sunset/agents/retiring/AGENT.md"
+printf '# Retiring\n' > "$TEST_ROOT/claude-skills/_sunset/commands/retiring/COMMAND.md"
+# A sibling repository whose path starts with this repository's path.
+ln -s ../../../claude-skills-fork/agents/retiring/AGENT.md "$foreign_project/.claude/agents/retiring.md"
+# An absolute path that only passes through this repository's path textually.
+ln -s "$TEST_ROOT/claude-skills/../elsewhere/COMMAND.md" "$foreign_project/.claude/commands/retiring.md"
+for uninstall_runs in "agents retiring|commands retiring" "agents ALL|commands ALL" "ALL"; do
+    output=""
+    IFS='|' read -r -a runs <<< "$uninstall_runs"
+    for run in "${runs[@]}"; do
+        # shellcheck disable=SC2086
+        output+=$("$TEST_ROOT/claude-skills/scripts/uninstall.sh" --project "$foreign_project" \
+            --tools claude $run)
+    done
+    [[ "$output" == *"Skipped (not managed by us)"* ]]
+    [[ -L "$foreign_project/.claude/agents/retiring.md" && -L "$foreign_project/.claude/commands/retiring.md" ]]
+done
+rm -rf "$TEST_ROOT/claude-skills/_sunset/agents/retiring" "$TEST_ROOT/claude-skills/_sunset/commands/retiring"
+
+echo "Uninstall ALL removes symlink installs of a sunset skill with no public skills directory"
+mkdir -p "$TEST_ROOT/skill-link-repo/scripts" "$TEST_ROOT/skill-link-repo/skills/retiring" \
+    "$TEST_ROOT/skill-link-repo/_sunset/skills" "$TEST_ROOT/skill-link-project"
+cp "$SCRIPT_DIR/install.sh" "$SCRIPT_DIR/uninstall.sh" "$SCRIPT_DIR/common.sh" "$TEST_ROOT/skill-link-repo/scripts/"
+printf '# Retiring\n' > "$TEST_ROOT/skill-link-repo/skills/retiring/SKILL.md"
+"$TEST_ROOT/skill-link-repo/scripts/install.sh" --mode symlink --project "$TEST_ROOT/skill-link-project" \
+    --tools claude skills retiring >/dev/null
+mv "$TEST_ROOT/skill-link-repo/skills/retiring" "$TEST_ROOT/skill-link-repo/_sunset/skills/retiring"
+rmdir "$TEST_ROOT/skill-link-repo/skills"
+target="$TEST_ROOT/skill-link-project/.claude/skills/retiring"
+[[ -L "$target" && ! -e "$target" ]]
+output=$("$TEST_ROOT/skill-link-repo/scripts/uninstall.sh" --project "$TEST_ROOT/skill-link-project" \
+    --tools claude ALL)
+[[ ! -e "$target" && ! -L "$target" ]]
+[[ "$output" == *"1 removed, 0 skipped"* ]]
+
 echo "install tests passed"

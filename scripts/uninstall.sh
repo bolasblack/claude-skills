@@ -191,9 +191,7 @@ if [[ $# -eq 0 ]]; then
 elif [[ $# -eq 1 ]]; then
     if [[ "$1" == "ALL" ]]; then
         for type in skills commands agents pi-extensions; do
-            if [[ -d "$PROJECT_DIR/$type" ]]; then
-                uninstall_all_of_type "$type"
-            fi
+            uninstall_all_of_type "$type"
         done
     else
         usage

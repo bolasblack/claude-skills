@@ -203,6 +203,21 @@ is_managed_by_file() {
     return 1
 }
 
+# Collapse "." and ".." in an absolute path textually, without touching the filesystem
+normalize_path() {
+    local part parts=() result=()
+    IFS='/' read -r -a parts <<< "$1"
+    for part in "${parts[@]}"; do
+        case "$part" in
+            ""|.) ;;
+            ..) [[ ${#result[@]} -gt 0 ]] && unset 'result[${#result[@]}-1]' ;;
+            *) result+=("$part") ;;
+        esac
+    done
+    local IFS='/'
+    printf '/%s\n' "${result[*]}"
+}
+
 # Check if a symlink points to our project directory
 # Requires PROJECT_DIR to be set by the calling script
 is_our_symlink() {
@@ -212,12 +227,15 @@ is_our_symlink() {
     fi
     local link_target
     link_target=$(readlink "$target_path" 2>/dev/null || echo "")
+    # Judge the link by its text, not by its target: a sunset extension leaves the
+    # link dangling, but the text still names a path inside this repository.
+    # install.sh writes relative links against the physical link directory.
     if [[ "$link_target" != /* ]]; then
-        local link_dir link_parent
-        link_dir="$(dirname "$target_path")/$(dirname "$link_target")"
-        link_parent=$(cd "$link_dir" && pwd) || return 1
-        link_target="$link_parent/$(basename "$link_target")"
+        local link_dir
+        link_dir=$(cd "$(dirname "$target_path")" && pwd -P) || return 1
+        link_target="$link_dir/$link_target"
     fi
+    link_target=$(normalize_path "$link_target")
     if [[ "$link_target" == "$PROJECT_DIR" || "$link_target" == "$PROJECT_DIR/"* ]]; then
         return 0
     fi
