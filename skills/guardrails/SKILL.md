@@ -73,7 +73,3 @@ Before finishing guardrail source work, confirm:
 - Enforcement metadata matches the real enforcement model.
 - `validate` passes.
 - `review-metadata` was run when GRL files changed.
-
-## Release history
-
-See [CHANGELOG.md](CHANGELOG.md) for version history. `VERSION` is the machine-readable version owner.

@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## 2026-09-07
 
 ### Add focused visual explanations
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## 2026-09-07
 
 ### Clarify the self-contained interview workflow
 

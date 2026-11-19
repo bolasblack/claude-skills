@@ -150,7 +150,3 @@ Add tags to `.agents/config.json` before using them:
 ```
 
 See [references/config.md](references/config.md) for config details.
-
-## Release history
-
-See [CHANGELOG.md](CHANGELOG.md) for version history. `VERSION` is the machine-readable version owner.
