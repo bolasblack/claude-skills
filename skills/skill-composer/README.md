@@ -20,10 +20,10 @@ Use Skill Composer when a skill must remain maintainable across agent harnesses,
 ## Features
 
 - A 15,000-byte `SKILL.md` cap with standing rules first, references read in full, and cross-skill pointers that invoke by name, so a skill survives hosts that keep only its start after context compaction
-- Terse `SKILL.md` requirements: what a script can check is left to the package check, and detailed reasons sit in a reference or `SPEC.md` behind a link
+- Terse `SKILL.md` requirements: what a script can check is left to the package check, a rule's reason is written down when it tells the reader something, not when it is obvious or simply the author's choice, beside the rule only when a named case needs it and otherwise in a reference behind a why link
 - On-demand primary-source research for target-specific harness claims, with a portable SOP and optional provenance-bearing fetcher
-- Environment-native automation that scripts repeatable mechanics with public-seam TDD and context-appropriate runtimes and dependencies
-- Exceptional `SPEC.md` convention for stable maintainer-only requirements, with Skill Composer itself as a qualifying case
+- Environment-native automation that scripts mechanical work with public-seam TDD, in the environment's language and its standard library unless the skill's author allows a dependency
+- Exceptional `SPEC.md` convention for a skill's core pillars, the principles its author wants the skill for, with a method for choosing them, an invented example of its shape, and Skill Composer itself as a qualifying case
 - Explicit authority over harness-injected authoring helpers such as `skill-creator`
 - Portable-core plus harness-enhancement architecture for cross-agent skills
 - Explicit create, update, review, and package/release workflows
@@ -42,14 +42,15 @@ Use Skill Composer when a skill must remain maintainable across agent harnesses,
 
 - `SKILL.md` - Main skill definition, standing rules, workflow router, and create/update workflow
 - [references/review.md](references/review.md) and [references/release.md](references/release.md) - Review and package/release workflows, read in full when their branch is selected
-- `SPEC.md` - Skill Composer's rare maintainer-only contract; generated skills omit it unless they pass the admission test
+- `SPEC.md` - Skill Composer's core pillars; most skills need none, and one is added only when a skill's role is complex and it passes the admission test in `references/spec.md`
 - [HARNESS-RESEARCH.md](HARNESS-RESEARCH.md) - On-demand primary-source research SOP and portable fallback for target-specific claims
-- `references/frontmatter.md`, `package-layout.md`, `portability.md`, `distribution.md`, `workflow-patterns.md`, `authoring-examples.md`, `writing.md`, `changelog.md`, and `troubleshooting.md` - Portable lookup material, one file per concern, each read in full when its `SKILL.md` pointer fires
+- `references/frontmatter.md`, `package-layout.md`, `portability.md`, `distribution.md`, `workflow-patterns.md`, `authoring-examples.md`, `writing.md`, `changelog.md`, `spec.md`, `rule-reasons.md`, and `troubleshooting.md` - Portable lookup material, one file per concern, each read in full when its `SKILL.md` pointer fires
 - [references/evaluation.md](references/evaluation.md) - Conditionally loaded eval-suite contract, target evidence boundaries, and tuning methodology
 - `CHANGELOG.md` - Portable release history for Skill Composer
 - `LICENSE.md` - Package-local copy of the repository's applicable use notice
 - `scripts/fetch-harness-docs.py` - Optional standard-library fetcher for validated, provenance-bearing temporary evidence bundles
-- `references/package-check.md` - How to choose the fix for each package-check finding, read in full when the check reports one
+- `references/bounded-entry-point.md` - Why `SKILL.md` is capped at 15,000 bytes and the other Bounded Entry Point rules exist, with their evidence; reached by why links from `SKILL.md`, `SPEC.md`, and `references/package-check.md`, not read during a run
+- `references/package-check.md` - Each package check's requirement, why it exists, and how to choose the fix, read in full when the check reports a finding; the check's output points there instead of printing reasons
 - `scripts/check-skill.py` - Shared standard-library package check: entry-point byte cap, frontmatter, local links, whole-file pointers, cross-skill links and URLs, nested entry points, reachable references, and the `SPEC.md` pointer
 - `scripts/eval-skill.py` - Shared standard-library eval checker and Claude/Codex/Grok or external-adapter runner
 - `evals/evals.json` and `evals/trigger-eval.json` - Skill Composer's functional and activation regression cases

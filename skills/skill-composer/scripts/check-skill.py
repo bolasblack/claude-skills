@@ -18,10 +18,11 @@ by its path from the linking file or the skill root also links it, and a
 Markdown link to a directory links every file below it.
 
 Prints one block per check that fired, in order of its first finding: a
-"FAIL <check>: <detail>" line per finding, any "INFO <check>: <fact>" lines,
-and one "WHY <check>: <reason>" line. Then one "FIX:" line names the guide
-that says how to choose each fix, and a "RESULT <skill>: <n> findings" line
-ends the run. Blocks are separated by one blank line. A passing run prints only
+"FAIL <check>: <detail>" line per finding and any "INFO <check>: <fact>"
+lines. Then one "FIX:" line names the guide, whose section named after each
+check states its requirement, why it exists, and how to choose the fix; the
+output prints no reason of its own. A "RESULT <skill>: <n> findings" line ends
+the run. Blocks are separated by one blank line. A passing run prints only
 "OK <skill>: 9 checks passed".
 Exit status: 0 when every check passes, 1 on findings, 2 on a usage error.
 """
@@ -44,35 +45,6 @@ LINK_PATTERN = re.compile(r"!?\[[^\]]*\]\(\s*(<[^>]*>|[^)\s]+)(?:\s+\"[^\"]*\")?
 LINK_DEFINITION_PATTERN = re.compile(r"^ {0,3}\[(?!\^)[^\]]+\]:[ \t]*(<[^>]*>|\S+)", re.MULTILINE)
 SCHEME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
 FENCE_PATTERN = re.compile(r"^\s*(`{3,}|~{3,})")
-REASONS = {
-    "entry-point": "hosts discover a skill by the SKILL.md at its root.",
-    "entry-point-size": (
-        "after compaction a host may keep only the start of a skill (Claude Code "
-        "keeps the first 5,000 tokens), so text past the cap can be lost without warning."
-    ),
-    "frontmatter": (
-        "hosts route by name and description, and a host may skip a skill whose "
-        "fields are invalid or whose name differs from its directory."
-    ),
-    "local-links": (
-        "a broken link, or one that leaves the skill, points at nothing once the "
-        "skill is installed on its own."
-    ),
-    "whole-file-pointers": (
-        "a file tool cannot jump to an anchor, so the agent searches, reads one "
-        "fragment, and misses the prerequisites and gates around it."
-    ),
-    "cross-skill-links": (
-        "an agent reading another skill's file tends to take only part of it, and a "
-        "file read is not re-attached after compaction; invoking the skill loads it whole."
-    ),
-    "nested-entry-points": (
-        "discovery can match any file named SKILL.md, so a nested one can be "
-        "published as a separate skill."
-    ),
-    "reachable-references": "a reference that no pointer reaches is never read.",
-    "spec-pointer": "an unlinked SPEC.md is never read by the agent maintaining the skill.",
-}
 GUIDE = Path(__file__).resolve().parent.parent / "references" / "package-check.md"
 HEADING_PATTERN = re.compile(r"^#{1,6}\s+\S")
 INLINE_CODE_PATTERN = re.compile(r"(`+).*?\1")
@@ -380,12 +352,11 @@ def main(argv=None):
                 print(f"FAIL {check_name}: {detail}")
         for fact in info.get(check_name, ()):
             print(f"INFO {check_name}: {fact}")
-        print(f"WHY {check_name}: {REASONS[check_name]}")
         print()
     if findings:
         print(
-            f"FIX: read {GUIDE} in full before changing anything; "
-            "it says how to choose the fix for each check."
+            f"FIX: read {GUIDE} in full before changing anything; the section named after each "
+            "check states its requirement, why it exists, and how to choose the fix."
         )
         print()
         noun = "finding" if len(findings) == 1 else "findings"

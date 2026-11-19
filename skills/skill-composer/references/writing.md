@@ -1,6 +1,6 @@
 # Writing Instructions
 
-Read this file in full before writing instructions in Step 5 when the `writing-for-agents` skill is unavailable; that skill replaces it when available.
+Read this file in full before writing instructions in Step 5 when the `writing-for-agents` skill is unavailable; that skill replaces it when available. These rules stay a short core, not a copy of that skill.
 
 - Put standing rules before the workflow, must-follow gates first; the agent acts on what it reads first.
 - End every step on a completion criterion the agent can check, and make it demand the whole job: "every changed file is accounted for", not "produce a list". A partial criterion passes a partial job.

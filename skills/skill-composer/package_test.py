@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Package-contract tests for Skill Composer."""
 
+import ast
 import json
 from pathlib import Path
 import re
@@ -66,39 +67,46 @@ class SkillComposerPackageTest(unittest.TestCase):
             step7,
         )
         guide = " ".join(reference("package-check.md").split())
-        self.assertLessEqual(len(reference("package-check.md").encode("utf-8")), 3000)
         self.assertIn("Read this file in full when the package check reports a finding", guide)
         self.assertIn("you choose the fix, not whether to comply", guide)
-        for check_name in (
-            "whole-file-pointers",
-            "entry-point-size",
-            "reachable-references",
-            "cross-skill-links",
-            "local-links",
+        self.assertIn("states its requirement and why it exists", guide)
+        sections = {
+            part.split("\n", 1)[0]: " ".join(part.split())
+            for part in reference("package-check.md").split("\n## ")[1:]
+        }
+        # The reason each check used to print now lives in its own section.
+        for check_name, reason in (
+            ("entry-point", "discover a skill by the `SKILL.md` at its root"),
+            ("entry-point-size", "([why](bounded-entry-point.md))"),
+            ("frontmatter", "route by `name` and `description`"),
+            ("local-links", "installed on its own"),
+            ("whole-file-pointers", "cannot jump to an anchor"),
+            ("cross-skill-links", "not re-attached after compaction"),
+            ("nested-entry-points", "published as a separate skill"),
+            ("reachable-references", "no pointer reaches is never read"),
+            ("spec-pointer", "never read by the agent maintaining the skill"),
         ):
-            self.assertIn(f"## {check_name}", reference("package-check.md"))
+            self.assertIn(check_name, sections)
+            self.assertIn(reason, sections[check_name], check_name)
         self.assertIn("Move it into `SKILL.md`", guide)
         self.assertIn("references/package-check.md", PACKAGE.joinpath("README.md").read_text(encoding="utf-8"))
         self.assertIn("the package check, package and target schema", step7)
         self.assertIn("scripts/check-skill.py <target-skill-dir>", " ".join(reference("review.md").split()))
         self.assertIn("Run the package check from [Step 7]", " ".join(reference("release.md").split()))
         spec = " ".join(PACKAGE.joinpath("SPEC.md").read_text(encoding="utf-8").split())
-        self.assertIn("## Package Check Design", spec)
-        design = spec.split("## Package Check Design", 1)[1].split(" ## ", 1)[0]
+        mechanical = spec.split("## Mechanical Work Is a Script", 1)[1].split(" ## ", 1)[0]
+        self.assertIn("`scripts/check-skill.py`, run on every skill it creates, updates, reviews, or releases", mechanical)
+        self.assertNotIn("one reason per finding kind", spec)
+        self.assertIn("you choose the fix, not whether to comply", guide)
+        layout = " ".join(reference("package-layout.md").split())
         for rule in (
-            "satisfies the Script Requirements in "
-            "[references/package-layout.md](references/package-layout.md)",
-            "A finding fails hard",
-            "never copied into the skills it checks",
+            "One copy of the package check lives in Skill Composer and is never copied into a skill it checks",
             "A false positive is a bug",
-            "Line prefixes and exit codes are stable",
-            "Standard library only",
-            "seen failing first",
-            "**Why:**",
+            "Prefixes and exit codes stay stable, so the output can be filtered and scripted",
+            "A script uses only its runtime's standard library",
+            "preserve its observed failure",
         ):
-            self.assertIn(rule, design)
-        for general_rule in ("can decide exactly", "list fixes inline", "prints it"):
-            self.assertNotIn(general_rule, design.split("**Why:**", 1)[0])
+            self.assertIn(rule, layout)
 
     def test_references_are_whole_files_reached_from_the_entry_point(self):
         self.assertFalse(PACKAGE.joinpath("REFERENCE.md").exists())
@@ -114,22 +122,22 @@ class SkillComposerPackageTest(unittest.TestCase):
         bounded = leading.split("### Bounded Entry Point", 1)[1].split("### ", 1)[0]
 
         for phrase in (
-            "stays within **15,000 bytes** ([why](SPEC.md))",
+            "stays within **15,000 bytes** ([why](references/bounded-entry-point.md))",
             "every standing rule (one that applies across a whole run)",
             "must-follow gates first",
             "Point at whole reference files",
             "read the file in full; a file tool cannot jump to an anchor",
             "invoke it by name",
-            "([why](SPEC.md))",
             "Script what a script can check",
-            "at most its core reason",
             "Within the cap, every passage still earns its place.",
         ):
             self.assertIn(phrase, bounded)
         self.assertNotIn("Split a reference", bounded)
-        for match in re.finditer(r"\]\((references/[^)]+)\)", skill):
+        for match in re.finditer(r"\[([^\]]*)\]\((references/[^)]+)\)", skill):
+            if match.group(1) == "why":
+                continue
             clause = re.split(r"[.;]\s", skill[match.end():], maxsplit=1)[0]
-            self.assertIn("in full", clause, match.group(1))
+            self.assertIn("in full", clause, match.group(2))
         portability = " ".join(
             skill.split("### Portability", 1)[1].split("**Harness research:**", 1)[0].split()
         )
@@ -139,19 +147,22 @@ class SkillComposerPackageTest(unittest.TestCase):
             portability,
         )
 
-        self.assertIn("## Bounded Entry Point", spec)
+        self.assertIn("## Efficient Use of the Agent's Context", spec)
+        self.assertIn("## The Agent Acts on the Complete Original Text", spec)
+        explanation = " ".join(reference("bounded-entry-point.md").split())
         for evidence in (
             "https://agentskills.io/specification",
             "Instructions (< 5000 tokens recommended)",
             "https://code.claude.com/docs/en/skills.md#skill-content-lifecycle",
             "keeping the first 5,000 tokens of each",
             "combined budget of 25,000 tokens",
+            "The cap is in bytes because no local tokenizer is available",
+            "Text that is mostly CJK may use more tokens per byte",
             "2026-11-17",
-            "What a script can check is scripted",
             "A file tool cannot jump to a Markdown anchor",
-            "2026-11-18",
+            "about ten real violations",
         ):
-            self.assertIn(evidence, spec)
+            self.assertIn(evidence, explanation)
         self.assertNotIn("Reasonable size is a behavioral property", spec)
         layout = " ".join(reference("package-layout.md").split())
         self.assertIn("[package-check.md](package-check.md) in full", layout)
@@ -159,9 +170,67 @@ class SkillComposerPackageTest(unittest.TestCase):
         for rule in (
             "checks only what it can decide exactly",
             "does not list fixes inline",
-            "the output prints it",
+            "A script's output is written for an agent to read and act on",
+            "one fact per line behind a stable prefix",
+            "the facts the next decision needs",
+            "exit codes that separate pass, findings, and a usage error",
+            "run Skill Composer's own `scripts/check-skill.py`",
+            "model a new script on it rather than copying it",
+            "points to the file in the skill that holds the requirement",
+            "one pointer for the whole run is enough",
+            "because a wording check rewards the phrase, not the behavior",
+            "carries no reason of its own",
+            "The pointed-to text exists",
         ):
             self.assertIn(rule, layout)
+        self.assertNotIn("one core reason per kind of finding", layout)
+
+    def test_entry_point_explanation_lives_once_behind_why_links(self):
+        skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
+        spec = PACKAGE.joinpath("SPEC.md").read_text(encoding="utf-8")
+        guide = reference("package-check.md")
+        readme = PACKAGE.joinpath("README.md").read_text(encoding="utf-8")
+        link = "([why](references/bounded-entry-point.md))"
+
+        self.assertIn(f"stays within **15,000 bytes** {link}", skill)
+        why = spec.split("## Efficient Use of the Agent's Context", 1)[1].split("\n## ", 1)[0]
+        why = " ".join(why.split("**Why:**", 1)[1].split())
+        self.assertTrue(why.endswith(f"{link}."), why)
+        size = guide.split("## entry-point-size", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("([why](bounded-entry-point.md))", size)
+        for repeated in ("5,000 tokens", "bytes per token", "agentskills.io"):
+            self.assertNotIn(repeated, size)
+            self.assertNotIn(repeated, why)
+        self.assertIn("`references/bounded-entry-point.md`", readme)
+
+    def test_references_hold_three_kinds_and_only_explanations_skip_a_read_condition(self):
+        skill = " ".join(PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8").split())
+        bounded = skill.split("### Bounded Entry Point", 1)[1].split("### ", 1)[0]
+        for rule in (
+            "because a host may not restore a reference read earlier once the context is compacted",
+            "A reference holds one branch's workflow, lookup material, or the explanation of rules; "
+            "a run does not read an explanation, and only why links reach it.",
+            "each workflow or lookup file with its read condition (a why link needs none)",
+        ):
+            self.assertIn(rule, bounded)
+        self.assertIn("A run does not need it", reference("bounded-entry-point.md"))
+
+    def test_reason_provenance_rule_names_its_boundary(self):
+        reasons = " ".join(reference("rule-reasons.md").split())
+        self.assertIn(
+            "This governs `SKILL.md` and its references only: a `SPEC.md` Why may quote "
+            "the author, and a changelog records history by design.",
+            reasons,
+        )
+        self.assertIn("it may quote the author", " ".join(reference("spec.md").split()))
+
+    def test_package_check_docstring_names_its_current_line_prefixes(self):
+        script = PACKAGE.joinpath("scripts", "check-skill.py").read_text(encoding="utf-8")
+        printed = set(re.findall(r"print\(\s*f?[\"']([A-Z]+:?)[ \"']", script))
+        docstring = ast.get_docstring(ast.parse(script))
+        self.assertEqual({"FAIL", "INFO", "FIX:", "RESULT", "OK"}, printed)
+        for prefix in printed:
+            self.assertIn(f'"{prefix}', docstring, prefix)
 
     def test_cross_skill_pointers_require_invocation_not_file_reads(self):
         skill = " ".join(PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8").split())
@@ -174,12 +243,12 @@ class SkillComposerPackageTest(unittest.TestCase):
             "the Skill tool",
             "**Reading its `SKILL.md` with a file tool is not invocation**",
             "tends to take only part of it and miss gates written elsewhere "
-            "([why](SPEC.md))",
+            "([why](references/bounded-entry-point.md))",
         ):
             self.assertIn(phrase, bounded)
         self.assertIn(
             "records only Skill tool and slash-command invocations for re-attachment",
-            spec,
+            " ".join(reference("bounded-entry-point.md").split()),
         )
         self.assertIn(
             "invoke by name through the host's skill mechanism, never by file read",
@@ -196,6 +265,10 @@ class SkillComposerPackageTest(unittest.TestCase):
         self.assertIn("environment-native automation", spec.lower())
         self.assertIn("[HARNESS-RESEARCH.md](HARNESS-RESEARCH.md)", skill)
         self.assertIn("[HARNESS-RESEARCH.md](HARNESS-RESEARCH.md)", readme)
+        self.assertIn(
+            "harnesses change often, so a harness fact written into a skill goes stale quickly",
+            skill,
+        )
         self.assertTrue(research.is_file())
         self.assertIn(
             "[scripts/fetch-harness-docs.py](scripts/fetch-harness-docs.py)",
@@ -225,8 +298,179 @@ class SkillComposerPackageTest(unittest.TestCase):
 
         self.assertGreater(len(sections), 0)
         for heading, body in sections:
-            self.assertIn("**Why:**", body, heading)
+            self.assertLessEqual(body.count("**Why:**"), 1, heading)
+        self.assertNotRegex(spec, r"\d{4}-\d{2}-\d{2}")
         self.assertNotIn("### Skill Composer Admission Ledger", lookup)
+
+    def test_spec_guidance_has_one_owner_with_an_extraction_method_and_invented_shape(self):
+        skill = " ".join(PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8").split())
+        step2 = skill.split("### Step 2:", 1)[1].split("### Step 3:", 1)[0]
+        raw = reference("spec.md")
+        guide = " ".join(raw.split())
+        layout = " ".join(reference("package-layout.md").split())
+        review = " ".join(reference("review.md").split())
+
+        self.assertIn("read [references/spec.md](references/spec.md) in full", step2)
+        self.assertIn("Read this file in full", guide)
+        self.assertIn("Add `SPEC.md` only when every condition holds", guide)
+        self.assertNotIn("Add `SPEC.md` only when every condition holds", layout)
+        self.assertNotIn("## Exceptional Maintainer Specifications", layout)
+        for rule in (
+            "core pillars",
+            "not frozen",
+            "never silently by an agent",
+            "corrections made more than once in the same direction",
+            "adopted from elsewhere",
+            "rewritten from scratch",
+            "not the mechanism",
+            "locally correct",
+            "`SKILL.md` keeps the rules that apply it",
+            "with what it rests on",
+            "Only what the author keeps enters",
+            "Expect most candidates to be cut",
+            "validity boundary",
+            "do not invent one",
+            "has no Why yet",
+        ):
+            self.assertIn(rule, guide)
+        for narrow in (
+            "is not a candidate",
+            "never write a reason you inferred",
+            "ordinary skill execution does not need it",
+            "does not qualify",
+        ):
+            self.assertNotIn(narrow, guide)
+        self.assertIn("verify that the author adopted every entry", review)
+        admission = guide.split("## Admission Test", 1)[1].split("## Extracting Entries", 1)[0]
+        for rule in (
+            "Most skills have none",
+            "role is complex",
+            "a `SPEC.md` would repeat it",
+            "no longer visible from its rules",
+            "the author's judgment",
+            "Size and importance do not make a role complex",
+        ):
+            self.assertIn(rule, guide if rule == "Most skills have none" else admission)
+        self.assertNotIn("Skill importance, size, or complexity does not satisfy the test", guide)
+        self.assertNotIn("one screen", guide)
+        self.assertIn("A `SPEC.md` is not a summary assembled from the skill's rules", guide)
+        self.assertIn("several existing rules read as applications of the candidate", guide)
+        self.assertIn("marked as today's application", guide)
+        self.assertIn("A `SPEC.md` holds the core of the core, so its entries are few.", guide)
+        self.assertIn("Repeated corrections are a good test of what belongs", guide)
+        self.assertIn("A draft with numbered rules, source labels, or transcript line numbers is a rule ledger", guide)
+        for elsewhere in (
+            "reasons for runtime rules",
+            "rejected alternatives",
+            "open questions",
+            "which file owns what",
+            "acceptance checklists",
+            "where a rule came from",
+        ):
+            self.assertIn(elsewhere, guide.lower())
+        self.assertNotIn("git-hook", raw)
+        example = re.search(r"^````markdown\n(.*?)^````$", raw, re.MULTILINE | re.DOTALL)
+        self.assertIsNotNone(example)
+        sections = re.findall(
+            r"^## [^\n]+\n(.*?)(?=^## |\Z)", example.group(1), re.MULTILINE | re.DOTALL
+        )
+        self.assertGreaterEqual(len(sections), 2)
+        for body in sections:
+            self.assertEqual(1, body.count("**Why:**"), body)
+            self.assertTrue(body.rstrip().splitlines()[-1].startswith("**Why:**"), body)
+        self.assertIn("[spec.md](spec.md) in full", review)
+
+    def test_spec_md_is_for_skills_whose_role_is_complex(self):
+        spec = " ".join(PACKAGE.joinpath("SPEC.md").read_text(encoding="utf-8").split())
+        readme = " ".join(PACKAGE.joinpath("README.md").read_text(encoding="utf-8").split())
+        context = spec.split("## Maintenance Knowledge Travels with the Package", 1)[1]
+        self.assertNotIn("The file exists only when explicit, stable requirements", spec)
+        self.assertNotIn("ordinary execution does not need them", spec)
+        for rule in ("`SPEC.md` is rare", "core pillars"):
+            self.assertIn(rule, context.split("**Why:**", 1)[0])
+        self.assertIn("role is complex", " ".join(reference("spec.md").split()))
+        self.assertNotIn("rare maintainer-only contract", readme)
+        self.assertIn("role is complex", readme)
+
+    def test_a_reason_stays_beside_its_rule_only_for_a_named_case(self):
+        skill = " ".join(PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8").split())
+        spec = " ".join(PACKAGE.joinpath("SPEC.md").read_text(encoding="utf-8").split())
+        readme = " ".join(PACKAGE.joinpath("README.md").read_text(encoding="utf-8").split())
+        guide = " ".join(reference("spec.md").split())
+        bounded = skill.split("### Bounded Entry Point", 1)[1].split("### ", 1)[0]
+
+        reasons = " ".join(reference("rule-reasons.md").split())
+        # SKILL.md keeps the three requirements; the rest lives in the reference.
+        for rule in (
+            "Write a rule's or principle's reason down when it tells the reader something, "
+            "not when it is plainly obvious or simply the author's choice.",
+            "only when you can name a case in which an agent following the rule "
+            "without it would act wrongly, written as the clause that settles that case.",
+            "Every other reason goes in a file under `references/` behind a why link",
+            "never into `SPEC.md`",
+            "Before writing, moving, or removing a rule's reason, read "
+            "[references/rule-reasons.md](references/rule-reasons.md) in full.",
+        ):
+            self.assertIn(rule, bounded)
+        for rule in (
+            "Read this file in full before writing, moving, or removing the reason",
+            "Who stated it, when, and where are not part of it",
+            "ask rather than write a guess",
+            "\"It is just my choice\" is a complete answer",
+            "Length does not decide",
+            "keeps that clause beside the rule and links the rest",
+            "is for someone questioning or changing the rule. A run does not follow it, "
+            "so it needs no read condition",
+            "`SPEC.md` holds core pillars, not rule reasons",
+            "A pillar's Why stays in its entry, and a rule applying that pillar may link it",
+            "lives once in a reference file that both link",
+            "keeps its reason beside it, because the reason settles which fix the author chooses",
+            "The byte cap links its reason, because an agent obeys the number either way",
+            "It never creates or grows a `SPEC.md`",
+        ):
+            self.assertIn(rule, reasons)
+        self.assertNotIn("at most its core reason", bounded)
+        self.assertNotIn("reason for every rule and principle unless", bounded)
+        self.assertNotIn("in a reference or `SPEC.md` behind a link", bounded)
+        self.assertNotIn("the reason protects one of its entries", bounded)
+        self.assertNotIn("stays out of the runtime text", bounded)
+        self.assertNotIn("at most the core reason", spec)
+        self.assertIn("a named case", readme)
+        self.assertIn("written down when it tells the reader something", readme)
+        self.assertNotIn("detailed reasons sit in a reference or `SPEC.md`", readme)
+        self.assertIn(
+            "Reasons for runtime rules: they sit beside the rule or in a reference behind a "
+            "why link; before placing one, read [rule-reasons.md](rule-reasons.md) in full.",
+            guide,
+        )
+        for rule in (
+            "A pillar's own Why stays in its entry",
+            "written once in a reference file that both link",
+            "An entry has a Why when the author's reason tells the reader something",
+        ):
+            self.assertIn(rule, guide)
+        self.assertNotIn("Every entry should have a Why", guide)
+
+    def test_spec_automation_puts_scripts_over_prose_first(self):
+        spec = PACKAGE.joinpath("SPEC.md").read_text(encoding="utf-8")
+        skill = " ".join(PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8").split())
+        section = spec.split("## Mechanical Work Is a Script\n", 1)[1].split("\n## ", 1)[0]
+        lead = " ".join(section.strip().split("\n\n", 1)[0].split())
+        flat = " ".join(section.split())
+
+        self.assertIn("is a tested script, not prose", lead)
+        self.assertIn("needs judgment", lead)
+        self.assertIn("standard library unless the skill's author explicitly allows a dependency", lead)
+        self.assertNotIn("when that reduces agent reinterpretation", flat)
+        self.assertNotIn("Python and zero dependencies are examples", flat)
+        self.assertEqual(1, flat.count("**Why:**"))
+        automation = skill.split("### Environment-Native Automation", 1)[1].split("## ", 1)[0]
+        self.assertIn("instead of prose that tells the agent to do them", automation)
+        self.assertIn(
+            "a single existing command is already a script, so name it in the instructions "
+            "and do not wrap it in a script file",
+            automation,
+        )
 
     def test_every_instruction_step_has_a_local_completion_criterion(self):
         workflow = "\n".join(
@@ -368,6 +612,7 @@ class SkillComposerPackageTest(unittest.TestCase):
         self.assertIn("A finding is the complete review record", review)
         self.assertIn("only findings and evidence", review)
         self.assertIn("does not authorize applying the fix", review)
+        self.assertIn("a finding is neither actionable nor closable", review)
 
     def test_authoring_another_skill_uses_only_the_shared_eval_runner_public_seam(self):
         skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
@@ -447,6 +692,9 @@ class SkillComposerPackageTest(unittest.TestCase):
 
         self.assertIn("do not search, grep, or open the Evaluation Reference", contract)
         self.assertIn("do not inspect or invoke `eval-skill.py`", contract)
+        self.assertIn("it validates eval suites only, not packages", contract)
+        intro = " ".join(skill.split("## Authoring Authority", 1)[0].split())
+        self.assertIn("none of them validates your target", intro)
 
     def test_target_compatibility_claims_require_matching_behavior_evidence(self):
         skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
@@ -815,6 +1063,8 @@ class SkillComposerPackageTest(unittest.TestCase):
             "ask whether to use version mode",
             "when no one can answer, use date mode and report the signal",
             "a sibling package's version is not a signal",
+            "an entry records the net change relative to the last committed or published state",
+            "do not record a draft that never left the working tree",
         ):
             self.assertIn(phrase, step)
 
@@ -848,7 +1098,7 @@ class SkillComposerPackageTest(unittest.TestCase):
         spec = " ".join(
             PACKAGE.joinpath("SPEC.md").read_text(encoding="utf-8").lower().split()
         )
-        self.assertIn("changelogs default to date mode", spec)
+        self.assertIn("dates are the default and versions are opted into", spec)
 
         manifest = json.loads(
             PACKAGE.joinpath("evals", "evals.json").read_text(encoding="utf-8")
@@ -877,7 +1127,8 @@ class SkillComposerPackageTest(unittest.TestCase):
         )
         self.assertNotIn(expected, skill)
         self.assertIn(expected, layout)
-        self.assertIn("add a dependency only when it removes more than it costs", layout)
+        self.assertIn("a script uses only its runtime's standard library", layout)
+        self.assertIn("only when the skill's author explicitly allows it", layout)
         self.assertIn(
             "before adding or changing a script, read [references/package-layout.md]"
             "(references/package-layout.md) in full",
@@ -895,7 +1146,6 @@ class SkillComposerPackageTest(unittest.TestCase):
         spec = " ".join(PACKAGE.joinpath("SPEC.md").read_text(encoding="utf-8").split())
         readme = PACKAGE.joinpath("README.md").read_text(encoding="utf-8")
 
-        self.assertLessEqual(len(writing.encode("utf-8")), 1700)
         self.assertIn("Read this file in full", writing)
         self.assertIn("when the `writing-for-agents` skill is unavailable", writing)
         for principle in (
@@ -908,11 +1158,11 @@ class SkillComposerPackageTest(unittest.TestCase):
             "one term per concept",
         ):
             self.assertIn(principle, writing)
-        self.assertIn("## Bundled Core Rules", spec)
+        self.assertIn("These rules stay a short core, not a copy of that skill.", writing)
         for phrase in (
-            "does not depend on a sibling skill being installed or staying unchanged",
-            "replaces the bundled rules",
-            "short core, not a copy",
+            "does not depend on a host-only feature, a sibling skill, or the source repository",
+            "which a sibling skill replaces only when it is installed",
+            "must not carry Skill Composer's writing quality",
         ):
             self.assertIn(phrase, spec)
         self.assertIn("references/writing.md", readme)

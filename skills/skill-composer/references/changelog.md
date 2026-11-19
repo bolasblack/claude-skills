@@ -1,6 +1,6 @@
 # Portable Changelog Format
 
-Use a skill-local `CHANGELOG.md` when a skill has releases of its own or may be distributed without its source repository. Git history is not a sufficient release record: one commit may modify several skills, and an installed or copied skill may have no Git metadata.
+Use a skill-local `CHANGELOG.md` when a skill has releases of its own or may be distributed without its source repository. Git history is not a sufficient release record: one commit may modify several skills, an installed or copied skill may have no Git metadata, and one platform's version identifier may not travel with the skill.
 
 Keep the changelog outside `SKILL.md` so historical narration does not consume runtime context. Package it with the skill, update it in the same change as the behavior it records, and record only changes that matter to a user, integrator, or downstream maintainer. Omit it for unpublished, single-use skills until there is a real release history to preserve.
 
@@ -21,9 +21,10 @@ Keep the changelog outside `SKILL.md` so historical narration does not consume r
 
 Then record each logical change once under the [Evidence gate](#evidence-gate):
 
-- **Date mode:** put each entry under the date of the change. Fold revisions from one day
-  into that day's net change; later days add their own entries and leave earlier sections
-  as written.
+- **Date mode:** put each entry under the date of the change. An entry records the net
+  change relative to the last committed or published state: fold one day's revisions
+  into that day's net change, and do not record a draft that never left the working
+  tree. Later days add their own entries and leave earlier sections as written.
 - **Version mode:** establish the published baseline defined below. Describe changes
   relative to that baseline: fold revisions made inside one unreleased cycle into the
   resulting contract instead of recording them as separate changes or migrations.

@@ -6,7 +6,7 @@ license: LICENSE.md
 
 # Skill Composer
 
-When modifying, reviewing, testing, or releasing Skill Composer itself, first read [SPEC.md](SPEC.md) in full. Otherwise do not inspect its eval manifests, fixtures, package tests, or eval runner implementation; Step 7 says when to run its scripts' public CLIs, and the target needs no runner copy.
+When modifying, reviewing, testing, or releasing Skill Composer itself, first read [SPEC.md](SPEC.md) in full. Otherwise do not inspect its eval manifests, fixtures, package tests, or eval runner implementation; none of them validates your target. Step 7 says when to run its scripts' public CLIs, and the target needs no runner copy.
 
 ## Authoring Authority
 
@@ -18,11 +18,12 @@ Skill Composer owns skill-authoring policy. Use an injected helper such as `skil
 
 These rules apply to every skill you create, update, or review:
 
-- `SKILL.md` stays within **15,000 bytes** ([why](SPEC.md)).
-- Keep every standing rule (one that applies across a whole run) in `SKILL.md`, must-follow gates first. A reference holds one branch's workflow or lookup material.
-- Point at whole reference files, each with its read condition, and tell the agent to read the file in full; a file tool cannot jump to an anchor, so a section pointer gets a fragment read.
-- Point to another skill by telling the agent to **invoke it by name through the host's skill mechanism** (in Claude Code, the Skill tool). **Reading its `SKILL.md` with a file tool is not invocation**: an agent reading the file tends to take only part of it and miss gates written elsewhere ([why](SPEC.md)).
-- Script what a script can check; state the rest once as a terse requirement with at most its core reason; put detailed explanation in a reference or `SPEC.md` behind a link.
+- `SKILL.md` stays within **15,000 bytes** ([why](references/bounded-entry-point.md)).
+- Keep every standing rule (one that applies across a whole run) in `SKILL.md`, must-follow gates first, because a host may not restore a reference read earlier once the context is compacted. A reference holds one branch's workflow, lookup material, or the explanation of rules; a run does not read an explanation, and only why links reach it.
+- Point at whole reference files, each workflow or lookup file with its read condition (a why link needs none), and tell the agent to read the file in full; a file tool cannot jump to an anchor, so a section pointer gets a fragment read.
+- Point to another skill by telling the agent to **invoke it by name through the host's skill mechanism** (in Claude Code, the Skill tool). **Reading its `SKILL.md` with a file tool is not invocation**: an agent reading the file tends to take only part of it and miss gates written elsewhere ([why](references/bounded-entry-point.md)).
+- Script what a script can check, and state the rest once as a terse requirement.
+- Write a rule's or principle's reason down when it tells the reader something, not when it is plainly obvious or simply the author's choice. Keep a reason beside its rule only when you can name a case in which an agent following the rule without it would act wrongly, written as the clause that settles that case. Every other reason goes in a file under `references/` behind a why link (`([why](…))`), never into `SPEC.md`. Before writing, moving, or removing a rule's reason, read [references/rule-reasons.md](references/rule-reasons.md) in full.
 
 Within the cap, every passage still earns its place.
 
@@ -30,13 +31,13 @@ Within the cap, every passage still earns its place.
 
 Required behavior, the **portable core** (goal, inputs, outputs, decision rules, workflow, failure behavior, completion criteria), must run without host-only features. Give each **harness enhancement** a named host and a tested portable fallback; require a host-only feature only when the description and compatibility contract declare that host.
 
-**Harness research:** before creating, changing, or reviewing a target-specific claim about discovery, schema, invocation, permissions, hooks, installation, packaging, validation, or host enhancements, read [HARNESS-RESEARCH.md](HARNESS-RESEARCH.md) in full. A portable core that names multiple compatible harnesses remains portable-only when it encodes no harness-specific fact; skip research then.
+**Harness research:** before creating, changing, or reviewing a target-specific claim about discovery, schema, invocation, permissions, hooks, installation, packaging, validation, or host enhancements, read [HARNESS-RESEARCH.md](HARNESS-RESEARCH.md) in full; harnesses change often, so a harness fact written into a skill goes stale quickly. A portable core that names multiple compatible harnesses remains portable-only when it encodes no harness-specific fact; skip research then.
 
 Never scan home or user-level skill directories for examples, validators, or target evidence. Use the workspace, a validator command the package or primary documentation names, and primary target documentation. Do not enumerate `PATH`, installation directories, or language package registries to hunt for validators; record a missing validator as `unknown`.
 
 ### Environment-Native Automation
 
-Script repeated, deterministic mechanics with stable inputs and outputs; keep judgment in instructions. Before adding or changing a script, read [references/package-layout.md](references/package-layout.md) in full. Invoke the `tdd` skill by name when available and follow it; otherwise follow the red-green loop in that file.
+Implement deterministic mechanics with stable inputs and outputs as a script instead of prose that tells the agent to do them; a single existing command is already a script, so name it in the instructions and do not wrap it in a script file. Instructions carry only what needs judgment. Before adding or changing a script, read [references/package-layout.md](references/package-layout.md) in full. Invoke the `tdd` skill by name when available and follow it; otherwise follow the red-green loop in that file.
 
 ## Choose the Workflow
 
@@ -67,7 +68,7 @@ Name the target harness, surface, invocation mode, and distribution form. Read [
 
 ### Step 2: Create File Structure
 
-Keep an update's structure unless the change requires otherwise. Before changing layout, read [references/package-layout.md](references/package-layout.md) in full and choose the smallest pattern that fits within the [Bounded Entry Point](#bounded-entry-point). Add `SPEC.md` only when it passes that file's admission test.
+Keep an update's structure unless the change requires otherwise. Before changing layout, read [references/package-layout.md](references/package-layout.md) in full and choose the smallest pattern that fits within the [Bounded Entry Point](#bounded-entry-point). Before adding, changing, or reviewing a `SPEC.md`, read [references/spec.md](references/spec.md) in full; most skills have none.
 
 **Done when:** every file has one purpose and owner, and unrelated user-owned files are preserved.
 
@@ -103,7 +104,7 @@ Packaged evals are opt-in:
 - When the target already contains an eval suite, preserve it and update affected existing cases; add a case only for changed behavior or an uncovered branch.
 - Otherwise do not create eval manifests, fixtures, or runner copies. If a material risk warrants repeatable evals, recommend the smallest useful suite and ask the user before adding it.
 
-In that last branch, do not search, grep, or open the Evaluation Reference, and do not inspect or invoke `eval-skill.py`. Before creating, updating, running, tuning, or maintaining an admitted eval suite, read the [Evaluation Reference](references/evaluation.md) in full.
+In that last branch, do not search, grep, or open the Evaluation Reference, and do not inspect or invoke `eval-skill.py`: it validates eval suites only, not packages, and this target has none. Before creating, updating, running, tuning, or maintaining an admitted eval suite, read the [Evaluation Reference](references/evaluation.md) in full.
 
 Run the **package check** on every target you create or update: `python3 <this skill's directory>/scripts/check-skill.py <target-skill-dir>`. When it reports a finding, read [references/package-check.md](references/package-check.md) in full, then fix every finding and rerun it to `OK`. Without Python, apply the checks its docstring lists by hand, recording any left unchecked as `unknown`.
 

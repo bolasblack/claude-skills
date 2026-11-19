@@ -69,31 +69,14 @@ Maximum organization. Assets for templates, fonts, icons used in output.
 
 Apply [Environment-Native Automation](../SKILL.md#environment-native-automation) before these low-level packaging checks.
 
-- Keep scripts self-contained or document every dependency and supported environment; add a dependency only when it removes more than it costs.
+- A script uses only its runtime's standard library. Add a dependency, or require a runtime the environment does not already provide (such as bun), only when the skill's author explicitly allows it, and document it with the environments the script supports.
 - Include helpful error messages, validate inputs, and handle expected edge cases.
 - Use portable forward-slash paths in instructions and code unless the target is explicitly platform-specific.
 - Add executable permissions and a shebang when the script is meant to run directly; neither is required for every bundled source file.
 - Red-green loop, replaced by the `tdd` skill when available: run the public-seam test and preserve its observed failure before writing the implementation; then make the minimum implementation change and rerun the same test to green. Writing the test and implementation together and calling the first green run red-green evidence does not count.
-- When every claimed environment provides Python and no native runtime is already selected, Python's standard library is a reasonable default for a standalone portable helper; a target-specific skill prefers its environment's runtime. When the claimed environments share no runtime, keep a portable manual path or provide tested environment adapters.
-- A script that checks or validates something checks only what it can decide exactly; a rule that needs judgment, or could be checked only by matching wording, stays in the instructions.
-- Its output carries this run's facts, one core reason per kind of finding, and a pointer to where the fix is explained. It does not list fixes inline, because an agent takes the first one mechanically. When the author's judgment needs a fact the script can compute, the output prints it.
+- The language follows the environment the skill supports. When every claimed environment provides Python and no native runtime is already selected, Python is a reasonable default for a standalone portable helper; a target-specific skill prefers its environment's runtime. When the claimed environments share no runtime, keep a portable manual path or provide tested environment adapters.
+- A script that checks or validates something checks only what it can decide exactly; a rule that needs judgment, or could be checked only by matching wording, stays in the instructions, because a wording check rewards the phrase, not the behavior. A false positive is a bug: run a new or changed check against the real inputs at hand before it ships (for a package check, every real skill in the repositories at hand), and judge each new finding real or false.
+- A script's output is written for an agent to read and act on: one fact per line behind a stable prefix, the facts the next decision needs (such as a target file's size), a final result line, and exit codes that separate pass, findings, and a usage error. Prefixes and exit codes stay stable, so the output can be filtered and scripted. When it reports that something fails a requirement the skill sets, it states this run's facts (what was checked, what was found, and where) and points to the file in the skill that holds the requirement and its explanation; one pointer for the whole run is enough. It carries no reason of its own, not even a short faithful one, because an agent acts on the reason in front of it, skips the explanation, and takes a shortcut that gets the fix wrong. The pointed-to text exists and explains enough for the author to judge the fix. The output does not list fixes inline, because an agent takes the first one mechanically.
+- For a worked example of these output rules, run Skill Composer's own `scripts/check-skill.py` on a skill or read its docstring; model a new script on it rather than copying it. One copy of the package check lives in Skill Composer and is never copied into a skill it checks.
 - Retain public-seam tests with the script and run them on every environment the skill claims to support.
 - When a script is a harness enhancement rather than a declared requirement, provide and test a portable manual fallback for the core behavior.
-
-## Exceptional Maintainer Specifications
-
-The [Agent Skills specification](https://agentskills.io/specification#directory-structure) permits additional package files but assigns no portable meaning to `SPEC.md`. Skill Composer therefore treats it as an exceptional convention, reached through an explicit conditional pointer rather than assumed harness behavior. The default package has no `SPEC.md`.
-
-Add `SPEC.md` only when every condition holds:
-
-1. An explicit user requirement, repository rule, or authoritative product contract supplies at least one current requirement and the reason it must survive.
-2. The requirement is stable across plausible implementation and harness changes.
-3. It constrains modification or review, while ordinary skill execution does not need it.
-4. A future rewrite could appear locally correct while silently violating it, and a separate maintenance contract materially reduces that risk.
-
-Put principles, decision rules, routing, and completion criteria needed during normal execution in `SKILL.md`. Put branch-only lookup material in a referenced file and past changes in `CHANGELOG.md`. Skill importance, size, or complexity does not satisfy the admission test, and the absence of `SPEC.md` is the expected result for most skills.
-
-A qualifying `SPEC.md` stays short and current-state. For every retained requirement, name the invariant, its enduring reason or concrete failure mode, and any validity boundary. Keep workflow steps and release narration in their runtime and history owners. In `SKILL.md`, add a pointer that loads the file before modifying or reviewing that skill itself; packaging the file alone does not make an agent read it.
-
-A skill whose principles define every run, or whose routing rules are the workflow,
-keeps those requirements in `SKILL.md` and does not qualify.

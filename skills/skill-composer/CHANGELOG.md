@@ -2,6 +2,64 @@
 
 This file records Skill Composer changes so the history travels with standalone distributions that do not include the source repository's Git history. Entries since 3.2.1 are dated; the numbered sections below are earlier releases, kept as written.
 
+## 2026-11-19
+
+### Rewrite SPEC.md as six pillars from which the rules derive
+
+- **Changed:** Skill Composer's `SPEC.md` now holds six pillars, each a short invariant with one **Why:**: it depends on nothing the package cannot guarantee; mechanical work is a script; the agent's context is used efficiently; the agent acts on the complete original text; maintenance knowledge travels with the package; and nothing is invented. An entry may name the rules that apply it today, marked as such. The old sections are gone. Their rules already live in `SKILL.md` and the references, except four that move: one copy of the package check, a false positive is a bug, and stable prefixes and exit codes go to the Script Requirements in `references/package-layout.md`; the bundled writing rules staying a short core goes to `references/writing.md`. `references/changelog.md` adds that one platform's version identifier may not travel with a skill. `references/spec.md` now says a `SPEC.md` is not a summary assembled from the skill's rules: the pillars come first and the more specific rules derive from them, and a candidate that several existing rules apply is a good one.
+- **Why:** The user stated that, strictly, the spec is not assembled from other principles: many principles derive from it, and it produces more specific, practicable ones. On efficiency the user corrected a proposed wording: the pillar is to use the agent's context efficiently, and it shows in three of the other pillars. One piece of history lived only in the old `SPEC.md`: an agent fixing a package-check finding misread `SPEC.md` from a partial read, which is part of why findings point to the guide.
+
+### Default every skill's scripts to the standard library
+
+- **Changed:** The Script Requirements in `references/package-layout.md` now say a script uses only its runtime's standard library; a dependency, or a runtime the environment does not already provide, such as bun, is added only when the skill's author explicitly allows it. The language still follows the environment. This replaces "add a dependency only when it removes more than it costs" and `SPEC.md`'s "Portability is not defined by one language or zero dependencies". Skill Composer's own scripts stay standard library only.
+- **Why:** The user finds standard library only right for Skill Composer's own scripts, and holds that other skills' scripts should follow it by default, unless the author explicitly says a script may depend on something, such as bun.
+
+### Point package-check findings to the guide instead of printing a reason
+
+- **Changed:** `scripts/check-skill.py` no longer prints a `WHY <check>: <reason>` line. Each block holds only its `FAIL` and `INFO` lines, and the one `FIX:` line names `references/package-check.md`, where the section named after each check states its requirement, why it exists, and how to choose the fix. The guide now has a section for all nine checks. The Script Requirements in `references/package-layout.md` ask the same of any checking script a skill bundles: state the run's facts and point to the file that holds the requirement and its explanation, with no reason of its own.
+- **Why:** The user stated that a failing script should point to the rule instead of giving a simplified reason: an agent given a shortened reason acts on it, takes a shortcut, and gets the fix wrong. One pointer per run is enough, because the guide's sections are named after the checks; a pointer per check would repeat the path the `FIX:` line already gives.
+- **Migration:** A caller that read `WHY` lines finds the reason in the section of `references/package-check.md` named after the check.
+
+### Define SPEC.md as a skill's core pillars and give a method for choosing them
+
+- **Changed:** `SPEC.md` guidance moves from `references/package-layout.md` into a new `references/spec.md`, which Step 2 and review Step 1 read in full and review Step 3 applies. A `SPEC.md` holds the skill's core pillars, the principles for which its author wants the skill at all, and an entry changes only when the author decides. The file gives a method: collect candidates mainly from how the author shaped the skill, where corrections repeated in the same direction are a good test; keep only properties the author would insist on in a rewrite; and let the author keep or cut each one. An entry's Why comes from the author or a cited source; when none is known, the entry has none yet. An invented example shows the shape, and a list names what is not `SPEC.md` material. "Stays short" becomes "holds the core of the core, so its entries are few", with no size limit.
+- **Why:** Asked to give another skill's rules their reasons, an agent following the old guidance wrote a 26 KB `SPEC.md`: a provenance ledger for about 70 rules, with source labels and transcript line numbers. The old guidance said when a `SPEC.md` may exist, not how to choose its content. Of ten invariants the agent then proposed, the user kept six, so the author picks. The user said fitting on one screen is not a requirement: a `SPEC.md` is the core of the core, so it is naturally small, and a principle corrected many times is a good test of what belongs.
+
+### Admit a SPEC.md by the complexity of the skill's role
+
+- **Changed:** The admission test now asks whether the skill's role is complex: it plays several parts, serves several kinds of situation, or carries many rules and branches, so its rules no longer show its pillars. That is the author's judgment, not a count of files or bytes, and size or importance does not make a role complex. A principle that shapes ordinary runs can now be an entry; its rules stay in `SKILL.md`. The README says the same.
+- **Why:** The user decided that many, perhaps most, skills need no `SPEC.md`, because a simple skill's `SKILL.md` already records nothing but its pillars. The earlier test excluded principles that shape every run, although Skill Composer's own pillars, such as using the agent's context efficiently, are such principles.
+
+### Write a rule's reason down when it tells the reader something
+
+- **Changed:** `SKILL.md` now sets three requirements for every skill. A rule's or principle's reason is written down when it tells the reader something, not when it is plainly obvious or simply the author's choice. A reason stays beside its rule only when a named case shows that an agent following the rule without it would act wrongly, written as the clause that settles that case. Every other reason goes in a reference behind a why link, never into `SPEC.md`. The new `references/rule-reasons.md`, read before writing, moving, or removing a reason, holds the rest: what a reason is, asking the author instead of guessing, what a why link is, and how reasons relate to `SPEC.md`. This replaces "with at most its core reason; put detailed explanation in a reference or `SPEC.md` behind a link". `SKILL.md` also names the third kind of reference, explanation reached only by why links, which needs no read condition.
+- **Why:** With `SPEC.md` named as a home for reasons, an agent asked to give rules their reasons put them all there. The user asked for a test judged by behavior rather than length, and separated the two jobs: `SPEC.md` holds core pillars, and a why explains a rule. Requiring a named case keeps a reason from staying beside its rule just in case.
+
+### Keep the Bounded Entry Point's explanation in one reference
+
+- **Changed:** The evidence behind the Bounded Entry Point moves from `SPEC.md` into a new `references/bounded-entry-point.md`: why the cap is 15,000 bytes, the compaction facts behind standing rules and invocation by name, the scheduled-run evidence behind whole-file pointers, and the reasons for scripted checks and for where reasons go. `SPEC.md`'s Efficient Use of the Agent's Context pillar links it, and the cap and cross-skill rules in `SKILL.md` and the entry-point-size section of `references/package-check.md` link the same file.
+- **Why:** `SPEC.md`, `SKILL.md`, and the package-check guide all needed this explanation, so it lives once in a file all three link.
+
+### Give rules with a named case the clause that settles it
+
+- **Changed:** Six rules gain a short reason. Harness research is required because harnesses change often, so a harness fact written into a skill goes stale quickly. Skill Composer's own eval files and runner are not validators for the target, and in the no-suite branch `eval-skill.py` validates eval suites only, not packages. Standing rules stay in `SKILL.md` because a host may not restore a reference after compaction. A checking script skips wording checks because they reward the phrase, not the behavior. A review finding keeps its fix and criterion because without them it is neither actionable nor closable.
+- **Why:** Each settles a known case: a no-suite update run treated `eval-skill.py check` as a package validator and loaded the Evaluation Reference to learn its CLI; an agent trimming to the cap could move a standing rule into a reference, which Claude Code may not restore after compaction, since it re-reads at most five recent files and returns a large one as a path only; a package check for the phrase "in full" was rejected because it rewarded the phrase; and a read-only review dropped the fix and criterion when asked for "only findings and evidence". For harness research the user gave the reason: harnesses keep changing, so what is written in a skill goes stale easily. The user chose to add reasons only where such a case exists, and gave none to a rule whose reason is plainly obvious.
+
+### Write script output for an agent, and point to the package check as the example
+
+- **Changed:** The Script Requirements in `references/package-layout.md` now say a script's output is written for an agent to read and act on: one fact per line behind a stable prefix, the facts the next decision needs (such as a target file's size), a final result line, and exit codes that separate pass, findings, and a usage error. They name Skill Composer's own `scripts/check-skill.py` as the worked example, to run or read, not to copy.
+- **Why:** The user asked whether this was written down: mechanical work becomes a script, a script is designed for an agent to read, and it gives no simplified failure reason but lets the agent read the skill's rule file itself. The user added that Skill Composer's own script is the reference. The first and third parts were already written; the second and the example were not.
+
+### Lead Environment-Native Automation with scripts over prose
+
+- **Changed:** `SKILL.md` and review Step 3 now lead with the requirement: what can be done mechanically is a script, not prose telling the agent to do it, and prose states only what needs judgment. The "repeated" and "when that reduces agent reinterpretation" qualifiers are gone. A single existing command already counts as a script, so the instructions name it and do not wrap it in a script file.
+- **Why:** The user insists on this requirement, and the earlier text put it after the language and dependency point and qualified it. The single-command boundary keeps the rule from asking for a script file that only wraps one command.
+
+### Record each changelog entry as the net change
+
+- **Changed:** In date mode, `references/changelog.md` now says an entry records the net change relative to the last committed or published state, and a draft that never left the working tree is not recorded.
+- **Why:** This day's first entries recorded drafts that were never committed, such as an output line that was renamed and later removed. The user asked for this to become a rule for writing changelogs.
+
 ## 2026-11-18
 
 ### Publish a release only on the user's explicit request, and keep version metadata in date mode

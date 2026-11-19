@@ -13,6 +13,10 @@ sys.dont_write_bytecode = True
 SCRIPT = Path(__file__).with_name("check-skill.py")
 GUIDE = Path(__file__).resolve().parent.parent / "references" / "package-check.md"
 FRONTMATTER = '---\nname: demo\ndescription: "Use when testing the checker."\n---\n'
+FIX_LINE = (
+    f"FIX: read {GUIDE} in full before changing anything; the section named after each "
+    "check states its requirement, why it exists, and how to choose the fix."
+)
 
 
 def run(skill_dir):
@@ -84,7 +88,7 @@ class CheckSkillTest(unittest.TestCase):
         for line, heading in zip(info, ("## Big", "## Medium", "### Tail")):
             self.assertIn(heading, line)
         self.assertIn("9,0", info[0])
-        self.assertTrue(block[4].startswith("WHY entry-point-size: "), block)
+        self.assertEqual(4, len(block), block)
 
     def test_entry_point_size_counts_utf8_bytes(self):
         skill = self.write_skill()
@@ -238,26 +242,49 @@ class CheckSkillTest(unittest.TestCase):
         self.assertEqual(4, len(blocks), result.stdout)
         whole_file, local_links, fix, summary = blocks
         self.assertEqual(
-            ["FAIL whole-file-pointers:", "FAIL whole-file-pointers:", "WHY whole-file-pointers:"],
+            ["FAIL whole-file-pointers:", "FAIL whole-file-pointers:"],
             [" ".join(line.split(" ", 2)[:2]) for line in whole_file],
         )
-        self.assertIn("anchor", whole_file[2])
         self.assertEqual(
-            ["FAIL local-links:", "WHY local-links:"],
+            ["FAIL local-links:"],
             [" ".join(line.split(" ", 2)[:2]) for line in local_links],
         )
-        self.assertEqual(
-            [f"FIX: read {GUIDE} in full before changing anything; "
-             "it says how to choose the fix for each check."],
-            fix,
-        )
+        self.assertEqual([FIX_LINE], fix)
         self.assertTrue(GUIDE.is_file())
         self.assertEqual(["RESULT demo: 3 findings"], summary)
 
-    def test_a_missing_entry_point_states_its_reason(self):
+    def test_a_missing_entry_point_points_to_the_guide(self):
         self.write("README.md", "# Demo\n")
         result = self.assert_fails("entry-point", "SKILL.md")
-        self.assertIn("WHY entry-point:", result.stdout)
+        self.assertIn("\n" + FIX_LINE + "\n", result.stdout)
+
+    def test_output_points_once_to_the_guide_and_prints_no_reason_of_its_own(self):
+        other = self.root / "other"
+        other.mkdir()
+        other.joinpath("SKILL.md").write_text(FRONTMATTER, encoding="utf-8")
+        self.write("references/guide.md", "# Guide\n\n## Part\n")
+        self.write("references/orphan.md", "# Orphan\n")
+        self.write("evals/fixtures/sample/SKILL.md", FRONTMATTER)
+        self.write("SPEC.md", "# Spec\n")
+        self.write_skill(
+            "x" * 15000 + "\nRead [guide](references/guide.md#part). See [m](nope.md).\n"
+            "Follow [other](../other/SKILL.md).\n",
+            frontmatter="---\nname: other\ndescription: x\n---\n",
+        )
+        result = run(self.skill)
+        self.assertEqual(1, result.returncode, result.stdout)
+        kinds = list(dict.fromkeys(
+            line.split(":", 1)[0].split(" ", 1)[1]
+            for line in result.stdout.splitlines() if line.startswith("FAIL ")
+        ))
+        self.assertEqual(8, len(kinds), result.stdout)
+        self.assertEqual(1, result.stdout.count(str(GUIDE)), result.stdout)
+        self.assertIn(FIX_LINE, result.stdout.splitlines())
+        headings = GUIDE.read_text(encoding="utf-8").splitlines()
+        for kind in kinds + ["entry-point"]:
+            self.assertIn(f"## {kind}", headings, kind)
+        prefixes = {line.split(" ", 1)[0] for line in result.stdout.splitlines() if line}
+        self.assertEqual({"FAIL", "INFO", "FIX:", "RESULT"}, prefixes)
 
     def test_a_passing_run_prints_no_reasons(self):
         self.write_skill()
