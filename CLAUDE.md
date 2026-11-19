@@ -14,8 +14,11 @@ Compatible with Claude Code, Codex, OpenCode, and pi.
 ├── agents/          # Agent definitions (AGENT.md)
 ├── pi-extensions/   # Pi extension files and directories
 ├── scripts/         # Installation and utility scripts
+├── _sunset/         # Sunset (retired) public extensions, same layout — not installable, removed later
 └── private/         # (gitignored) author-private extensions — its own git repo, same layout
 ```
+
+To sunset, deprecate, or retire a public extension, invoke the project skill `sunset-extension` (`.claude/skills/sunset-extension/`).
 
 ## Private Extensions
 
@@ -27,7 +30,7 @@ Compatible with Claude Code, Codex, OpenCode, and pi.
 - For skills, commands, and agents, named installs search the public directories first, then `private/<type>/<name>`. Private entries can be installed by name. `ALL` scans public entries; `<type> __ALL` also scans that type's private directory.
 - Top-level `__ALL` only visits types whose public directory exists. Use `<type> __ALL` for a type that exists only under `private/`.
 - Pi extensions are read from the public `pi-extensions/` directory (or its `extensions/` subdirectory). The install and uninstall scripts do not scan `private/pi-extensions/`.
-- For skills, commands, and agents, `uninstall.sh <type> ALL` scans public and private source directories and removes matching managed installs. It does not discover entries already removed from those source directories.
+- For skills, commands, and agents, `uninstall.sh <type> ALL` scans public, private, and `_sunset/` source directories and removes matching managed installs. It does not discover entries already removed from those source directories.
 - The private repo root contains `skills/<name>/SKILL.md`, so the skills CLI also works against it: `npx skills add <private-repo-url>` or `npx skills add ./private`.
 - To publish a private extension: `mv private/<type>/<name> <type>/<name>`, add a README row, then commit the addition here and the removal in `private/`.
 

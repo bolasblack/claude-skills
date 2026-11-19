@@ -349,4 +349,34 @@ for scope in home project; do
     [[ ! -e "$base/.agents" && ! -e "$base/.codex" ]]
 done
 
+echo "Sunset extensions are not installable by name, ALL, or __ALL"
+mkdir -p "$TEST_ROOT/claude-skills/_sunset/skills/retired" "$TEST_ROOT/sunset-project"
+printf '# Retired\n' > "$TEST_ROOT/claude-skills/_sunset/skills/retired/SKILL.md"
+if "$TEST_ROOT/claude-skills/scripts/install.sh" --project "$TEST_ROOT/sunset-project" \
+    --tools claude skills retired >"$TEST_ROOT/sunset-install.log" 2>&1; then
+    echo "Expected installing a sunset skill by name to fail" >&2
+    exit 1
+fi
+for all in ALL __ALL; do
+    "$TEST_ROOT/claude-skills/scripts/install.sh" --project "$TEST_ROOT/sunset-project" \
+        --tools claude skills "$all" >/dev/null
+    "$TEST_ROOT/claude-skills/scripts/install.sh" --project "$TEST_ROOT/sunset-project" \
+        --tools claude "$all" >/dev/null
+done
+[[ -d "$TEST_ROOT/sunset-project/.claude/skills/example" ]]
+[[ ! -e "$TEST_ROOT/sunset-project/.claude/skills/retired" ]]
+
+echo "Uninstall removes managed installs of sunset extensions by name and by ALL"
+for args in "skills retired" "skills ALL" "ALL"; do
+    target="$TEST_ROOT/sunset-project/.claude/skills/retired"
+    mkdir -p "$target"
+    printf '# Installed copy\n' > "$target/SKILL.md"
+    printf 'bolasblack/claude-skills\n' > "$target/.managed-by"
+    # shellcheck disable=SC2086
+    "$TEST_ROOT/claude-skills/scripts/uninstall.sh" --project "$TEST_ROOT/sunset-project" \
+        --tools claude $args >/dev/null
+    [[ ! -e "$target" ]]
+done
+[[ -f "$TEST_ROOT/claude-skills/_sunset/skills/retired/SKILL.md" ]]
+
 echo "install tests passed"

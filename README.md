@@ -143,9 +143,17 @@ cd ~/.c4-skills
 │   │   └── index.ts
 │   └── web-search/
 │       └── index.ts
-└── scripts/
-    └── install.sh
+├── scripts/
+│   └── install.sh
+└── _sunset/              # retired extensions, same layout; not installable
 ```
+
+## Sunset
+
+Sunset extensions are no longer installable and will be removed in the future. To remove an old install, run `./scripts/uninstall.sh <type> <name>`.
+
+| Extension | Why | Use instead |
+|-----------|-----|-------------|
 
 ## Contributing
 

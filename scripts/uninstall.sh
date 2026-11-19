@@ -117,9 +117,10 @@ uninstall_all_of_type() {
     local main_file
     main_file=$(get_main_file "$type")
 
-    # ALL uninstalls cover private extensions (private/<type>/) too.
+    # ALL uninstalls cover private (private/<type>/) and sunset (_sunset/<type>/)
+    # extensions too, so installs made before an extension was sunset can be cleaned up.
     local root
-    for root in "$PROJECT_DIR/$type" "$PROJECT_DIR/private/$type"; do
+    for root in "$PROJECT_DIR/$type" "$PROJECT_DIR/private/$type" "$PROJECT_DIR/_sunset/$type"; do
         for dir in "$root"/*/; do
             if [[ -d "$dir" && -f "$dir/$main_file" ]]; then
                 local name
