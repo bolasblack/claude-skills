@@ -645,10 +645,12 @@ class SkillComposerPackageTest(unittest.TestCase):
         self.assertNotIn("put critical rules first", step5)
         self.assertIn("`writing-for-agents` or `references/writing.md` was applied", step5)
         self.assertIn(
-            "Never scan home or user-level skill directories for examples, "
-            "validators, or target evidence",
+            "Take examples, validators, and target evidence from the workspace, a validator "
+            "command the package or primary documentation names, and primary target "
+            "documentation; record a missing validator as `unknown`.",
             full_contract,
         )
+        self.assertNotIn("Never scan home or user-level skill directories", full_contract)
 
     def test_introduction_keeps_eval_reference_behind_the_update_router(self):
         skill = PACKAGE.joinpath("SKILL.md").read_text(encoding="utf-8")
@@ -862,11 +864,6 @@ class SkillComposerPackageTest(unittest.TestCase):
         self.assertIn(
             "A portable core that names multiple compatible harnesses remains "
             "portable-only",
-            skill_contract,
-        )
-        self.assertIn(
-            "Do not enumerate `PATH`, installation directories, or language "
-            "package registries to hunt for validators",
             skill_contract,
         )
 

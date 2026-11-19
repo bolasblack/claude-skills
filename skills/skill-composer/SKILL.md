@@ -33,7 +33,7 @@ Required behavior, the **portable core** (goal, inputs, outputs, decision rules,
 
 **Harness research:** before creating, changing, or reviewing a target-specific claim about discovery, schema, invocation, permissions, hooks, installation, packaging, validation, or host enhancements, read [HARNESS-RESEARCH.md](HARNESS-RESEARCH.md) in full; harnesses change often, so a harness fact written into a skill goes stale quickly. A portable core that names multiple compatible harnesses remains portable-only when it encodes no harness-specific fact; skip research then.
 
-Never scan home or user-level skill directories for examples, validators, or target evidence. Use the workspace, a validator command the package or primary documentation names, and primary target documentation. Do not enumerate `PATH`, installation directories, or language package registries to hunt for validators; record a missing validator as `unknown`.
+Take examples, validators, and target evidence from the workspace, a validator command the package or primary documentation names, and primary target documentation; record a missing validator as `unknown`.
 
 ### Environment-Native Automation
 
