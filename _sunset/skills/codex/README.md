@@ -1,5 +1,7 @@
 # Codex — Second Opinion (OpenAI Codex)
 
+> **Sunset:** this skill is no longer installable from this repository and will be removed in the future. It wrapped the headless codex CLI with its own flags and stream parser, which broke with CLI updates and could not guarantee the read-only behaviour it promised. Use the runner's built-in code review, or gstack's `/codex` skill for a Codex second opinion, instead.
+
 Get an independent second opinion from OpenAI Codex via the `codex` CLI — a different AI system reviewing with fresh eyes and no stake in the plan.
 
 ## Modes

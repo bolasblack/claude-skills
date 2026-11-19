@@ -1,5 +1,7 @@
 # Grok — Second Opinion (xAI Grok)
 
+> **Sunset:** this skill is no longer installable from this repository and will be removed in the future. It wrapped the headless grok CLI with its own flags and stream parser, which broke with CLI updates and could not guarantee the read-only behaviour it promised: on Grok 1.0.70, plan mode does not block shell writes. Use the runner's built-in code review, or gstack's `/codex` skill for a Codex second opinion, instead.
+
 Get an independent second opinion from xAI's Grok via the `grok` CLI — a different AI system reviewing with fresh eyes and no stake in the plan.
 
 ## Modes

@@ -31,8 +31,6 @@ npx skills add bolasblack/claude-skills --skill <skill-name>
 | ⭐ [mcp-skill-generator](./skills/mcp-skill-generator/) | Convert MCP servers to Claude Code skills with progressive disclosure. Generates programmatic API for AI to write code that calls MCP tools |
 | ⭐ [skill-composer](./skills/skill-composer/) | **Create and maintain skills that work across agents—with repeatable eval infrastructure built in.** [See the full comparison →](./skills/skill-composer/README.md#beyond-scaffolding) |
 | [git-hook](./skills/git-hook/) | Adopt reusable Git hooks with a repo-owned Lefthook runner, Git-private binary, verified bootstrap, and fresh-clone setup path |
-| [grok](./skills/grok/) | Independent second opinion from xAI's Grok via the grok CLI — diff review with a pass/fail gate, adversarial challenge, and free-form consult with session continuity |
-| [codex](./skills/codex/) | Independent second opinion from OpenAI Codex via the codex CLI — diff review with a pass/fail gate, adversarial challenge, and free-form consult with session continuity |
 | [dependency-safety-check](./skills/dependency-safety-check/) | Screen third-party dependencies for vulnerabilities and supply-chain risk with a bundled `check-deps.py` gate before installation |
 | [design-md](./skills/design-md/) | Create, update, validate, diff, or export DESIGN.md files following Google's [Stitch DESIGN.md spec](https://stitch.withgoogle.com/docs/design-md/overview) |
 | 🌐 [frontend-design](./skills/frontend-design/) | Create distinctive, production-grade frontend interfaces with high design quality |
@@ -150,6 +148,8 @@ Sunset extensions are no longer installable and will be removed in the future. T
 
 | Extension | Why | Use instead |
 |-----------|-----|-------------|
+| [codex](./_sunset/skills/codex/) | Wrapped the vendor's headless CLI with its own flags and stream parser, which broke with CLI updates and could not guarantee the read-only behaviour it promised | The runner's built-in code review, or gstack's `/codex` skill for a Codex second opinion |
+| [grok](./_sunset/skills/grok/) | Wrapped the vendor's headless CLI with its own flags and stream parser, which broke with CLI updates and could not guarantee the read-only behaviour it promised; on Grok 1.0.70, plan mode does not block shell writes | The runner's built-in code review, or gstack's `/codex` skill for a Codex second opinion |
 | [command-creator](./_sunset/skills/command-creator/) | Claude Code merged custom slash commands into the skill system, so new commands should be written as skills | [skill-composer](./skills/skill-composer/) |
 | 🌐 [parallel-agent-workflow](./_sunset/skills/parallel-agent-workflow/) | Claude Code now runs subagents in their own git worktrees (`isolation: "worktree"`) and orchestrates them with Workflows, so a hand-rolled worktree workflow adds little | Claude Code's built-in worktree isolation and Workflows |
 | [code-reviewer](./_sunset/agents/code-reviewer/) | A persona-style reviewer with no change scope, no spec, no requirement to verify findings, and no rule for what happens to a finding, so its reviews mostly produce nitpicks and design suggestions nobody needs | The code review built into your agent runner (Claude Code's `/code-review`, Codex's `codex review`, and the like) |

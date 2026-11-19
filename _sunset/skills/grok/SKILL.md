@@ -1,9 +1,11 @@
 ---
 name: grok
-description: "xAI Grok second opinion via the grok CLI — three modes. Review: independent diff review with a pass/fail gate. Challenge: adversarial pass that tries to break the code. Consult: ask Grok anything, with session continuity for follow-ups. Use when the user says \"grok review\", \"grok challenge\", \"ask grok\", or wants a second opinion from Grok."
+description: "[SUNSET — use the runner's built-in code review or gstack's /codex instead] xAI Grok second opinion via the grok CLI — three modes. Review: independent diff review with a pass/fail gate. Challenge: adversarial pass that tries to break the code. Consult: ask Grok anything, with session continuity for follow-ups. Use when the user says \"grok review\", \"grok challenge\", \"ask grok\", or wants a second opinion from Grok."
 allowed-tools: Bash, Read, Glob, Grep, AskUserQuestion
 compatibility: Requires the grok CLI installed and authenticated via grok login, and python3 for the bundled stream parser. Review and Challenge modes also require git.
 ---
+
+> **Sunset:** this skill is no longer installable from this repository and will be removed in the future. It wrapped the headless grok CLI with its own flags and stream parser, which broke with CLI updates and could not guarantee the read-only behaviour it promised: on Grok 1.0.70, plan mode does not block shell writes. Use the runner's built-in code review, or gstack's `/codex` skill for a Codex second opinion, instead.
 
 # /grok — Second Opinion (xAI Grok)
 

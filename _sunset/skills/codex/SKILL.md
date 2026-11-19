@@ -1,9 +1,11 @@
 ---
 name: codex
-description: "OpenAI Codex second opinion via the codex CLI — three modes. Review: independent diff review with a pass/fail gate. Challenge: adversarial pass that tries to break the code. Consult: ask Codex anything, with session continuity for follow-ups. Use when the user says \"codex review\", \"codex challenge\", \"ask codex\", or wants a second opinion from Codex."
+description: "[SUNSET — use the runner's built-in code review or gstack's /codex instead] OpenAI Codex second opinion via the codex CLI — three modes. Review: independent diff review with a pass/fail gate. Challenge: adversarial pass that tries to break the code. Consult: ask Codex anything, with session continuity for follow-ups. Use when the user says \"codex review\", \"codex challenge\", \"ask codex\", or wants a second opinion from Codex."
 allowed-tools: Bash, Read, Glob, Grep, AskUserQuestion
 compatibility: Requires the OpenAI Codex CLI (npm install -g @openai/codex) authenticated via codex login or OPENAI_API_KEY/CODEX_API_KEY, and python3 for the bundled stream parser. Review and Challenge modes also require git.
 ---
+
+> **Sunset:** this skill is no longer installable from this repository and will be removed in the future. It wrapped the headless codex CLI with its own flags and stream parser, which broke with CLI updates and could not guarantee the read-only behaviour it promised. Use the runner's built-in code review, or gstack's `/codex` skill for a Codex second opinion, instead.
 
 # /codex — Second Opinion (OpenAI Codex)
 
