@@ -75,7 +75,7 @@ function writeRuleFile(
 /**
  * Structure-only view of review-metadata output: section title -> listed files.
  * Deliberately ignores instruction body prose so documentation rewording in
- * references/review-metadata-instructions/ cannot break these tests.
+ * assets/review-metadata-instructions/ cannot break these tests.
  */
 function parseInstructionSections(stdout: string): Map<string, string[]> {
   const sections = new Map<string, string[]>()
@@ -1947,7 +1947,7 @@ test('the shipped instruction catalog defines every expected key with a non-empt
   const shipped = join(
     dirname(fileURLToPath(import.meta.url)),
     '..',
-    'references',
+    'assets',
     'review-metadata-instructions',
   )
 

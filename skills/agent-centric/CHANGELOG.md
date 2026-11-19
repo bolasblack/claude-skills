@@ -2,6 +2,23 @@
 
 Changes are recorded by date, newest first. Entries dated 2026-04-13 and earlier were moved from `SKILL.md` and are kept as written.
 
+## 2026-11-19
+
+### Read the setup steps from a reference only on request
+
+- **Changed:** The initialization steps, and what initialization creates, moved from the README's Setup section to `references/setup.md`. When the user explicitly requests project setup, the agent reads that file in full, follows it, and reruns the setup check. The README now tells users to ask the agent for setup.
+- **Why:** The skill pointed the agent at one section of the README (`README.md#setup`). A file tool cannot jump to a section, so the agent could read a fragment and miss the steps and gates around it.
+
+### Link the companion skill by repository URL
+
+- **Changed:** The README links the guardrails companion skill by its repository URL instead of a relative path to a sibling directory.
+- **Why:** A relative link that leaves the skill points at nothing when the skill is installed on its own.
+
+### Point the agent at the index format reference
+
+- **Changed:** The skill instructions now tell the agent to read `references/index.md` when looking up decisions by tag or by relationship.
+- **Why:** No instruction linked that reference, so the agent never read the documented index formats.
+
 ## 2026-10-04
 
 ### Require project setup before skill use

@@ -33,8 +33,9 @@ alone is insufficient.
 If the check fails or cannot run, **stop using this skill**. Briefly report the
 missing setup and continue the user's task without AGD operations. Do not
 initialize, sync, repair configuration, or create decisions/indexes to bypass the
-check. Setup is a separate action: only follow [Setup](README.md#setup) when the
-user explicitly requests it, then rerun this check.
+check. Setup is a separate action: only when the user explicitly requests project
+setup, read [references/setup.md](references/setup.md) in full and follow it, then
+rerun this check.
 
 After a successful check, sync the initialized project's managed files:
 
@@ -138,6 +139,9 @@ grep "#tagname" "$CLAUDE_PROJECT_DIR/.agents/INDEX-TAGS.md"
 # By relationship
 grep "AGD-001" "$CLAUDE_PROJECT_DIR/.agents/INDEX-AGD-RELATIONS.md"
 ```
+
+When looking up decisions by tag or by relationship, read
+[references/index.md](references/index.md) in full for the index formats.
 
 ## Managing Tags
 

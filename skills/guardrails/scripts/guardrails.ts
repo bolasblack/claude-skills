@@ -83,7 +83,7 @@ const reviewMetadataPathPattern = new RegExp(
 const defaultReviewMetadataInstructionsDir = join(
   dirname(fileURLToPath(import.meta.url)),
   '..',
-  'references',
+  'assets',
   'review-metadata-instructions',
 )
 const expectedReviewInstructionKeys = [

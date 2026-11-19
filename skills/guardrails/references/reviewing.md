@@ -16,7 +16,7 @@ When `--base` is omitted, the base ref is resolved in this order: the `GUARDRAIL
 
 It detects changed active GRL files, retired GRL files, deleted active GRL files, and router changes relative to the base ref. Renaming or renumbering a rule reports the old path as a removal, because git rename detection is disabled; moving a rule into `retired-rules/` reports it as a retirement instead. It compares changed GRL metadata/text against the base ref when both sides can be parsed, then prints only the relevant reviewer instruction sections for categories such as enforcement, `skip_index_reason`, `lint_assist_reason`, `references`, `short`/body text, `retire_reason`, active rule removal, parse issues, and router changes. Each section lists every applicable file; there is no separate upfront changed-file list.
 
-The instructions are prompts for manual review, not verdicts. Their prose is maintained in per-category files under `<SKILL_PATH>/references/review-metadata-instructions/`; missing, unknown, or malformed catalog entries make the command fail closed. The CLI owns category detection and file grouping. `review-metadata` is not a lint gate. It is a review helper because its output requires human judgment.
+The instructions are prompts for manual review, not verdicts. Their prose is maintained in per-category files under `<SKILL_PATH>/assets/review-metadata-instructions/`; missing, unknown, or malformed catalog entries make the command fail closed. The CLI owns category detection and file grouping. `review-metadata` is not a lint gate. It is a review helper because its output requires human judgment.
 
 ## Structural Validation
 

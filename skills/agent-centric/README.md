@@ -60,20 +60,9 @@ Paste this into Claude Code, Codex, OpenCode, or any compatible AI coding agent:
 
 ## Setup
 
-Run initialization only when the user explicitly requests project setup. Set the
-project root and installed skill directory first:
-
-```bash
-export CLAUDE_PROJECT_DIR="/absolute/path/to/project"
-export CLAUDE_SKILL_DIR="/absolute/path/to/agent-centric"
-bash "$CLAUDE_SKILL_DIR/scripts/init.sh"
-python3 "$CLAUDE_SKILL_DIR/scripts/check-setup.py" "$CLAUDE_PROJECT_DIR"
-```
-
-Initialization creates `.agents/decisions/`, runtime scripts, configuration,
-indexes, and project instructions. Skill use requires the final check to exit `0`.
-The check itself only reads the project; it does not initialize, sync, validate
-decisions, regenerate indexes, or execute configured project scripts.
+Ask the agent to set up AGD tracking in your project. Initialization runs only on
+that explicit request; the steps, and what initialization creates, are in
+[references/setup.md](references/setup.md).
 
 ## Script Auto-Update
 
@@ -98,7 +87,7 @@ To disable all script updates:
 
 ## Works Well With
 
-The [guardrails](../guardrails/) skill is the natural companion: an AGD records *why* a decision was made, and when a decision produces a hard rule the repository must enforce, that rule becomes a guardrail (GRL) whose `references` field points back at the AGD. AGD keeps the decision history; guardrails keep the enforceable rules. Both frameworks live side by side under `.agents/`.
+The [guardrails](https://github.com/bolasblack/claude-skills/tree/master/skills/guardrails) skill is the natural companion: an AGD records *why* a decision was made, and when a decision produces a hard rule the repository must enforce, that rule becomes a guardrail (GRL) whose `references` field points back at the AGD. AGD keeps the decision history; guardrails keep the enforceable rules. Both frameworks live side by side under `.agents/`.
 
 ## Acknowledgments
 

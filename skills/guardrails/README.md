@@ -33,7 +33,7 @@ Before a task, the agent reads the router, picks the relevant IDs, and renders e
 
 ## Works Well With
 
-The [agent-centric](../agent-centric/) skill's AGD decision records are the natural companion: an AGD records *why* a decision was made, and a guardrail encodes the hard rule that decision produced. The rule-change workflow here ("decision, then guardrail, then lint") assumes a decision-record system — AGD fills that role, and a guardrail's `references` field can point at the AGD that motivated it. Both frameworks live side by side under `.agents/`.
+The [agent-centric](https://github.com/bolasblack/claude-skills/tree/master/skills/agent-centric) skill's AGD decision records are the natural companion: an AGD records *why* a decision was made, and a guardrail encodes the hard rule that decision produced. The rule-change workflow here ("decision, then guardrail, then lint") assumes a decision-record system — AGD fills that role, and a guardrail's `references` field can point at the AGD that motivated it. Both frameworks live side by side under `.agents/`.
 
 ## Scope
 

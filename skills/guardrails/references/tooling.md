@@ -68,7 +68,7 @@ bun <SKILL_PATH>/scripts/guardrails.ts review-metadata --base <ref>
 
 It detects changed active GRL files, retired GRL files, deleted active GRL files, and router changes relative to the base ref. Git rename detection is disabled, so a rule moved or renumbered in the same change set reports both the old and the new path; a deleted active GRL is reported as a removal unless the same GRL number appears as a retired file in that change set. When a changed GRL can be parsed in the working tree and at the base ref, it compares review-relevant fields, selects only the instruction sections relevant to changed categories, and lists every applicable file under each section. It does not print a separate upfront changed-file list.
 
-The printed instruction prose is maintained in per-category files under `<SKILL_PATH>/references/review-metadata-instructions/`; the filename stem is the instruction key. The catalog fails closed when expected instruction files are missing, unknown, or malformed. The CLI owns change detection and file grouping. `review-metadata` does not decide whether metadata is sufficient. It is not part of lint. It is a review helper because its output requires human judgment.
+The printed instruction prose is maintained in per-category files under `<SKILL_PATH>/assets/review-metadata-instructions/`; the filename stem is the instruction key. The catalog fails closed when expected instruction files are missing, unknown, or malformed. The CLI owns change detection and file grouping. `review-metadata` does not decide whether metadata is sufficient. It is not part of lint. It is a review helper because its output requires human judgment.
 
 ### next-id
 
@@ -82,7 +82,7 @@ bun <SKILL_PATH>/scripts/guardrails.ts next-id
 
 The CLI runs on Bun (https://bun.sh); it uses Bun's YAML parser and has no npm dependencies. Running it under another runtime fails immediately with a message naming Bun rather than failing per rule file. `review-metadata` additionally shells out to `git`.
 
-The review-metadata instruction catalog is resolved relative to the script file, at `<SKILL_PATH>/references/review-metadata-instructions/`. Keep `scripts/` and `references/` siblings inside the skill directory; moving the script alone breaks the command.
+The review-metadata instruction catalog is resolved relative to the script file, at `<SKILL_PATH>/assets/review-metadata-instructions/`. Keep `scripts/` and `assets/` siblings inside the skill directory; moving the script alone breaks the command.
 
 ## Exit Codes and Output
 
