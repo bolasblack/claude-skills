@@ -158,5 +158,6 @@ Examples:
 
 ## Version History
 
+- v1.2.0 (2026-11-20): GitHub advisory check now matches only advisories whose vulnerable range contains the checked version, and reports all of them. `--ecosystem pypi` and `cargo` now query OSV and GitHub under the names those APIs accept.
 - v1.1.0 (2026-05-11): Added configurable minimum package age with a 30-day default.
 - v1.0.0 (2026-04-13): Initial version

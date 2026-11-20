@@ -33,6 +33,9 @@ DEFAULT_ECOSYSTEM = "npm"
 DEFAULT_MIN_AGE_DAYS = 30
 MIN_ALLOWED_AGE_DAYS = 7
 REQUEST_TIMEOUT = 15
+# --ecosystem value -> the name each advisory API expects; both reject the CLI names "pypi" and "cargo".
+OSV_ECOSYSTEMS = {"pypi": "PyPI", "cargo": "crates.io"}
+GITHUB_ECOSYSTEMS = {"pypi": "pip", "cargo": "rust"}
 
 # Disable SSL verification warnings for older Python versions
 try:
@@ -202,7 +205,7 @@ def check_osv(name, version, ecosystem="npm"):
     """Query OSV.dev for known vulnerabilities."""
     result = {"source": "osv.dev", "findings": []}
 
-    query = {"package": {"name": name, "ecosystem": ecosystem}}
+    query = {"package": {"name": name, "ecosystem": OSV_ECOSYSTEMS.get(ecosystem, ecosystem)}}
     if version:
         query["version"] = version
 
@@ -238,14 +241,16 @@ def check_osv(name, version, ecosystem="npm"):
     return result
 
 
-def check_github_advisory(name, ecosystem="npm"):
+def check_github_advisory(name, version, ecosystem="npm"):
     """Search GitHub Advisory Database via API."""
     result = {"source": "github-advisory", "findings": []}
 
-    # GitHub advisory search (public, no auth needed for basic search)
-    url = "https://api.github.com/advisories?ecosystem=%s&affects=%s&per_page=10" % (
-        quote(ecosystem, safe=""),
-        quote(name, safe=""),
+    # GitHub advisory search (public, no auth needed for basic search).
+    # affects=<name>@<version> returns only advisories whose vulnerable range contains that version.
+    # shortcut: reads one page of 100 (the API maximum); follow the Link header if a version ever has more.
+    url = "https://api.github.com/advisories?ecosystem=%s&affects=%s&per_page=100" % (
+        quote(GITHUB_ECOSYSTEMS.get(ecosystem, ecosystem), safe=""),
+        quote("%s@%s" % (name, version) if version else name, safe=""),
     )
     resp = fetch_json(url, headers={"Accept": "application/vnd.github+json"})
 
@@ -265,7 +270,7 @@ def check_github_advisory(name, ecosystem="npm"):
                 "message": "No advisories found in GitHub Advisory Database.",
             })
         else:
-            for adv in resp[:5]:
+            for adv in resp:
                 ghsa_id = adv.get("ghsa_id", "?")
                 summary = adv.get("summary", "No summary")
                 sev = adv.get("severity", "unknown")
@@ -652,7 +657,7 @@ def check_package(name, version, ecosystem, min_age_days):
     if ecosystem == "npm":
         checks.append(check_npm_registry(name, version, min_age_days))
     checks.append(check_osv(name, version, ecosystem))
-    checks.append(check_github_advisory(name, ecosystem))
+    checks.append(check_github_advisory(name, version, ecosystem))
     checks.append(check_socket_dev(name, version, ecosystem))
     checks.append(check_snyk(name, ecosystem))
 
