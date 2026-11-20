@@ -1,0 +1,4 @@
+{
+  "name": "mise-env",
+  "description": "Session-start hook of the mise-env skill: every Bash command sees the mise environment of the directory it runs in."
+}

@@ -32,6 +32,7 @@ npx skills add bolasblack/claude-skills --skill <skill-name>
 | ⭐ [skill-composer](./skills/skill-composer/) | **Create and maintain skills that work across agents—with repeatable eval infrastructure built in.** [See the full comparison →](./skills/skill-composer/README.md#beyond-scaffolding) |
 | [git-hook](./skills/git-hook/) | Adopt reusable Git hooks with a repo-owned Lefthook runner, Git-private binary, verified bootstrap, and fresh-clone setup path |
 | [dependency-safety-check](./skills/dependency-safety-check/) | Screen third-party dependencies for vulnerabilities and supply-chain risk with a bundled `check-deps.py` gate before installation |
+| [mise-env](./skills/mise-env/) | Claude Code hook plugin: each Bash command sees the mise environment of the directory it runs in, not the one the session or `claude --bg` daemon started in |
 | [design-md](./skills/design-md/) | Create, update, validate, diff, or export DESIGN.md files following Google's [Stitch DESIGN.md spec](https://stitch.withgoogle.com/docs/design-md/overview) |
 | 🌐 [frontend-design](./skills/frontend-design/) | Create distinctive, production-grade frontend interfaces with high design quality |
 | 🌐 [caveman](./skills/caveman/) | Terse caveman voice: answer first, drop ceremony, keep every technical fact. Stays on until "stop caveman" |
